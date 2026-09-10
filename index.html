@@ -1,0 +1,2780 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal — División Tiro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:       #1a237e;
+      --primary-light: #283593;
+      --accent:        #ffd600;
+      --green:         #2e7d32;
+      --green-light:   #4caf50;
+      --red:           #c62828;
+      --red-light:     #ef5350;
+      --orange:        #e65100;
+      --blue:          #0277bd;
+      --purple:        #6a1b9a;
+      --teal:          #00695c;
+      --bg:            #f0f2f5;
+      --card:          #ffffff;
+      --text:          #212121;
+      --muted:         #757575;
+      --border:        #e0e0e0;
+      --shadow:        0 2px 8px rgba(0,0,0,0.10);
+      --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* PANTALLAS DE AUTENTICACIÓN (login / acceso denegado) — reemplazan a
+       paginaSinLogin()/paginaAccesoDenegado() que antes armaba Code.gs en
+       el servidor. Se muestran/ocultan por JS según el estado de sesión. */
+    .pantalla-auth {
+      display: none;
+      position: fixed; inset: 0;
+      background: var(--bg);
+      align-items: center; justify-content: center;
+      min-height: 100vh; z-index: 5000; padding: 20px;
+    }
+    .pantalla-auth.show { display: flex; }
+    .pantalla-auth .box {
+      background: white; border-radius: 16px; padding: 48px 40px;
+      text-align: center; box-shadow: var(--shadow-lg); max-width: 420px;
+    }
+    .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+    .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+    .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+    .pantalla-auth .email-chip {
+      background: #f5f5f5; border-radius: 8px; padding: 8px 14px;
+      font-family: monospace; font-size: 13px; color: #333;
+      margin: 4px 0 16px; display: inline-block;
+    }
+    .header-user { display: flex; align-items: center; gap: 14px; }
+    .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+    .btn-cerrar-sesion {
+      background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+      border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+    }
+    .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+    /* HEADER */
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-logo {
+      width: 44px; height: 44px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 900; color: var(--primary);
+    }
+    .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+    .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+    .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+
+    /* TABS */
+    .tabs {
+      background: var(--primary-light);
+      display: flex;
+      padding: 0 28px;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: none; border: none;
+      color: rgba(255,255,255,.65);
+      padding: 13px 22px;
+      cursor: pointer; font-size: 13px; font-weight: 700;
+      letter-spacing: .5px; text-transform: uppercase;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: white; }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* LAYOUT */
+    .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* KPI GRID */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .table-card .kpi-grid { margin-bottom: 0; }
+    .kpi {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 18px 20px;
+      border-left: 4px solid;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform .12s, box-shadow .12s;
+    }
+    .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+    .kpi.c-blue   { border-left-color: var(--blue); }
+    .kpi.c-green  { border-left-color: var(--green-light); }
+    .kpi.c-orange { border-left-color: var(--accent); }
+    .kpi.c-red    { border-left-color: var(--red-light); }
+    .kpi.c-purple { border-left-color: var(--purple); }
+    .kpi.c-teal   { border-left-color: var(--teal); }
+    .kpi.c-gray   { border-left-color: #9e9e9e; }
+    .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+    .kpi-val   { font-size: 32px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+    .kpi-val.kpi-val-sm { font-size: 15px; line-height: 1.3; margin-bottom: 6px; }
+    .kpi-sub   { font-size: 11px; color: var(--muted); }
+
+    /* SEARCH BAR */
+    .search-bar {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow);
+    }
+    .search-input-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--primary); }
+    .ctrl-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; }
+    select, input[type="date"], input[type="text"], input[type="number"], input[type="file"], textarea {
+      padding: 7px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      background: white;
+      font-family: inherit;
+    }
+    select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+    input[readonly] { background: #f5f5f5; color: var(--muted); }
+    .count-pill {
+      background: var(--primary);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* TABLE */
+    .table-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+    .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .section-title .ico { font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    thead th {
+      background: var(--primary);
+      color: white;
+      padding: 10px 13px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      white-space: nowrap;
+    }
+    thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+    thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+    tbody td {
+      padding: 9px 13px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tbody tr:hover td { background: #f5f7fa; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr.clickable-row { cursor: pointer; }
+
+    /* BADGE */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .b-green   { background: #e8f5e9; color: #2e7d32; }
+    .b-yellow  { background: #fff9c4; color: #f57f17; }
+    .b-red     { background: #ffebee; color: #c62828; }
+    .b-blue    { background: #e3f2fd; color: #0277bd; }
+    .b-gray    { background: #f5f5f5; color: #616161; }
+
+    /* AUTOCOMPLETE LP / APELLIDO / NOMBRE */
+    .autocomplete-list {
+      display: none;
+      position: absolute;
+      top: 100%; left: 0; right: 0;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      max-height: 240px;
+      overflow-y: auto;
+      z-index: 50;
+      box-shadow: var(--shadow-lg);
+      margin-top: 4px;
+    }
+    .autocomplete-list.show { display: block; }
+    .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover { background: #f0f2f5; }
+    .autocomplete-item b { color: var(--primary); }
+    .autocomplete-item small { display: block; color: var(--muted); font-size: 11px; }
+    .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+
+    /* FORM */
+    .form-wrap { max-width: 1440px; margin: 0 auto; }
+    .form-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 18px;
+    }
+    /* Sub-navegación del Registro: mismo estilo que la barra de tabs principal, pero dentro de la tarjeta */
+    .subtabs {
+      background: var(--primary-light);
+      display: flex;
+      padding: 0 20px;
+      gap: 4px;
+      overflow-x: auto;
+      border-radius: 16px 16px 0 0;
+    }
+    .subtab-btn {
+      background: none; border: none;
+      color: rgba(255,255,255,.65);
+      padding: 13px 18px;
+      cursor: pointer; font-size: 12px; font-weight: 700;
+      letter-spacing: .5px; text-transform: uppercase;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .subtab-btn:hover { color: white; }
+    .subtab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .subtab-content { padding: 24px 28px; }
+    .subtab-pane { display: none; }
+    .subtab-pane.active { display: block; }
+    .form-card h2 { font-size: 19px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+    .form-card p  { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .form-section-title {
+      font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+      color: var(--primary); margin: 22px 0 12px; padding-bottom: 6px;
+      border-bottom: 2px solid var(--border);
+    }
+    .form-section-title:first-of-type { margin-top: 0; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group.half { grid-column: span 2; }
+    .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .required-star { color: var(--red); margin-left: 2px; }
+    .field-hint { font-size: 11px; color: var(--muted); }
+
+    /* PERSONAL PREVIEW */
+    .personal-preview {
+      grid-column: 1 / -1;
+      display: none;
+      background: #e8eaf6;
+      border: 1.5px solid var(--primary);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      align-items: center;
+      gap: 10px;
+    }
+    .personal-preview.show { display: flex; }
+    .personal-preview.notfound { background: #ffebee; border-color: var(--red); }
+    .personal-preview.existing { background: #fff9c4; border-color: var(--orange); }
+    .personal-preview .pp-ico { font-size: 20px; }
+    .personal-preview b { color: var(--primary); }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 11px 22px;
+      border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all .18s;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+    .btn-success { background: var(--green); color: white; }
+    .btn-danger  { background: var(--red); color: white; }
+    .btn-ghost   { background: #e0e0e0; color: var(--text); }
+    .btn-sm { padding: 5px 12px; font-size: 11px; }
+    .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+    .action-col { white-space: nowrap; text-align: right; }
+    .action-col button { margin-left: 4px; }
+
+    /* ALERT */
+    .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+    .alert.show { display: block; }
+    .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+    .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+
+    /* LOADING */
+    .loading-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.55); z-index: 9999;
+      align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+    }
+    .loading-overlay.show { display: flex; }
+    .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+    /* NO DATA */
+    .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+    .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 8888;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 1240px; width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+    .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+    .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+    .modal-back   { background: #e0e0e0; border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; margin-bottom: 14px; }
+    .recorte-lienzo { max-height: 60vh; overflow: hidden; background: #222; border-radius: 8px; }
+    .recorte-lienzo img { display: block; max-width: 100%; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; min-width: 0; }
+    .detail-item { font-size: 13px; min-width: 0; }
+    .detail-item label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 2px; overflow-wrap: break-word; word-break: break-word; }
+    .detail-item span { color: var(--text); font-weight: 600; overflow-wrap: break-word; word-break: break-word; }
+    /* Exportar ficha a PDF: se usa la impresión nativa del navegador (Guardar como PDF),
+       ocultando todo menos el modal de la ficha, con una presentación tipo carnet/reporte. */
+    .print-masthead { display: none; }
+    @page { size: A4; margin: 12mm 14mm; }
+    @media print {
+      body.modo-impresion-ficha > .header,
+      body.modo-impresion-ficha > .tabs,
+      body.modo-impresion-ficha > .content,
+      body.modo-impresion-ficha .loading-overlay,
+      body.modo-impresion-ficha .pantalla-auth { display: none !important; }
+      body.modo-impresion-ficha .modal-overlay {
+        position: static !important; display: block !important; background: none !important; padding: 0 !important;
+      }
+      body.modo-impresion-ficha .modal {
+        box-shadow: none !important; max-width: 100% !important; width: 100% !important;
+        max-height: none !important; overflow: visible !important; padding: 0 !important; border-radius: 0 !important;
+      }
+      body.modo-impresion-ficha .modal-header #genericModalExportBtn,
+      body.modo-impresion-ficha .modal-header .modal-close,
+      body.modo-impresion-ficha .modal-header,
+      body.modo-impresion-ficha .modal-back,
+      body.modo-impresion-ficha .btn-row { display: none !important; }
+      body.modo-impresion-ficha .print-masthead {
+        display: flex !important; justify-content: space-between; align-items: baseline;
+        font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+        border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 12px;
+      }
+      body.modo-impresion-ficha .ficha-header {
+        border-bottom: 2px solid var(--primary) !important; padding-bottom: 14px !important; margin-bottom: 16px !important;
+      }
+      body.modo-impresion-ficha .ficha-secciones { grid-template-columns: 1fr !important; gap: 10px !important; }
+      body.modo-impresion-ficha .ficha-seccion {
+        background: #fff !important; border: 1px solid #ddd !important; border-left: 4px solid var(--primary) !important;
+        box-shadow: none !important; padding: 10px 16px !important; break-inside: avoid;
+      }
+      body.modo-impresion-ficha .ficha-seccion-title {
+        font-size: 12px !important; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 8px !important;
+      }
+      body.modo-impresion-ficha .clu-imagen-wrap img { max-width: 240px !important; }
+    }
+    /* FICHA TIPO CARNET (modal de detalle del personal) */
+    .ficha-header {
+      display: flex; align-items: center; gap: 18px;
+      margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--border);
+    }
+    .ficha-foto {
+      width: 96px; height: 96px; border-radius: 12px; flex-shrink: 0;
+      background: #e8eaf6; border: 2px solid var(--primary);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .ficha-foto img { width: 100%; height: 100%; object-fit: cover; }
+    .ficha-foto .sin-foto { font-size: 42px; }
+    .ficha-nombre { font-size: 20px; font-weight: 900; color: var(--primary); line-height: 1.2; }
+    .ficha-grado { font-size: 13px; font-weight: 700; color: var(--text); margin-top: 4px; }
+    .ficha-dependencia { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .ficha-secciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .ficha-seccion { background: #fafafa; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; min-width: 0; overflow-wrap: break-word; }
+    .ficha-seccion-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--primary); margin-bottom: 10px; }
+    .clu-imagen-wrap { margin-top: 12px; }
+    .clu-imagen-wrap img { max-width: 100%; max-height: 240px; border-radius: 8px; border: 1px solid var(--border); cursor: zoom-in; }
+    /* Previsualizaciones chicas dentro del formulario de Registro (foto de personal / imagen CLU) */
+    .mini-preview-wrap { margin-top: 8px; position: relative; width: fit-content; }
+    .mini-preview-wrap img { max-width: 140px; max-height: 140px; border-radius: 8px; border: 1.5px solid var(--border); display: block; }
+    .btn-eliminar-img {
+      position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; padding: 0;
+      background: rgba(0,0,0,.6); color: #fff; border: none; border-radius: 6px;
+      font-size: 13px; line-height: 1; cursor: pointer;
+    }
+    .btn-eliminar-img:hover { background: var(--red); }
+    /* Tablas dentro del modal: sin ancho mínimo forzado, letra un poco más chica para que entren
+       todas las columnas sin scroll horizontal en pantallas normales. El wrap solo scrollea
+       como respaldo en pantallas muy angostas. */
+    .modal-table-wrap { overflow-x: auto; }
+    .modal table { min-width: 0; width: 100%; table-layout: auto; }
+    .modal table th, .modal table td { font-size: 12px; padding: 8px 10px; white-space: normal; }
+    @media (max-width: 700px) {
+      .modal { padding: 18px; }
+    }
+
+    /* Modal de confirmación/alerta propio (reemplaza confirm()/alert() nativos del navegador) */
+    .confirm-modal { max-width: 420px; width: 92vw; text-align: center; padding: 32px 28px; }
+    .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+    .confirm-modal p { font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 22px; }
+    .confirm-modal .btn-row { justify-content: center; }
+
+    @media (max-width: 1000px) {
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .form-group.half { grid-column: span 2; }
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .content   { padding: 14px; }
+      .header    { padding: 12px 16px; }
+      .tabs      { padding: 0 10px; }
+      .tab-btn   { padding: 11px 14px; font-size: 12px; }
+      .form-card { padding: 20px; }
+      .subtabs { padding: 0 10px; }
+      .subtab-btn { padding: 11px 12px; font-size: 11px; }
+      .subtab-content { padding: 18px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.half { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PANTALLA: sin sesión iniciada (reemplaza paginaSinLogin) -->
+<div class="pantalla-auth" id="pantallaLogin">
+  <div class="box">
+    <div class="icon">🔑</div>
+    <h2>Iniciar sesión</h2>
+    <p>Ingresá con el usuario y la contraseña que te dieron para este sistema. Es independiente de tu cuenta de Google: no se te va a pedir permiso sobre tu Drive.</p>
+    <form onsubmit="iniciarSesion(event)" style="text-align:left;">
+      <div class="form-group">
+        <label class="form-label">Usuario (email)</label>
+        <input type="email" id="loginEmail" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;">🔑 Iniciar sesión</button>
+    </form>
+    <div class="alert" id="loginAlert" style="margin-top:16px; text-align:left;"></div>
+  </div>
+</div>
+
+<!-- PANTALLA: acceso denegado (reemplaza paginaAccesoDenegado) -->
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<!-- MODAL GENÉRICO (lista por caja / detalle de ficha) -->
+<div class="modal-overlay" id="genericModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="genericModalTitle">—</div>
+      <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+        <button class="btn btn-success btn-sm" id="genericModalExportBtn" onclick="exportarCajaCSV()" style="display:none;">⬇️ Exportar Excel</button>
+        <button class="modal-close" onclick="closeGenericModal()">✕</button>
+      </div>
+    </div>
+    <div id="genericModalBody"></div>
+  </div>
+</div>
+
+<!-- MODAL DE RECORTE (encuadrar una foto antes de subirla, p.ej. el DNI) -->
+<div class="modal-overlay" id="recorteModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div class="modal-title">Encuadrar imagen</div>
+      <button class="modal-close" onclick="cancelarRecorte()">✕</button>
+    </div>
+    <div class="recorte-lienzo"><img id="recorteImg" alt="Imagen a recortar"></div>
+    <p class="field-hint" style="margin-top:10px;">Arrastrá los bordes del recuadro para encuadrar bien la imagen (sacar la mesa/fondo) antes de subirla.</p>
+    <div class="btn-row" style="margin-top:14px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="cancelarRecorte()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarRecorte()">✅ Confirmar recorte</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN/ALERTA PROPIO (reemplaza confirm()/alert() nativos) -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">🎯</div>
+    <div>
+      <div class="brand-title">PERSONAL — DIVISIÓN TIRO</div>
+      <div class="brand-sub">Ficha de personal, contacto y equipamiento</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- TABS -->
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="registro" onclick="switchTab('registro')">📝 Registro</button>
+  <button class="tab-btn" data-tab="personal" onclick="switchTab('personal')">📋 Personal</button>
+</nav>
+
+<div class="content">
+
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="tab-pane active" id="pane-dashboard">
+
+    <!-- PERSONAL -->
+    <div class="table-card">
+      <div class="section-title"><span class="ico">👥</span> Personal</div>
+      <div class="kpi-grid">
+        <div class="kpi c-blue" onclick="abrirCajaModal('total')">
+          <div class="kpi-label">Personal cargado</div>
+          <div class="kpi-val" id="kpiTotal">–</div>
+          <div class="kpi-sub">activo en la División Tiro</div>
+        </div>
+        <div class="kpi c-gray" onclick="abrirCajaModal('bajas')">
+          <div class="kpi-label">Dado de baja</div>
+          <div class="kpi-val" id="kpiBajas">–</div>
+          <div class="kpi-sub">histórico — no se borra, queda acá</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTACTO -->
+    <div class="table-card">
+      <div class="section-title"><span class="ico">📞</span> Contacto</div>
+      <div class="kpi-grid">
+        <div class="kpi c-teal" onclick="abrirCajaModal('telParticular')">
+          <div class="kpi-label">Teléfono particular</div>
+          <div class="kpi-val" id="kpiTelParticular">–</div>
+          <div class="kpi-sub">con dato cargado</div>
+        </div>
+        <div class="kpi c-purple" onclick="abrirCajaModal('telCelular')">
+          <div class="kpi-label">Teléfono celular</div>
+          <div class="kpi-val" id="kpiTelCelular">–</div>
+          <div class="kpi-sub">con dato cargado</div>
+        </div>
+        <div class="kpi c-orange" onclick="abrirCajaModal('telEmergencia')">
+          <div class="kpi-label">Teléfono de emergencia</div>
+          <div class="kpi-val" id="kpiTelEmergencia">–</div>
+          <div class="kpi-sub">con dato cargado</div>
+        </div>
+        <div class="kpi c-red" onclick="abrirCajaModal('contactoEmergencia')">
+          <div class="kpi-label">Contacto de emergencia</div>
+          <div class="kpi-val" id="kpiContactoEmergencia">–</div>
+          <div class="kpi-sub">nombre cargado</div>
+        </div>
+        <div class="kpi c-blue" onclick="abrirCajaModal('poc')">
+          <div class="kpi-label">POC (tel. institucional)</div>
+          <div class="kpi-val" id="kpiPOC">–</div>
+          <div class="kpi-sub">con dato cargado</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHALECO ANTIBALAS -->
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🦺</span> Chaleco antibalas</div>
+      <div class="kpi-grid">
+        <div class="kpi c-blue" onclick="abrirCajaModal('chalecoTotal')">
+          <div class="kpi-label">Total</div>
+          <div class="kpi-val" id="kpiChalecoTotal">–</div>
+          <div class="kpi-sub">vigente + por vencer</div>
+        </div>
+        <div class="kpi c-green" onclick="abrirCajaModal('vigente')">
+          <div class="kpi-label">Vigente</div>
+          <div class="kpi-val" id="kpiVigente">–</div>
+          <div class="kpi-sub">dentro de los 5 años</div>
+        </div>
+        <div class="kpi c-orange" onclick="abrirCajaModal('porVencer')">
+          <div class="kpi-label">Por vencer</div>
+          <div class="kpi-val" id="kpiPorVencer">–</div>
+          <div class="kpi-sub">próximos 90 días</div>
+        </div>
+        <div class="kpi c-red" onclick="abrirCajaModal('vencido')">
+          <div class="kpi-label">Vencido</div>
+          <div class="kpi-val" id="kpiVencido">–</div>
+          <div class="kpi-sub">a reemplazar</div>
+        </div>
+        <div class="kpi c-purple" onclick="abrirCajaModal('sinChaleco')">
+          <div class="kpi-label">Sin chaleco</div>
+          <div class="kpi-val" id="kpiSinChaleco">–</div>
+          <div class="kpi-sub">sin datos cargados</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARMAMENTO -->
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🔫</span> Armamento</div>
+      <div class="kpi-grid">
+        <div class="kpi c-purple" onclick="abrirCajaModal('armamento')">
+          <div class="kpi-label">Armamento cargado</div>
+          <div class="kpi-val" id="kpiArmamento">–</div>
+          <div class="kpi-sub">con marca o nro. cargado</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLU -->
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🪪</span> CLU (Legítimo Usuario de Armas)</div>
+      <div class="kpi-grid">
+        <div class="kpi c-green" onclick="abrirCajaModal('cluVigente')">
+          <div class="kpi-label">Vigente</div>
+          <div class="kpi-val" id="kpiCluVigente">–</div>
+          <div class="kpi-sub">no vence en 90 días</div>
+        </div>
+        <div class="kpi c-orange" onclick="abrirCajaModal('cluPorVencer')">
+          <div class="kpi-label">Por vencer</div>
+          <div class="kpi-val" id="kpiCluPorVencer">–</div>
+          <div class="kpi-sub">próximos 90 días</div>
+        </div>
+        <div class="kpi c-red" onclick="abrirCajaModal('cluVencido')">
+          <div class="kpi-label">Vencido</div>
+          <div class="kpi-val" id="kpiCluVencido">–</div>
+          <div class="kpi-sub">a renovar</div>
+        </div>
+        <div class="kpi c-purple" onclick="abrirCajaModal('cluSinDatos')">
+          <div class="kpi-label">Sin CLU cargada</div>
+          <div class="kpi-val" id="kpiCluSinDatos">–</div>
+          <div class="kpi-sub">sin datos cargados</div>
+        </div>
+        <div class="kpi c-blue" onclick="abrirCajaModal('cluLegitimoUsuario')">
+          <div class="kpi-label">Legítimo Usuario de Armas</div>
+          <div class="kpi-val" id="kpiCluLegitimoUsuario">–</div>
+          <div class="kpi-sub">con esta credencial</div>
+        </div>
+        <div class="kpi c-teal" onclick="abrirCajaModal('cluInstructor')">
+          <div class="kpi-label">Instr. Armas Cortas y Largas</div>
+          <div class="kpi-val" id="kpiCluInstructor">–</div>
+          <div class="kpi-sub">con esta credencial</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOMICILIO -->
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🏠</span> Domicilio</div>
+      <div class="kpi-grid">
+        <div class="kpi c-blue" onclick="abrirCajaModal('domicilioTotal')">
+          <div class="kpi-label">Total</div>
+          <div class="kpi-val" id="kpiDomicilioTotal">–</div>
+          <div class="kpi-sub">con dirección cargada</div>
+        </div>
+        <div class="kpi c-green" onclick="abrirCajaModal('domicilioPBA')">
+          <div class="kpi-label">PBA</div>
+          <div class="kpi-val" id="kpiDomicilioPBA">–</div>
+          <div class="kpi-sub">dirección contiene "PBA"</div>
+        </div>
+        <div class="kpi c-orange" onclick="abrirCajaModal('domicilioCABA')">
+          <div class="kpi-label">CABA</div>
+          <div class="kpi-val" id="kpiDomicilioCABA">–</div>
+          <div class="kpi-sub">dirección contiene "CABA"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LICENCIA DE CONDUCIR -->
+    <div class="table-card">
+      <div class="section-title" style="justify-content:space-between;">
+        <span><span class="ico">🚗</span> Licencia de conducir</span>
+        <button class="btn btn-success btn-sm" onclick="exportarPlanillaLicencias()" id="btnExportLicencias">📥 Exportar planilla oficial</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi c-blue" onclick="abrirCajaModal('licMunicipal')">
+          <div class="kpi-label">Licencia municipal</div>
+          <div class="kpi-val" id="kpiLicMunicipal">–</div>
+          <div class="kpi-sub">con licencia municipal (SI)</div>
+        </div>
+        <div class="kpi c-teal" onclick="abrirCajaModal('licPolicial')">
+          <div class="kpi-label">Licencia policial</div>
+          <div class="kpi-val" id="kpiLicPolicial">–</div>
+          <div class="kpi-sub">habilitado flota policial (SI)</div>
+        </div>
+        <div class="kpi c-purple" onclick="abrirCajaModal('licProfesional')">
+          <div class="kpi-label">Licencia profesional</div>
+          <div class="kpi-val" id="kpiLicProfesional">–</div>
+          <div class="kpi-sub">vigente o vencida</div>
+        </div>
+        <div class="kpi c-red" onclick="abrirCajaModal('sinLicencia')">
+          <div class="kpi-label">Sin licencia de conducir</div>
+          <div class="kpi-val" id="kpiSinLicencia">–</div>
+          <div class="kpi-sub">sin municipal ni policial</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUMPLEAÑOS -->
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🎂</span> Cumpleaños</div>
+      <div class="kpi-grid">
+        <div class="kpi c-purple" onclick="abrirCajaModal('cumpleProximo')">
+          <div class="kpi-label">Próximo cumpleaños</div>
+          <div class="kpi-val kpi-val-sm" id="kpiCumpleProximo">–</div>
+          <div class="kpi-sub" id="kpiCumpleProximoSub">sin datos</div>
+        </div>
+        <div class="kpi c-teal" onclick="abrirCajaModal('cumpleMes')">
+          <div class="kpi-label">Cumpleaños del mes</div>
+          <div class="kpi-val" id="kpiCumpleMes">–</div>
+          <div class="kpi-sub">nacidos en <span id="kpiCumpleMesNombre">este mes</span></div>
+        </div>
+        <div class="kpi c-blue" onclick="abrirCajaModal('cumpleTodos')">
+          <div class="kpi-label">Todos los cumpleaños</div>
+          <div class="kpi-val" id="kpiCumpleTodos">–</div>
+          <div class="kpi-sub">con fecha de nacimiento cargada</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">💡</span> Tocá cualquier caja para ver el listado del personal correspondiente — desde ahí también podés exportarlo a Excel</div>
+    </div>
+  </div>
+
+  <!-- ==================== REGISTRO ==================== -->
+  <div class="tab-pane" id="pane-registro">
+    <div class="form-wrap">
+      <div class="form-card">
+        <h2 id="formTitle">Buscar / cargar personal</h2>
+        <p>Buscá por LP, Apellido o Nombre. Si la persona ya tiene ficha cargada, se completa para editarla; si no, se arma una nueva.</p>
+        <div class="alert" id="formAlert"></div>
+
+        <div class="form-grid">
+          <div class="form-group full" style="position:relative;">
+            <label class="form-label">Buscar por LP, Apellido o Nombre<span class="required-star">*</span></label>
+            <input type="text" id="fBuscarLP" placeholder="Ej: 8855 o García" autocomplete="off"
+                   oninput="buscarSugerencias()" onblur="ocultarSugerenciasConDelay()">
+            <div class="autocomplete-list" id="fLPSuggest"></div>
+          </div>
+          <div class="personal-preview" id="fPersonalPreview">
+            <div class="pp-ico">👤</div>
+            <div id="fPersonalTexto"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card" style="padding:0;">
+        <nav class="subtabs">
+          <button class="subtab-btn active" data-subtab="datos" onclick="switchSubTab('datos')">👤 Datos personales</button>
+          <button class="subtab-btn" data-subtab="contacto" onclick="switchSubTab('contacto')">📞 Contacto</button>
+          <button class="subtab-btn" data-subtab="armamento" onclick="switchSubTab('armamento')">🔫 Armamento</button>
+          <button class="subtab-btn" data-subtab="chaleco" onclick="switchSubTab('chaleco')">🦺 Chaleco antibalas</button>
+          <button class="subtab-btn" data-subtab="esposas" onclick="switchSubTab('esposas')">🔗 Esposas</button>
+          <button class="subtab-btn" data-subtab="licencia" onclick="switchSubTab('licencia')">🚗 Licencia de conducir</button>
+        </nav>
+
+        <div class="subtab-content">
+          <div class="subtab-pane active" id="subtab-datos">
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">Foto del personal</label>
+                <input type="file" id="fFotoPersonal" accept="image/*" onchange="subirFotoPersonal()">
+                <span class="field-hint">Se guarda en Drive y se muestra en la ficha. Necesitás tener a la persona ya buscada/seleccionada arriba.</span>
+                <div class="mini-preview-wrap" id="fFotoPersonalPreviewWrap" style="display:none;">
+                  <img id="fFotoPersonalPreview" alt="Foto del personal">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fFotoDriveId','fFotoPersonalPreview','fFotoPersonalPreviewWrap','fFotoPersonal','la foto de personal')">🗑️</button>
+                </div>
+                <input type="hidden" id="fFotoDriveId">
+              </div>
+              <div class="form-group">
+                <label class="form-label">DNI (frente)</label>
+                <input type="file" id="fDniFrente" accept="image/*" onchange="manejarDniFrente()">
+                <span class="field-hint">Vas a poder encuadrar la foto antes de subirla. Se lee el DNI, nombre, sexo, nacionalidad y fecha de nacimiento.</span>
+                <div class="mini-preview-wrap" id="fDniFrentePreviewWrap" style="display:none;">
+                  <img id="fDniFrentePreview" alt="DNI frente">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fDniFrenteDriveId','fDniFrentePreview','fDniFrentePreviewWrap','fDniFrente','el DNI (frente)')">🗑️</button>
+                </div>
+                <input type="hidden" id="fDniFrenteDriveId">
+                <div class="alert" id="fDniFrenteEstadoLectura" style="display:none;"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">DNI (dorso)</label>
+                <input type="file" id="fDniDorso" accept="image/*" onchange="manejarDniDorso()">
+                <span class="field-hint">Vas a poder encuadrar la foto antes de subirla.</span>
+                <div class="mini-preview-wrap" id="fDniDorsoPreviewWrap" style="display:none;">
+                  <img id="fDniDorsoPreview" alt="DNI dorso">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fDniDorsoDriveId','fDniDorsoPreview','fDniDorsoPreviewWrap','fDniDorso','el DNI (dorso)')">🗑️</button>
+                </div>
+                <input type="hidden" id="fDniDorsoDriveId">
+                <div class="alert" id="fDniDorsoEstadoLectura" style="display:none;"></div>
+              </div>
+              <div class="form-group"><label class="form-label">Grado</label><input type="text" id="fGrado" readonly></div>
+              <div class="form-group"><label class="form-label">LP</label><input type="text" id="fLP" readonly></div>
+              <div class="form-group"><label class="form-label">Apellido</label><input type="text" id="fApellido" readonly></div>
+              <div class="form-group"><label class="form-label">Nombres</label><input type="text" id="fNombres" readonly></div>
+              <div class="form-group"><label class="form-label">DNI</label><input type="text" id="fDNI" placeholder="Documento"></div>
+              <div class="form-group"><label class="form-label">Dependencia</label><input type="text" id="fDependencia" placeholder="Ej: División Tiro"></div>
+              <div class="form-group"><label class="form-label">Fecha de nacimiento</label><input type="date" id="fFechaNacimiento"></div>
+              <div class="form-group"><label class="form-label">Sexo</label>
+                <select id="fSexo"><option value="">Seleccioná…</option><option value="M">M</option><option value="F">F</option></select>
+              </div>
+              <div class="form-group"><label class="form-label">Nacionalidad</label><input type="text" id="fNacionalidad" placeholder="Ej: ARGENTINA"></div>
+              <div class="form-group"><label class="form-label">Grupo sanguíneo</label>
+                <select id="fGrupoSanguineo">
+                  <option value="">Seleccioná…</option>
+                  <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                  <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Receptor de órganos</label>
+                <select id="fReceptorOrganos"><option value="">Seleccioná…</option><option>SI</option><option>NO</option></select>
+              </div>
+              <div class="form-group"><label class="form-label">Dono órganos</label>
+                <select id="fDonoOrganos"><option value="">Seleccioná…</option><option>SI</option><option>NO</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="subtab-pane" id="subtab-contacto">
+            <div class="form-grid">
+              <div class="form-group full"><label class="form-label">Dirección</label><input type="text" id="fDireccion"></div>
+              <div class="form-group full"><label class="form-label">Domicilio (según DNI)</label><input type="text" id="fDomicilioDNI"><span class="field-hint">Solo si difiere de la dirección real de arriba.</span></div>
+              <div class="form-group"><label class="form-label">Teléfono particular</label><input type="text" id="fTelParticular"></div>
+              <div class="form-group"><label class="form-label">Teléfono celular</label><input type="text" id="fTelCelular"></div>
+              <div class="form-group"><label class="form-label">Teléfono emergencia</label><input type="text" id="fTelEmergencia"></div>
+              <div class="form-group"><label class="form-label">Nombre contacto emergencia</label><input type="text" id="fContactoEmergencia"></div>
+              <div class="form-group"><label class="form-label">POC (teléfono institucional)</label><input type="text" id="fPOC" placeholder="Línea directa / institucional"></div>
+              <div class="form-group"><label class="form-label">Correo personal</label><input type="text" id="fCorreoPersonal"></div>
+              <div class="form-group"><label class="form-label">Correo institucional</label><input type="text" id="fCorreoInstitucional"></div>
+              <div class="form-group"><label class="form-label">Correo policial</label><input type="text" id="fCorreoPolicial"></div>
+            </div>
+          </div>
+
+          <div class="subtab-pane" id="subtab-armamento">
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Marca armamento</label><input type="text" id="fMarcaArmamento"></div>
+              <div class="form-group"><label class="form-label">Nro. armamento</label><input type="text" id="fNroArmamento"></div>
+            </div>
+
+            <div class="form-section-title" style="margin-top:26px;">CLU N° 1 — Credencial (RENAR)</div>
+            <p class="field-hint" style="margin-bottom:10px;">Muchas personas tienen las dos credenciales (Legítimo Usuario e Instructor) — subí cada una en su propio bloque, este y el de abajo.</p>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">Subir foto de la credencial</label>
+                <input type="file" id="fCluImagen" accept="image/*" onchange="leerCredencialCLU('')">
+                <span class="field-hint">Subí una foto clara de la credencial CLU — el sistema intenta leer los datos automáticamente y guarda la imagen. Revisá siempre los campos antes de guardar.</span>
+                <div class="mini-preview-wrap" id="fCluImagenPreviewWrap" style="display:none;">
+                  <img id="fCluImagenPreview" alt="Credencial CLU">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fCluImagenDriveId','fCluImagenPreview','fCluImagenPreviewWrap','fCluImagen','la credencial CLU N° 1')">🗑️</button>
+                </div>
+                <input type="hidden" id="fCluImagenDriveId">
+              </div>
+              <div class="form-group full alert" id="fCluEstadoLectura" style="display:none;"></div>
+              <div class="form-group">
+                <label class="form-label">Tipo de CLU</label>
+                <select id="fCluTipo">
+                  <option value="">Seleccioná…</option>
+                  <option>LEGITIMO USUARIO DE ARMAS</option>
+                  <option>INSTR ARMAS CORTAS Y LARGAS</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">N° de credencial</label><input type="text" id="fCluNumero"></div>
+              <div class="form-group">
+                <label class="form-label">Vencimiento CLU</label>
+                <input type="date" id="fCluVencimiento" oninput="actualizarCluHint('')">
+                <span class="field-hint" id="fCluVencimientoHint"></span>
+              </div>
+            </div>
+
+            <div class="form-section-title" style="margin-top:26px;">CLU N° 2 — Credencial (RENAR)</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">Subir foto de la credencial</label>
+                <input type="file" id="fClu2Imagen" accept="image/*" onchange="leerCredencialCLU('2')">
+                <span class="field-hint">Si tiene una segunda credencial (por ejemplo, Instructor de Armas), subila acá.</span>
+                <div class="mini-preview-wrap" id="fClu2ImagenPreviewWrap" style="display:none;">
+                  <img id="fClu2ImagenPreview" alt="Segunda credencial CLU">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fClu2ImagenDriveId','fClu2ImagenPreview','fClu2ImagenPreviewWrap','fClu2Imagen','la credencial CLU N° 2')">🗑️</button>
+                </div>
+                <input type="hidden" id="fClu2ImagenDriveId">
+              </div>
+              <div class="form-group full alert" id="fClu2EstadoLectura" style="display:none;"></div>
+              <div class="form-group">
+                <label class="form-label">Tipo de CLU</label>
+                <select id="fClu2Tipo">
+                  <option value="">Seleccioná…</option>
+                  <option>LEGITIMO USUARIO DE ARMAS</option>
+                  <option>INSTR ARMAS CORTAS Y LARGAS</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">N° de credencial</label><input type="text" id="fClu2Numero"></div>
+              <div class="form-group">
+                <label class="form-label">Vencimiento CLU</label>
+                <input type="date" id="fClu2Vencimiento" oninput="actualizarCluHint('2')">
+                <span class="field-hint" id="fClu2VencimientoHint"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="subtab-pane" id="subtab-chaleco">
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Marca</label><input type="text" id="fChalecoMarca"></div>
+              <div class="form-group"><label class="form-label">Modelo</label><input type="text" id="fModelo"></div>
+              <div class="form-group"><label class="form-label">Serie</label><input type="text" id="fSerie"></div>
+              <div class="form-group"><label class="form-label">Talle</label>
+                <select id="fTalle">
+                  <option value="">Seleccioná…</option>
+                  <option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Fabricación</label><input type="date" id="fFabricacion" oninput="actualizarVencimientoPreview()"></div>
+              <div class="form-group">
+                <label class="form-label">Vencimiento (auto — 5 años)</label>
+                <input type="text" id="fVencimiento" readonly>
+                <span class="field-hint" id="fVencimientoHint"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="subtab-pane" id="subtab-esposas">
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Esposas</label>
+                <select id="fEsposas"><option value="">Seleccioná…</option><option>SI</option><option>NO</option></select>
+              </div>
+              <div class="form-group"><label class="form-label">Nro. esposas</label><input type="text" id="fNroEsposas"></div>
+            </div>
+          </div>
+
+          <div class="subtab-pane" id="subtab-licencia">
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Licencia de conducir municipal</label>
+                <select id="fLicenciaMunicipal"><option value="">Seleccioná…</option><option>SI</option><option>NO</option></select>
+              </div>
+              <div class="form-group"><label class="form-label">Categoría municipal</label><input type="text" id="fCategoriaMunicipal"></div>
+              <div class="form-group"><label class="form-label">Vencimiento (licencia municipal)</label><input type="date" id="fVencLicMunicipal"></div>
+              <div class="form-group"><label class="form-label">Habilitación conductor flota policial</label>
+                <select id="fHabilitacionPolicial"><option value="">Seleccioná…</option><option>SI</option><option>NO</option></select>
+              </div>
+              <div class="form-group"><label class="form-label">Categoría policial</label><input type="text" id="fCategoriaPolicial"></div>
+              <div class="form-group"><label class="form-label">Vencimiento (licencia policial)</label><input type="date" id="fVencLicPolicial"></div>
+              <div class="form-group"><label class="form-label">Licencia profesional</label>
+                <select id="fLicenciaProfesional">
+                  <option value="">Seleccioná…</option>
+                  <option>NO POSEE</option><option>VIGENTE</option><option>VENCIDA</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-section-title" style="margin-top:26px;">Fotos — Licencia municipal</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Frente</label>
+                <input type="file" id="fLicMunFrente" accept="image/*" onchange="subirImagenGenerica('fLicMunFrente','fLicMunFrenteDriveId','fLicMunFrentePreview','fLicMunFrentePreviewWrap','LICENCIAS','la licencia municipal (frente)')">
+                <div class="mini-preview-wrap" id="fLicMunFrentePreviewWrap" style="display:none;">
+                  <img id="fLicMunFrentePreview" alt="Licencia municipal frente">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicMunFrenteDriveId','fLicMunFrentePreview','fLicMunFrentePreviewWrap','fLicMunFrente','la licencia municipal (frente)')">🗑️</button>
+                </div>
+                <input type="hidden" id="fLicMunFrenteDriveId">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Dorso</label>
+                <input type="file" id="fLicMunDorso" accept="image/*" onchange="subirImagenGenerica('fLicMunDorso','fLicMunDorsoDriveId','fLicMunDorsoPreview','fLicMunDorsoPreviewWrap','LICENCIAS','la licencia municipal (dorso)')">
+                <div class="mini-preview-wrap" id="fLicMunDorsoPreviewWrap" style="display:none;">
+                  <img id="fLicMunDorsoPreview" alt="Licencia municipal dorso">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicMunDorsoDriveId','fLicMunDorsoPreview','fLicMunDorsoPreviewWrap','fLicMunDorso','la licencia municipal (dorso)')">🗑️</button>
+                </div>
+                <input type="hidden" id="fLicMunDorsoDriveId">
+              </div>
+            </div>
+
+            <div class="form-section-title" style="margin-top:26px;">Fotos — Licencia / habilitación policial</div>
+            <p class="field-hint" style="margin-bottom:10px;">Solo si la persona tiene esta habilitación.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Frente</label>
+                <input type="file" id="fLicPolFrente" accept="image/*" onchange="subirImagenGenerica('fLicPolFrente','fLicPolFrenteDriveId','fLicPolFrentePreview','fLicPolFrentePreviewWrap','LICENCIAS','la licencia policial (frente)')">
+                <div class="mini-preview-wrap" id="fLicPolFrentePreviewWrap" style="display:none;">
+                  <img id="fLicPolFrentePreview" alt="Licencia policial frente">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicPolFrenteDriveId','fLicPolFrentePreview','fLicPolFrentePreviewWrap','fLicPolFrente','la licencia policial (frente)')">🗑️</button>
+                </div>
+                <input type="hidden" id="fLicPolFrenteDriveId">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Dorso</label>
+                <input type="file" id="fLicPolDorso" accept="image/*" onchange="subirImagenGenerica('fLicPolDorso','fLicPolDorsoDriveId','fLicPolDorsoPreview','fLicPolDorsoPreviewWrap','LICENCIAS','la licencia policial (dorso)')">
+                <div class="mini-preview-wrap" id="fLicPolDorsoPreviewWrap" style="display:none;">
+                  <img id="fLicPolDorsoPreview" alt="Licencia policial dorso">
+                  <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicPolDorsoDriveId','fLicPolDorsoPreview','fLicPolDorsoPreviewWrap','fLicPolDorso','la licencia policial (dorso)')">🗑️</button>
+                </div>
+                <input type="hidden" id="fLicPolDorsoDriveId">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="btn-row" style="margin-top:0;">
+          <button class="btn btn-primary" onclick="guardarPersonal()" id="btnGuardar">💾 Guardar ficha</button>
+          <button class="btn btn-ghost" onclick="limpiarForm()">↺ Limpiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PERSONAL (tabla principal) ==================== -->
+  <div class="tab-pane" id="pane-personal">
+    <div class="search-bar">
+      <div class="search-input-wrap">
+        <input type="text" class="search-input" id="listaBuscar" placeholder="🔎 Buscar por LP, apellido, nombre, dependencia…" oninput="renderListado()">
+      </div>
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--muted); white-space:nowrap; cursor:pointer;">
+        <input type="checkbox" id="listaMostrarBajas" onchange="renderListado()"> Mostrar dados de baja
+      </label>
+      <span class="count-pill" id="listaCount">0</span>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">📋</span> Personal cargado — División Tiro (tocá una fila para ver la ficha completa)</div>
+      <div id="tablaListadoWrap"></div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- /appRoot -->
+
+<!-- Librería Supabase (Auth + base de datos) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Librería para generar el .xlsx de la planilla oficial de Licencias de Conducir -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+
+<!-- Librería para leer texto de imágenes (OCR de la credencial CLU y del DNI) — se ejecuta en el navegador -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<!-- Librería para encuadrar/recortar fotos (DNI) antes de subirlas -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — pegá acá los 2 valores (ver GUIA_INSTALACION.md).
+  // El ID de la carpeta de Drive YA NO va acá: vive del lado del servidor,
+  // como secreto de la función "drive-proxy" (ver GUIA_INSTALACION.md).
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ============================================================
+  // ADAPTADOR — traduce entre las columnas de Postgres (snake_case) y las
+  // mismas claves en español que usa toda la UI (idénticas a los headers
+  // que antes venían de la planilla de Google Sheets). Así el 95% del
+  // código de abajo (KPIs, tabla, ficha, exportaciones) no tuvo que
+  // tocarse: sigue leyendo f['Vencimiento'], f['CLU Tipo'], etc. como antes.
+  // ============================================================
+  const COL_MAP = {
+    'Grado': 'grado', 'LP': 'lp', 'Apellido': 'apellido', 'Nombres': 'nombres', 'Dependencia': 'dependencia',
+    'Fecha de Nacimiento': 'fecha_nacimiento', 'Receptor de Organos': 'receptor_organos', 'Dono Organos': 'dono_organos',
+    'Direccion': 'direccion', 'Domicilio DNI': 'domicilio_dni',
+    'Telefono Particular': 'telefono_particular', 'Telefono Celular': 'telefono_celular', 'Telefono Emergencia': 'telefono_emergencia',
+    'Nombre Contacto Emergencia': 'contacto_emergencia', 'POC': 'poc',
+    'Correo Electronico Personal': 'correo_personal', 'Correo Electronico Institucional': 'correo_institucional', 'Correo Electronico Policial': 'correo_policial',
+    'Marca Armamento': 'marca_armamento', 'Nro Armamento': 'nro_armamento',
+    'Chaleco Marca': 'chaleco_marca', 'Modelo': 'modelo', 'Serie': 'serie', 'Talle': 'talle', 'Fabricacion': 'fabricacion',
+    'Esposas': 'esposas', 'Nro Esposas': 'nro_esposas', 'Grupo Sanguineo': 'grupo_sanguineo', 'DNI': 'dni',
+    'Licencia Conducir Municipal': 'licencia_conducir_municipal', 'Categoria Municipal': 'categoria_municipal', 'Vencimiento Licencia Municipal': 'vencimiento_licencia_municipal',
+    'Habilitacion Flota Policial': 'habilitacion_flota_policial', 'Categoria Policial': 'categoria_policial', 'Vencimiento Licencia Policial': 'vencimiento_licencia_policial',
+    'Licencia Profesional': 'licencia_profesional',
+    'CLU Tipo': 'clu_tipo', 'CLU Numero': 'clu_numero', 'CLU Vencimiento': 'clu_vencimiento', 'CLU Imagen Drive ID': 'clu_imagen_drive_id',
+    'CLU2 Tipo': 'clu2_tipo', 'CLU2 Numero': 'clu2_numero', 'CLU2 Vencimiento': 'clu2_vencimiento', 'CLU2 Imagen Drive ID': 'clu2_imagen_drive_id',
+    'Foto Drive ID': 'foto_drive_id', 'DNI Frente Drive ID': 'dni_frente_drive_id', 'DNI Dorso Drive ID': 'dni_dorso_drive_id',
+    'Licencia Municipal Frente Drive ID': 'licencia_municipal_frente_drive_id', 'Licencia Municipal Dorso Drive ID': 'licencia_municipal_dorso_drive_id',
+    'Licencia Policial Frente Drive ID': 'licencia_policial_frente_drive_id', 'Licencia Policial Dorso Drive ID': 'licencia_policial_dorso_drive_id',
+    'Sexo': 'sexo', 'Nacionalidad': 'nacionalidad',
+    'Vencimiento': 'vencimiento',  // de solo lectura: la calcula Postgres, nunca se manda al guardar
+    'Activo': 'activo'             // booleano — baja lógica, se maneja aparte (ver filaDesdeSupabase), nunca se manda desde el form
+  };
+
+  function filaDesdeSupabase(row) {
+    var obj = {};
+    Object.keys(COL_MAP).forEach(function(label) {
+      if (label === 'Activo') return; // es booleano, no texto — se completa abajo
+      var v = row[COL_MAP[label]];
+      obj[label] = (v === null || v === undefined) ? '' : String(v);
+    });
+    obj['Activo'] = row.activo !== false; // por defecto activo, salvo que la base diga explícitamente lo contrario
+    return obj;
+  }
+
+  function pgVal(raw) {
+    if (raw === undefined || raw === null) return null;
+    var v = String(raw).trim();
+    return v === '' ? null : v;
+  }
+
+  function entryToSupabasePayload(entry) {
+    var payload = {};
+    Object.keys(COL_MAP).forEach(function(label) {
+      if (label === 'Vencimiento' || label === 'Activo') return; // no se envían desde el formulario
+      payload[COL_MAP[label]] = pgVal(entry[label]);
+    });
+    return payload;
+  }
+
+  var personalDirectorio = {}; // LP -> {grado, apellido, nombre} — planilla general
+  var personalArray = [];      // mismo directorio, como lista, para buscar por apellido/nombre
+  var fichas = [];             // TODOS los registros (activos + dados de baja) — historial completo
+  var fichasActivas = [];      // solo activo=true — lo que ven KPIs, dashboard y exportaciones por defecto
+  var lastBoxType = null;      // recuerda qué caja del dashboard se abrió, para el botón "Volver"
+  var lastCajaLista = null;    // último listado filtrado (para exportar a Excel)
+  var lastCajaCols  = null;    // columnas del último listado (para exportar a Excel)
+  var lastCajaTitulo = '';     // título del último listado (para el nombre del archivo)
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  // ---- Modal de confirmación/alerta propio (reemplaza confirm()/alert() nativos del navegador) ----
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+  }
+
+  // Sub-navegación dentro de Registro (Datos personales / Contacto / Armamento / Chaleco / Esposas)
+  function switchSubTab(tab) {
+    document.querySelectorAll('.subtab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.subtab === tab); });
+    document.querySelectorAll('.subtab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'subtab-'+tab); });
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  // Convierte cualquier valor (número, null, etc.) a string recortado — evita errores
+  // de .trim() cuando una celda quedó cargada como número.
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  // Compara contra "SI" sin importar mayúsculas/minúsculas ni espacios — usado en Licencia de conducir.
+  function esSI(v) { return str(v).toUpperCase() === 'SI'; }
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    setTimeout(function(){ el.classList.remove('show'); }, 6000);
+  }
+  function fmtFecha(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function fmtFechaCorta(d) { return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); }
+
+  // ---- Próximo cumpleaños a partir de una Fecha de Nacimiento (yyyy-MM-dd) ----
+  function proximoCumple(iso) {
+    if (!str(iso)) return null;
+    var p = iso.split('-');
+    if (p.length !== 3) return null;
+    var mes = Number(p[1]) - 1, dia = Number(p[2]);
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    var prox = new Date(hoy.getFullYear(), mes, dia);
+    if (prox < hoy) prox = new Date(hoy.getFullYear() + 1, mes, dia);
+    var dias = Math.round((prox - hoy) / 86400000);
+    return { fecha: prox, dias: dias };
+  }
+  function textoProximoCumple(iso) {
+    var info = proximoCumple(iso);
+    if (!info) return '—';
+    var diasTxt = info.dias === 0 ? '¡Hoy!' : (info.dias === 1 ? 'Mañana' : 'en ' + info.dias + ' días');
+    return fmtFechaCorta(info.fecha) + ' (' + diasTxt + ')';
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — reemplaza checkAcceso()/doGet() de Code.gs.
+  // Login con usuario y contraseña propios (Supabase Auth, email+password),
+  // totalmente independiente de Drive: subir archivos lo hace una función
+  // del lado del servidor (ver más abajo), no la cuenta de Google de quien
+  // inició sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaLogin').classList.remove('show');
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      document.getElementById('pantallaLogin').classList.add('show');
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function iniciarSesion(ev) {
+    if (ev) ev.preventDefault();
+    var el = document.getElementById('loginAlert');
+    el.classList.remove('show');
+    var email = document.getElementById('loginEmail').value.trim();
+    var password = document.getElementById('loginPassword').value;
+    supabaseClient.auth.signInWithPassword({ email: email, password: password }).then(function(res) {
+      if (res.error) {
+        el.className = 'alert show alert-error';
+        el.textContent = 'Usuario o contraseña incorrectos.';
+      }
+    });
+  }
+
+  function cerrarSesion() {
+    supabaseClient.auth.signOut();
+  }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return; // evita carreras si el evento dispara dos veces seguidas
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) {
+        mostrarPantalla('login');
+        var el = document.getElementById('loginAlert');
+        el.className = 'alert show alert-error';
+        el.textContent = 'Error al verificar el acceso: ' + res.error.message;
+        return;
+      }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      cargarDirectorioPersonal();
+      cargarFichas();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() {
+    supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
+  }
+
+  // ============================================================
+  // ARCHIVOS — las fotos/credenciales YA NO se guardan en Google Drive:
+  // se guardan en Supabase Storage, en un bucket privado. Solo alguien
+  // logueado en la app (usuario autorizado) puede leer o escribir ahí —
+  // ninguna cuenta de Google, ni de nadie por fuera de la app, tiene
+  // forma de entrar a borrar o mirar estos archivos a mano. El "nombre"
+  // de archivo es siempre el mismo para un campo+persona dados (por
+  // ejemplo "DNI/dniFrente_702.jpg"), así que al subir una foto nueva en
+  // el mismo campo se PISA sola la anterior — no hace falta un paso
+  // aparte para borrar la vieja, ni pueden quedar copias duplicadas de
+  // sucesivas pruebas como pasaba antes.
+  // ============================================================
+
+  const STORAGE_BUCKET = 'adjuntos';
+
+  // Sube una imagen (dataURL base64) a una "subcarpeta" del bucket y devuelve la
+  // ruta guardada (se guarda en los mismos campos *_drive_id de siempre). Todo
+  // el código de OCR/recorte de abajo la llama igual que antes.
+  async function subirImagenDrivePromise(dataUrl, mimeType, nombreBase, subcarpeta) {
+    var resBlob = await fetch(dataUrl);
+    var blob = await resBlob.blob();
+    var nombreLimpio = String(nombreBase || 'imagen').replace(/[^a-zA-Z0-9_-]/g, '_');
+    var ruta = (subcarpeta ? subcarpeta + '/' : '') + nombreLimpio + '.jpg';
+    var res = await supabaseClient.storage.from(STORAGE_BUCKET).upload(ruta, blob, {
+      upsert: true,
+      contentType: mimeType || 'image/jpeg'
+    });
+    if (res.error) throw new Error('No se pudo subir la imagen: ' + res.error.message);
+    return ruta;
+  }
+
+  // Borra un archivo guardado (se usa desde el botón 🗑️ de "eliminar imagen").
+  async function eliminarArchivoDrive(ruta) {
+    if (!ruta) return { success:false, error:'Sin archivo' };
+    var res = await supabaseClient.storage.from(STORAGE_BUCKET).remove([ruta]);
+    if (res.error) {
+      console.error('No se pudo eliminar el archivo: ', res.error);
+      return { success:false, error: res.error.message };
+    }
+    return { success:true };
+  }
+
+  // Genera un link temporal (1 hora) para poder mostrar una imagen guardada —
+  // el bucket es privado, así que no hay una URL fija que sirva sin sesión.
+  async function signedUrlStorage(ruta) {
+    if (!ruta) return null;
+    var res = await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrl(ruta, 3600);
+    if (res.error) { console.error('No se pudo generar el link de la imagen: ', res.error); return null; }
+    return res.data.signedUrl;
+  }
+
+  // ---- Precarga del directorio general de Personal ----
+  function cargarDirectorioPersonal() {
+    supabaseClient.from('personal_general').select('lp,grado,apellido,nombres').then(function(res) {
+      if (res.error) { console.error('No se pudo precargar el directorio de personal: ', res.error); return; }
+      personalDirectorio = {};
+      (res.data || []).forEach(function(p) {
+        personalDirectorio[p.lp] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombres || '' };
+      });
+      personalArray = Object.keys(personalDirectorio).map(function(lp) {
+        var p = personalDirectorio[lp];
+        return { lp: lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre };
+      });
+    });
+  }
+
+  async function buscarPersonalPorLPSupabase(lp) {
+    var res = await supabaseClient.from('personal_general').select('grado,apellido,nombres').eq('lp', lp).maybeSingle();
+    if (res.error) return { success:false, error: res.error.message };
+    if (!res.data) return { success:false, error: 'LP no encontrado en la planilla general de Personal' };
+    return { success:true, data: { grado: res.data.grado || '', apellido: res.data.apellido || '', nombre: res.data.nombres || '' } };
+  }
+
+  async function buscarPersonalTiroPorLPSupabase(lp) {
+    var res = await supabaseClient.from('personal_tiro').select('*').eq('lp', lp).maybeSingle();
+    if (res.error) return { success:false, error: res.error.message };
+    if (!res.data) return { success:false, error: 'LP no encontrado en la ficha de la División Tiro' };
+    return { success:true, data: filaDesdeSupabase(res.data) };
+  }
+
+  // ---- Sugerencias por LP / Apellido / Nombre (formulario de Registro) ----
+  function buscarSugerencias() {
+    var input  = document.getElementById('fBuscarLP');
+    var listEl = document.getElementById('fLPSuggest');
+    var q = input.value.trim().toLowerCase();
+
+    if (!q) {
+      listEl.classList.remove('show');
+      listEl.innerHTML = '';
+      document.getElementById('fPersonalPreview').classList.remove('show','notfound','existing');
+      return;
+    }
+
+    var matches = personalArray.filter(function(p) {
+      return String(p.lp).toLowerCase().indexOf(q) !== -1 ||
+             (p.apellido || '').toLowerCase().indexOf(q) !== -1 ||
+             (p.nombre   || '').toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 8);
+
+    if (!matches.length) {
+      listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en la planilla general de Personal</div>';
+    } else {
+      listEl.innerHTML = matches.map(function(p) {
+        return '<div class="autocomplete-item" onmousedown="seleccionarPersona(\''+esc(p.lp)+'\')">' +
+          '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b>' +
+          '<small>LP '+esc(p.lp)+' — '+esc(p.grado)+'</small></div>';
+      }).join('');
+    }
+    listEl.classList.add('show');
+  }
+
+  function ocultarSugerenciasConDelay() {
+    setTimeout(function() {
+      document.getElementById('fLPSuggest').classList.remove('show');
+    }, 150);
+  }
+
+  function seleccionarPersona(lp) {
+    document.getElementById('fBuscarLP').value = lp;
+    document.getElementById('fLPSuggest').classList.remove('show');
+    lookupLP();
+  }
+
+  // ---- Lookup de la persona: primero datos base (planilla general), luego ficha propia si ya existe ----
+  // afterCallback (opcional) se ejecuta recién cuando la ficha terminó de cargarse — lo usa
+  // la lectura de CLU para aplicar los datos de la credencial después de que se complete el formulario.
+  async function lookupLP(afterCallback) {
+    var lp = document.getElementById('fBuscarLP').value.trim();
+    var preview = document.getElementById('fPersonalPreview');
+    var texto = document.getElementById('fPersonalTexto');
+
+    if (!lp) {
+      preview.classList.remove('show','notfound','existing');
+      if (afterCallback) afterCallback();
+      return;
+    }
+
+    var base = personalDirectorio[lp];
+    if (!base) {
+      var resBase = await buscarPersonalPorLPSupabase(lp);
+      if (resBase.success) {
+        personalDirectorio[lp] = resBase.data;
+        return lookupLP(afterCallback);
+      } else {
+        preview.className = 'personal-preview show notfound';
+        texto.innerHTML = '⚠️ LP no encontrado en la planilla general de Personal. ' +
+          '<button type="button" class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="prepararPersonalNuevo(\''+esc(lp)+'\')">➕ Cargar como personal nuevo</button>';
+        limpiarDatosBase();
+        if (afterCallback) afterCallback();
+        return;
+      }
+    }
+
+    // Datos base de alguien ya conocido en la planilla general: quedan de solo lectura
+    // (por si venías del flujo "cargar como nuevo" con los campos desbloqueados).
+    ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).setAttribute('readonly', true); });
+    document.getElementById('fGrado').value = base.grado;
+    document.getElementById('fLP').value = lp;
+    document.getElementById('fApellido').value = base.apellido;
+    document.getElementById('fNombres').value = base.nombre;
+
+    var resFicha = await buscarPersonalTiroPorLPSupabase(lp);
+    if (resFicha.success) {
+      await cargarFichaEnForm(resFicha.data);
+      preview.className = 'personal-preview show existing';
+      texto.innerHTML = '📝 <b>'+esc(base.apellido)+', '+esc(base.nombre)+'</b> ('+esc(base.grado)+') — ya tiene ficha cargada, se completó para editar.';
+    } else {
+      limpiarCamposExtendidos();
+      preview.className = 'personal-preview show';
+      texto.innerHTML = '👤 <b>'+esc(base.apellido)+', '+esc(base.nombre)+'</b> ('+esc(base.grado)+') — sin ficha cargada aún, se agregará una nueva.';
+    }
+    document.getElementById('formTitle').textContent = 'Ficha de ' + base.apellido + ', ' + base.nombre;
+    if (afterCallback) afterCallback();
+  }
+
+  function limpiarDatosBase() {
+    document.getElementById('fGrado').value = '';
+    document.getElementById('fLP').value = '';
+    document.getElementById('fApellido').value = '';
+    document.getElementById('fNombres').value = '';
+  }
+
+  // Desbloquea Grado/LP/Apellido/Nombres para cargar a alguien que no está en la
+  // planilla general de Personal. Al guardar la ficha (guardarPersonal), esos datos
+  // se dan de alta automáticamente en personal_general — no hace falta ir a otro lado.
+  function prepararPersonalNuevo(lp) {
+    limpiarCamposExtendidos();
+    ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).removeAttribute('readonly'); });
+    document.getElementById('fLP').value = lp;
+    document.getElementById('fGrado').value = '';
+    document.getElementById('fApellido').value = '';
+    document.getElementById('fNombres').value = '';
+    var preview = document.getElementById('fPersonalPreview');
+    preview.className = 'personal-preview show';
+    document.getElementById('fPersonalTexto').innerHTML = '🆕 Cargando <b>LP '+esc(lp)+'</b> como personal nuevo — completá Grado, Apellido y Nombres abajo. Se agrega a la planilla general y a la ficha de la División Tiro al guardar.';
+    document.getElementById('formTitle').textContent = 'Nueva ficha — LP ' + lp;
+    document.getElementById('fGrado').focus();
+  }
+
+  var EXTENDED_FIELD_MAP = {
+    fDNI: 'DNI',
+    fDependencia: 'Dependencia',
+    fFechaNacimiento: 'Fecha de Nacimiento',
+    fSexo: 'Sexo',
+    fNacionalidad: 'Nacionalidad',
+    fReceptorOrganos: 'Receptor de Organos',
+    fDonoOrganos: 'Dono Organos',
+    fDireccion: 'Direccion',
+    fDomicilioDNI: 'Domicilio DNI',
+    fTelParticular: 'Telefono Particular',
+    fTelCelular: 'Telefono Celular',
+    fTelEmergencia: 'Telefono Emergencia',
+    fContactoEmergencia: 'Nombre Contacto Emergencia',
+    fPOC: 'POC',
+    fCorreoPersonal: 'Correo Electronico Personal',
+    fCorreoInstitucional: 'Correo Electronico Institucional',
+    fCorreoPolicial: 'Correo Electronico Policial',
+    fMarcaArmamento: 'Marca Armamento',
+    fNroArmamento: 'Nro Armamento',
+    fChalecoMarca: 'Chaleco Marca',
+    fModelo: 'Modelo',
+    fSerie: 'Serie',
+    fTalle: 'Talle',
+    fFabricacion: 'Fabricacion',
+    fEsposas: 'Esposas',
+    fNroEsposas: 'Nro Esposas',
+    fGrupoSanguineo: 'Grupo Sanguineo',
+    fLicenciaMunicipal: 'Licencia Conducir Municipal',
+    fCategoriaMunicipal: 'Categoria Municipal',
+    fVencLicMunicipal: 'Vencimiento Licencia Municipal',
+    fHabilitacionPolicial: 'Habilitacion Flota Policial',
+    fCategoriaPolicial: 'Categoria Policial',
+    fVencLicPolicial: 'Vencimiento Licencia Policial',
+    fLicenciaProfesional: 'Licencia Profesional',
+    fCluTipo: 'CLU Tipo',
+    fCluNumero: 'CLU Numero',
+    fCluVencimiento: 'CLU Vencimiento',
+    fCluImagenDriveId: 'CLU Imagen Drive ID',
+    fClu2Tipo: 'CLU2 Tipo',
+    fClu2Numero: 'CLU2 Numero',
+    fClu2Vencimiento: 'CLU2 Vencimiento',
+    fClu2ImagenDriveId: 'CLU2 Imagen Drive ID',
+    fFotoDriveId: 'Foto Drive ID',
+    fDniFrenteDriveId: 'DNI Frente Drive ID',
+    fDniDorsoDriveId: 'DNI Dorso Drive ID',
+    fLicMunFrenteDriveId: 'Licencia Municipal Frente Drive ID',
+    fLicMunDorsoDriveId: 'Licencia Municipal Dorso Drive ID',
+    fLicPolFrenteDriveId: 'Licencia Policial Frente Drive ID',
+    fLicPolDorsoDriveId: 'Licencia Policial Dorso Drive ID'
+  };
+
+  // Ids de los "wrap"/"preview" de cada campo de imagen suelta (sin OCR), usados al limpiar y al cargar una ficha.
+  var CAMPOS_IMAGEN_SIMPLE = [
+    { drive: 'Foto Drive ID', preview: 'fFotoPersonalPreview', wrap: 'fFotoPersonalPreviewWrap' },
+    { drive: 'DNI Frente Drive ID', preview: 'fDniFrentePreview', wrap: 'fDniFrentePreviewWrap' },
+    { drive: 'DNI Dorso Drive ID', preview: 'fDniDorsoPreview', wrap: 'fDniDorsoPreviewWrap' },
+    { drive: 'Licencia Municipal Frente Drive ID', preview: 'fLicMunFrentePreview', wrap: 'fLicMunFrentePreviewWrap' },
+    { drive: 'Licencia Municipal Dorso Drive ID', preview: 'fLicMunDorsoPreview', wrap: 'fLicMunDorsoPreviewWrap' },
+    { drive: 'Licencia Policial Frente Drive ID', preview: 'fLicPolFrentePreview', wrap: 'fLicPolFrentePreviewWrap' },
+    { drive: 'Licencia Policial Dorso Drive ID', preview: 'fLicPolDorsoPreview', wrap: 'fLicPolDorsoPreviewWrap' }
+  ];
+
+  function limpiarCamposExtendidos() {
+    Object.keys(EXTENDED_FIELD_MAP).forEach(function(id) { document.getElementById(id).value = ''; });
+    document.getElementById('fVencimiento').value = '';
+    document.getElementById('fVencimientoHint').textContent = '';
+    document.getElementById('fCluVencimientoHint').textContent = '';
+    document.getElementById('fClu2VencimientoHint').textContent = '';
+    CAMPOS_IMAGEN_SIMPLE.forEach(function(c){ document.getElementById(c.wrap).style.display = 'none'; });
+    document.getElementById('fCluImagenPreviewWrap').style.display = 'none';
+    document.getElementById('fClu2ImagenPreviewWrap').style.display = 'none';
+  }
+
+  async function cargarFichaEnForm(ficha) {
+    Object.keys(EXTENDED_FIELD_MAP).forEach(function(id) {
+      document.getElementById(id).value = ficha[EXTENDED_FIELD_MAP[id]] || '';
+    });
+    document.getElementById('fVencimiento').value = ficha['Vencimiento'] || '';
+    actualizarVencimientoHint();
+    actualizarCluHint();
+    actualizarCluHint('2');
+    await Promise.all(
+      CAMPOS_IMAGEN_SIMPLE.map(function(c){ return mostrarPreviewFoto(c.preview, c.wrap, ficha[c.drive]); })
+      .concat([
+        mostrarPreviewFoto('fCluImagenPreview', 'fCluImagenPreviewWrap', ficha['CLU Imagen Drive ID']),
+        mostrarPreviewFoto('fClu2ImagenPreview', 'fClu2ImagenPreviewWrap', ficha['CLU2 Imagen Drive ID'])
+      ])
+    );
+  }
+
+  // ---- Vencimiento del chaleco: Fabricación + 5 años (preview instantáneo en el cliente,
+  // antes de guardar — el valor definitivo lo calcula Postgres como columna generada) ----
+  function actualizarVencimientoPreview() {
+    var fab = document.getElementById('fFabricacion').value;
+    if (!fab) {
+      document.getElementById('fVencimiento').value = '';
+      document.getElementById('fVencimientoHint').textContent = '';
+      return;
+    }
+    var p = fab.split('-');
+    var d = new Date(Number(p[0]) + 5, Number(p[1]) - 1, Number(p[2]));
+    var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    document.getElementById('fVencimiento').value = iso;
+    actualizarVencimientoHint();
+  }
+
+  function estadoChaleco(vencimientoIso) {
+    if (!vencimientoIso) return { label: 'SIN DATOS', badge: 'b-gray' };
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    var p = vencimientoIso.split('-');
+    var v = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    var dias = Math.round((v - hoy) / 86400000);
+    if (dias < 0) return { label: 'VENCIDO', badge: 'b-red' };
+    if (dias <= 90) return { label: 'POR VENCER', badge: 'b-yellow' };
+    return { label: 'VIGENTE', badge: 'b-green' };
+  }
+
+  // Con dos credenciales CLU posibles, el estado que importa para las alertas es el peor de las dos
+  // (si cualquiera está vencida o por vencer, hay que actuar, aunque la otra esté vigente).
+  var ORDEN_ESTADO_CLU = { 'VENCIDO': 3, 'POR VENCER': 2, 'VIGENTE': 1, 'SIN DATOS': 0 };
+  function peorEstadoClu(f) {
+    var e1 = estadoChaleco(f['CLU Vencimiento']);
+    var e2 = estadoChaleco(f['CLU2 Vencimiento']);
+    return ORDEN_ESTADO_CLU[e1.label] >= ORDEN_ESTADO_CLU[e2.label] ? e1 : e2;
+  }
+
+  function actualizarVencimientoHint() {
+    var iso = document.getElementById('fVencimiento').value;
+    var hint = document.getElementById('fVencimientoHint');
+    if (!iso) { hint.textContent = ''; return; }
+    var e = estadoChaleco(iso);
+    hint.textContent = fmtFecha(iso) + ' — ' + e.label;
+  }
+
+  // sufijo = '' para la CLU N° 1, '2' para la CLU N° 2 — son dos juegos de campos idénticos
+  // porque varias personas tienen las dos credenciales (Legítimo Usuario e Instructor).
+  function idClu(sufijo, campo) { return 'fClu' + (sufijo || '') + campo; }
+
+  function actualizarCluHint(sufijo) {
+    var iso = document.getElementById(idClu(sufijo, 'Vencimiento')).value;
+    var hint = document.getElementById(idClu(sufijo, 'VencimientoHint'));
+    if (!iso) { hint.textContent = ''; return; }
+    var e = estadoChaleco(iso); // mismo criterio de 90 días que el chaleco
+    hint.textContent = fmtFecha(iso) + ' — ' + e.label;
+  }
+
+  // ---- Lectura de la credencial CLU (RENAR) por OCR, 100% en el navegador ----
+  function mostrarEstadoCLU(sufijo, tipo, msg) {
+    var el = document.getElementById(idClu(sufijo, 'EstadoLectura'));
+    el.style.display = 'block';
+    el.className = 'alert show form-group full alert-' + tipo;
+    el.textContent = msg;
+  }
+
+  function fileToDataURL(file) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(){ resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Extrae DNI, nombre, tipo de CLU, N° de credencial y vencimiento del texto reconocido por OCR.
+  // El OCR nunca es perfecto: los datos siempre quedan en campos editables para revisar antes de guardar.
+  function parsearTextoCLU(texto) {
+    var lineas = texto.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l; });
+    var out = { dni: '', nombre: '', tipo: '', numero: '', estado: '', vencimiento: '' };
+
+    if (/INSTR\.?\s*(?:DE\s*)?ARMAS\s*CORTAS\s*Y\s*LARGAS/i.test(texto)) {
+      out.tipo = 'INSTR ARMAS CORTAS Y LARGAS';
+    } else if (/LEG[IÍ]TIMO\s*USUARIO\s*DE\s*ARMAS/i.test(texto)) {
+      out.tipo = 'LEGITIMO USUARIO DE ARMAS';
+    }
+
+    for (var i = 0; i < lineas.length; i++) {
+      var m = lineas[i].match(/DNI\D*([\d.]{6,10})/i);
+      if (m) {
+        out.dni = m[1].replace(/\./g, '');
+        if (lineas[i + 1]) out.nombre = lineas[i + 1];
+        if (lineas[i + 2] && !/^VIGENTE$|^VENCID[OA]$/i.test(lineas[i + 2])) {
+          out.numero = lineas[i + 2];
+        }
+        break;
+      }
+    }
+
+    if (/VIGENTE/i.test(texto)) out.estado = 'VIGENTE';
+    else if (/VENCID[OA]/i.test(texto)) out.estado = 'VENCIDO';
+
+    var mv = texto.match(/Vence\D*(\d{4})[\/-](\d{2})[\/-](\d{2})\b/i);
+    if (mv) {
+      out.vencimiento = mv[1] + '-' + mv[2] + '-' + mv[3];
+    } else {
+      var mv2 = texto.match(/Vence\D*(\d{2})[\/-](\d{2})[\/-](\d{4})\b/i);
+      if (mv2) out.vencimiento = mv2[3] + '-' + mv2[2] + '-' + mv2[1];
+    }
+
+    return out;
+  }
+
+  // ---- Lectura del DNI argentino por OCR (frente: datos personales; dorso: domicilio) ----
+  function _textoEntreEtiquetas(texto, desde, hasta) {
+    var m1 = new RegExp(desde, 'i').exec(texto);
+    if (!m1) return '';
+    var resto = texto.slice(m1.index + m1[0].length);
+    if (hasta) {
+      var m2 = new RegExp(hasta, 'i').exec(resto);
+      if (m2) resto = resto.slice(0, m2.index);
+    }
+    return resto.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function parsearTextoDNIFrente(texto) {
+    var out = { dni: '', apellido: '', nombre: '', sexo: '', nacionalidad: '', fechaNacimiento: '' };
+
+    out.apellido = _textoEntreEtiquetas(texto, 'Surname', 'Nombre').replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, '').trim().toUpperCase();
+    out.nombre = _textoEntreEtiquetas(texto, '\\bName\\b', 'Sexo').replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, '').trim().toUpperCase();
+
+    var bloqueSexo = _textoEntreEtiquetas(texto, 'Ejemplar', 'Fecha\\s*de\\s*nacimiento')
+      || _textoEntreEtiquetas(texto, 'Nationality', 'Fecha\\s*de\\s*nacimiento');
+    var mSexo = bloqueSexo.match(/\b([MF])\b/i);
+    if (mSexo) out.sexo = mSexo[1].toUpperCase();
+    if (/ARGENTINA/i.test(bloqueSexo)) out.nacionalidad = 'ARGENTINA';
+
+    var bloqueDoc = _textoEntreEtiquetas(texto, '\\bDocument\\b', 'Tramite');
+    var mDoc = bloqueDoc.match(/([\d.]{6,12})/);
+    if (mDoc) out.dni = mDoc[1].replace(/\./g, '');
+    if (!out.dni) {
+      var mDoc2 = texto.match(/\b(\d{1,2}\.\d{3}\.\d{3})\b/);
+      if (mDoc2) out.dni = mDoc2[1].replace(/\./g, '');
+    }
+
+    var meses = { ENE:'01', FEB:'02', MAR:'03', ABR:'04', MAY:'05', JUN:'06', JUL:'07', AGO:'08', SEP:'09', SET:'09', OCT:'10', NOV:'11', DIC:'12' };
+    var bloqueFecha = _textoEntreEtiquetas(texto, 'Date\\s*of\\s*birth', 'Fecha\\s*de\\s*emisi');
+    var mFecha = bloqueFecha.match(/(\d{1,2})\s*([A-ZÁÉÍÓÚ]{3})/i);
+    var mAnio = bloqueFecha.match(/(\d{4})/);
+    if (mFecha && mAnio && meses[mFecha[2].toUpperCase()]) {
+      out.fechaNacimiento = mAnio[1] + '-' + meses[mFecha[2].toUpperCase()] + '-' + String(mFecha[1]).padStart(2, '0');
+    } else {
+      var mFecha2 = bloqueFecha.match(/(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+      if (mFecha2) out.fechaNacimiento = mFecha2[3] + '-' + mFecha2[2] + '-' + mFecha2[1];
+    }
+
+    return out;
+  }
+
+  function mostrarEstadoDni(sufijo, tipo, msg) {
+    var el = document.getElementById('fDni' + sufijo + 'EstadoLectura');
+    el.style.display = 'block';
+    el.className = 'alert show form-group full alert-' + tipo;
+    el.textContent = msg;
+  }
+
+  // ---- Recorte/encuadre de una imagen antes de subirla (Cropper.js), usado para el DNI ----
+  var _recorteCropper = null;
+  var _recorteResolve = null;
+  var _recorteReject = null;
+
+  function abrirRecorte(file, aspectRatio) {
+    return new Promise(function(resolve, reject) {
+      _recorteResolve = resolve;
+      _recorteReject = reject;
+      var img = document.getElementById('recorteImg');
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        img.onload = function() {
+          document.getElementById('recorteModal').classList.add('show');
+          if (_recorteCropper) { _recorteCropper.destroy(); _recorteCropper = null; }
+          _recorteCropper = new Cropper(img, {
+            viewMode: 1,
+            aspectRatio: aspectRatio || NaN,
+            autoCropArea: 0.9,
+            background: false
+          });
+        };
+        img.src = e.target.result;
+      };
+      reader.onerror = function() { reject(new Error('No se pudo leer el archivo')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function _cerrarRecorteModal() {
+    document.getElementById('recorteModal').classList.remove('show');
+    if (_recorteCropper) { _recorteCropper.destroy(); _recorteCropper = null; }
+  }
+
+  function confirmarRecorte() {
+    if (!_recorteCropper) return;
+    var canvas = _recorteCropper.getCroppedCanvas({ maxWidth: 1600, maxHeight: 1600, imageSmoothingQuality: 'high' });
+    var dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    var resolve = _recorteResolve;
+    _cerrarRecorteModal();
+    _recorteResolve = null; _recorteReject = null;
+    if (resolve) resolve(dataUrl);
+  }
+
+  function cancelarRecorte() {
+    var reject = _recorteReject;
+    _cerrarRecorteModal();
+    _recorteResolve = null; _recorteReject = null;
+    if (reject) reject(new Error('cancelado'));
+  }
+
+  // Relación de aspecto del DNI argentino tipo tarjeta (ID-1): 85.6 x 54 mm
+  var ASPECT_DNI = 85.6 / 54;
+
+  async function manejarDniFrente() {
+    var input = document.getElementById('fDniFrente');
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var lp = document.getElementById('fLP').value.trim();
+    if (!lp) {
+      alertShow('formAlert', 'error', 'Buscá y seleccioná primero a la persona antes de subir el DNI (frente).');
+      input.value = '';
+      return;
+    }
+
+    var croppedDataUrl;
+    try {
+      croppedDataUrl = await abrirRecorte(file, ASPECT_DNI);
+    } catch (err) {
+      input.value = '';
+      return; // el usuario canceló el recorte
+    }
+
+    mostrarEstadoDni('Frente', 'success', '🔎 Subiendo y leyendo el DNI… puede tardar unos segundos.');
+
+    try {
+      var fileId = await subirImagenDrivePromise(croppedDataUrl, 'image/jpeg', 'dniFrente_' + lp, 'DNI');
+      document.getElementById('fDniFrenteDriveId').value = fileId;
+      await mostrarPreviewFoto('fDniFrentePreview', 'fDniFrentePreviewWrap', fileId);
+
+      var datos = { dni: '', apellido: '', nombre: '', sexo: '', nacionalidad: '', fechaNacimiento: '' };
+      if (typeof Tesseract !== 'undefined') {
+        try {
+          var resultado = await Tesseract.recognize(croppedDataUrl, 'spa');
+          datos = parsearTextoDNIFrente((resultado && resultado.data && resultado.data.text) || '');
+        } catch (err) { console.error('Error de OCR del DNI: ', err); }
+      }
+
+      function aplicarDatosDni() {
+        if (datos.sexo) document.getElementById('fSexo').value = datos.sexo;
+        if (datos.nacionalidad) document.getElementById('fNacionalidad').value = datos.nacionalidad;
+        if (datos.fechaNacimiento && !document.getElementById('fFechaNacimiento').value) {
+          document.getElementById('fFechaNacimiento').value = datos.fechaNacimiento;
+        }
+        var nombreActual = str(document.getElementById('fNombres').value).toUpperCase();
+        var nombreOcr = str(datos.nombre).toUpperCase();
+        if (nombreOcr && nombreActual && nombreOcr.indexOf(nombreActual) === 0 && nombreOcr.length > nombreActual.length) {
+          document.getElementById('fNombres').value = nombreOcr;
+        } else if (nombreOcr && !nombreActual) {
+          document.getElementById('fNombres').value = nombreOcr;
+        }
+        if (datos.apellido && !str(document.getElementById('fApellido').value)) {
+          document.getElementById('fApellido').value = datos.apellido.toUpperCase();
+        }
+      }
+
+      var dniActual = str(document.getElementById('fDNI').value).replace(/\D/g, '');
+      if (!datos.dni) {
+        aplicarDatosDni();
+        mostrarEstadoDni('Frente', 'error', '⚠️ Se guardó la foto, pero no se pudo leer el número de documento. Revisá los datos a mano.');
+      } else if (!dniActual) {
+        aplicarDatosDni();
+        document.getElementById('fDNI').value = datos.dni;
+        mostrarEstadoDni('Frente', 'success', '✅ DNI leído correctamente (N° ' + datos.dni + '). Se completaron los datos detectados — revisalos antes de guardar.');
+      } else if (dniActual === datos.dni) {
+        aplicarDatosDni();
+        mostrarEstadoDni('Frente', 'success', '✅ El DNI escaneado coincide (N° ' + datos.dni + '). Se completaron/actualizaron los datos.');
+      } else {
+        mostrarEstadoDni('Frente', 'error', '⚠️ Atención: el DNI escaneado es N° ' + datos.dni + ', pero la ficha abierta tiene cargado el N° ' + dniActual + '. Verificá que sea la persona correcta antes de guardar.');
+      }
+    } catch (err) {
+      mostrarEstadoDni('Frente', 'error', 'No se pudo subir/leer el DNI: ' + err.message);
+    }
+  }
+
+  async function manejarDniDorso() {
+    var input = document.getElementById('fDniDorso');
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var lp = document.getElementById('fLP').value.trim();
+    if (!lp) {
+      alertShow('formAlert', 'error', 'Buscá y seleccioná primero a la persona antes de subir el DNI (dorso).');
+      input.value = '';
+      return;
+    }
+
+    var croppedDataUrl;
+    try {
+      croppedDataUrl = await abrirRecorte(file, ASPECT_DNI);
+    } catch (err) {
+      input.value = '';
+      return;
+    }
+
+    mostrarEstadoDni('Dorso', 'success', '🔎 Subiendo la imagen…');
+
+    try {
+      var fileId = await subirImagenDrivePromise(croppedDataUrl, 'image/jpeg', 'dniDorso_' + lp, 'DNI');
+      document.getElementById('fDniDorsoDriveId').value = fileId;
+      await mostrarPreviewFoto('fDniDorsoPreview', 'fDniDorsoPreviewWrap', fileId);
+      mostrarEstadoDni('Dorso', 'success', '✅ Imagen subida correctamente. Guardá la ficha para dejarla asociada.');
+    } catch (err) {
+      mostrarEstadoDni('Dorso', 'error', 'No se pudo subir la imagen: ' + err.message);
+    }
+  }
+
+  // ---- Vista previa de una imagen guardada (foto de personal / CLU / DNI / licencias) ----
+  async function mostrarPreviewFoto(imgId, wrapId, ruta) {
+    var wrap = document.getElementById(wrapId);
+    if (!ruta) { wrap.style.display = 'none'; return; }
+    var url = await signedUrlStorage(ruta);
+    if (!url) { wrap.style.display = 'none'; return; }
+    document.getElementById(imgId).src = url;
+    wrap.style.display = 'block';
+  }
+
+  // Elimina una imagen ya subida (CLU, DNI, licencias, foto de personal) para poder cargar otra.
+  function eliminarImagenCampo(driveIdFieldId, previewImgId, previewWrapId, inputFileId, etiqueta) {
+    var fileId = document.getElementById(driveIdFieldId).value;
+    if (!fileId) return;
+    showConfirm('¿Eliminar ' + (etiqueta || 'esta imagen') + '? Vas a poder subir otra después.', function() {
+      document.getElementById(driveIdFieldId).value = '';
+      document.getElementById(previewWrapId).style.display = 'none';
+      document.getElementById(previewImgId).src = '';
+      if (inputFileId) document.getElementById(inputFileId).value = '';
+      eliminarArchivoDrive(fileId);
+      alertShow('formAlert', 'success', 'Imagen eliminada. Guardá la ficha para confirmar el cambio.');
+    }, { peligroso: true, textoOk: 'Eliminar' });
+  }
+
+  // ---- Subida genérica de una imagen suelta (sin OCR): DNI frente/dorso, licencias frente/dorso, foto de personal ----
+  async function subirImagenGenerica(inputId, driveIdFieldId, previewImgId, previewWrapId, subcarpeta, etiqueta) {
+    var input = document.getElementById(inputId);
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var lp = document.getElementById('fLP').value.trim();
+    if (!lp) {
+      alertShow('formAlert', 'error', 'Buscá y seleccioná primero a la persona (por LP, apellido o nombre) antes de subir ' + etiqueta + '.');
+      input.value = '';
+      return;
+    }
+    showLoading('Subiendo ' + etiqueta + '…');
+    try {
+      var dataUrl = await fileToDataURL(file);
+      var fileId = await subirImagenDrivePromise(dataUrl, file.type, inputId + '_' + lp, subcarpeta);
+      document.getElementById(driveIdFieldId).value = fileId;
+      await mostrarPreviewFoto(previewImgId, previewWrapId, fileId);
+      alertShow('formAlert', 'success', 'Imagen subida correctamente. Guardá la ficha para dejarla asociada.');
+    } catch (err) {
+      alertShow('formAlert', 'error', 'No se pudo subir ' + etiqueta + ': ' + err.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function subirFotoPersonal() {
+    subirImagenGenerica('fFotoPersonal', 'fFotoDriveId', 'fFotoPersonalPreview', 'fFotoPersonalPreviewWrap', 'FOTOS_PERSONAL', 'la foto');
+  }
+
+  // sufijo = '' para la CLU N° 1, '2' para la CLU N° 2
+  async function leerCredencialCLU(sufijo) {
+    var input = document.getElementById(idClu(sufijo, 'Imagen'));
+    var file = input.files && input.files[0];
+    if (!file) return;
+
+    mostrarEstadoCLU(sufijo, 'success', '🔎 Leyendo la credencial… puede tardar unos segundos.');
+
+    var dataUrl;
+    try {
+      dataUrl = await fileToDataURL(file);
+    } catch (err) {
+      mostrarEstadoCLU(sufijo, 'error', 'No se pudo leer el archivo: ' + err.message);
+      return;
+    }
+
+    var lpParaNombre = document.getElementById('fLP').value.trim() || 'sinlp';
+    var subidaPromise = subirImagenDrivePromise(dataUrl, file.type, 'clu' + (sufijo || '') + '_' + lpParaNombre, 'CLU')
+      .catch(function(err){ console.error('No se pudo subir la imagen de la CLU: ', err); return null; });
+
+    var datos = { dni: '', nombre: '', tipo: '', numero: '', estado: '', vencimiento: '' };
+    if (typeof Tesseract === 'undefined') {
+      mostrarEstadoCLU(sufijo, 'error', 'No se pudo cargar la librería de lectura automática. La imagen se guarda igual — completá los datos a mano.');
+    } else {
+      try {
+        var resultado = await Tesseract.recognize(dataUrl, 'spa');
+        var texto = (resultado && resultado.data && resultado.data.text) || '';
+        datos = parsearTextoCLU(texto);
+      } catch (err) {
+        console.error('Error de OCR: ', err);
+      }
+    }
+
+    var nuevoFileId = await subidaPromise;
+
+    function aplicarDatosClu() {
+      if (datos.tipo) document.getElementById(idClu(sufijo, 'Tipo')).value = datos.tipo;
+      if (datos.numero) document.getElementById(idClu(sufijo, 'Numero')).value = datos.numero;
+      if (datos.vencimiento) { document.getElementById(idClu(sufijo, 'Vencimiento')).value = datos.vencimiento; actualizarCluHint(sufijo); }
+      if (nuevoFileId) {
+        document.getElementById(idClu(sufijo, 'ImagenDriveId')).value = nuevoFileId;
+        mostrarPreviewFoto(idClu(sufijo, 'ImagenPreview'), idClu(sufijo, 'ImagenPreviewWrap'), nuevoFileId);
+      }
+    }
+
+    try {
+      if (!datos.dni) {
+        aplicarDatosClu();
+        mostrarEstadoCLU(sufijo, 'error', nuevoFileId
+          ? '⚠️ Se guardó la foto, pero no se pudo leer el DNI. Completá los datos de la CLU a mano y revisalos bien antes de guardar.'
+          : '⚠️ No se pudo leer ni guardar la imagen. Completá los datos de la CLU a mano.');
+        return;
+      }
+
+      var lpActual = document.getElementById('fLP').value.trim();
+      var dniActual = str(document.getElementById('fDNI').value).replace(/\D/g, '');
+
+      if (lpActual && dniActual && dniActual === datos.dni) {
+        aplicarDatosClu();
+        var nombreActual = document.getElementById('fApellido').value + ', ' + document.getElementById('fNombres').value;
+        mostrarEstadoCLU(sufijo, 'success', '✅ La credencial coincide con ' + esc(datos.nombre || nombreActual) + ' (DNI ' + datos.dni + ').');
+      } else if (!lpActual) {
+        var match = fichas.find(function(f){ return str(f['DNI']).replace(/\D/g, '') === datos.dni; });
+        if (match) {
+          document.getElementById('fBuscarLP').value = match['LP'];
+          lookupLP(function() {
+            aplicarDatosClu();
+            mostrarEstadoCLU(sufijo, 'success', '✅ Credencial de ' + esc(match['Apellido']) + ', ' + esc(match['Nombres']) + ' (LP ' + esc(match['LP']) + ') — se cargó su ficha y los datos de la CLU.');
+          });
+        } else {
+          aplicarDatosClu();
+          mostrarEstadoCLU(sufijo, 'error', '⚠️ La credencial es de DNI ' + datos.dni + (datos.nombre ? ' (' + datos.nombre + ')' : '') + ', pero no encontré a nadie con ese DNI ya cargado. Buscalo primero por LP, apellido o nombre y subí la foto de nuevo.');
+        }
+      } else {
+        aplicarDatosClu();
+        mostrarEstadoCLU(sufijo, 'error', '⚠️ Atención: la credencial es de DNI ' + datos.dni + (datos.nombre ? ' (' + datos.nombre + ')' : '') + ', pero la ficha abierta es de otra persona. Verificá antes de guardar.');
+      }
+    } catch (err) {
+      mostrarEstadoCLU(sufijo, 'error', 'Error al procesar la credencial: ' + err.message);
+    }
+  }
+
+  function limpiarForm() {
+    document.getElementById('fBuscarLP').value = '';
+    limpiarDatosBase();
+    limpiarCamposExtendidos();
+    ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).setAttribute('readonly', true); });
+    document.getElementById('fPersonalPreview').classList.remove('show','notfound','existing');
+    document.getElementById('formTitle').textContent = 'Buscar / cargar personal';
+    ['fCluImagen', 'fClu2Imagen', 'fFotoPersonal', 'fDniFrente', 'fDniDorso',
+     'fLicMunFrente', 'fLicMunDorso', 'fLicPolFrente', 'fLicPolDorso'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('fCluEstadoLectura').style.display = 'none';
+    document.getElementById('fClu2EstadoLectura').style.display = 'none';
+    document.getElementById('fDniFrenteEstadoLectura').style.display = 'none';
+    document.getElementById('fDniDorsoEstadoLectura').style.display = 'none';
+  }
+
+  // Guarda (alta o edición, siempre por upsert sobre "lp" — ya no hace falta distinguir
+  // entre insertar y actualizar como en la versión Apps Script, que buscaba la fila a mano).
+  // Además sincroniza personal_general: si el LP no existía ahí (flujo "cargar como
+  // personal nuevo"), lo crea; si ya existía, lo mantiene al día con Grado/Apellido/Nombres.
+  async function guardarPersonal() {
+    var lp = document.getElementById('fLP').value.trim();
+    var grado = document.getElementById('fGrado').value.trim();
+    var apellido = document.getElementById('fApellido').value.trim();
+    var nombres = document.getElementById('fNombres').value.trim();
+    if (!lp || !apellido || !nombres) {
+      alertShow('formAlert','error','Buscá a la persona (o cargala como nueva con el botón ➕) — hacen falta LP, Apellido y Nombres.');
+      return;
+    }
+
+    var entry = { 'Grado': grado, 'LP': lp, 'Apellido': apellido, 'Nombres': nombres };
+    Object.keys(EXTENDED_FIELD_MAP).forEach(function(id) {
+      entry[EXTENDED_FIELD_MAP[id]] = document.getElementById(id).value.trim();
+    });
+    var payload = entryToSupabasePayload(entry);
+
+    showLoading('Guardando ficha…');
+    try {
+      var resGeneral = await supabaseClient.from('personal_general')
+        .upsert({ lp: lp, grado: grado, apellido: apellido, nombres: nombres }, { onConflict: 'lp' });
+      if (resGeneral.error) throw resGeneral.error;
+
+      var res = await supabaseClient.from('personal_tiro').upsert(payload, { onConflict: 'lp' }).select().maybeSingle();
+      if (res.error) throw res.error;
+
+      personalDirectorio[lp] = { grado: grado, apellido: apellido, nombre: nombres };
+      if (!personalArray.some(function(p){ return p.lp === lp; })) {
+        personalArray.push({ lp: lp, grado: grado, apellido: apellido, nombre: nombres });
+      }
+      ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).setAttribute('readonly', true); });
+      alertShow('formAlert','success','Ficha guardada correctamente.');
+      document.getElementById('fVencimiento').value = '';
+      cargarFichas();
+    } catch (err) {
+      alertShow('formAlert','error','Error: ' + err.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function editarDesdeFicha(lp) {
+    var f = fichas.find(function(x){ return x['LP'] === lp; });
+    if (!f) return;
+    closeGenericModal();
+    switchTab('registro');
+    document.getElementById('fBuscarLP').value = f['LP'];
+    lookupLP();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  // La ficha NUNCA se borra de la base — se marca activo=false (baja lógica) para que
+  // el historial quede guardado, y desaparece de los listados/KPI activos por defecto.
+  function darDeBajaFicha(lp) {
+    showConfirm('¿Dar de baja a esta persona? Deja de aparecer en las listas y KPI activos, pero sus datos quedan guardados en el historial y se puede reactivar cuando quieras.', function() {
+      showLoading('Dando de baja…');
+      supabaseClient.from('personal_tiro').update({ activo: false }).eq('lp', lp).then(function(res) {
+        hideLoading();
+        if (res.error) { alertShow('topAlert','error','Error: ' + res.error.message); return; }
+        closeGenericModal();
+        cargarFichas();
+      });
+    }, { peligroso: true, textoOk: 'Dar de baja', icon: '🚫' });
+  }
+
+  function reactivarFicha(lp) {
+    showConfirm('¿Reactivar a esta persona? Vuelve a aparecer en las listas y KPI activos.', function() {
+      showLoading('Reactivando…');
+      supabaseClient.from('personal_tiro').update({ activo: true }).eq('lp', lp).then(function(res) {
+        hideLoading();
+        if (res.error) { alertShow('topAlert','error','Error: ' + res.error.message); return; }
+        closeGenericModal();
+        cargarFichas();
+      });
+    }, { textoOk: 'Reactivar', icon: '♻️' });
+  }
+
+  // ---- Carga de fichas + KPIs ----
+  function cargarFichas() {
+    supabaseClient.from('personal_tiro').select('*').order('apellido', { ascending: true }).order('nombres', { ascending: true })
+      .then(function(res) {
+        if (res.error) { alertShow('topAlert','error','Error al cargar el listado: ' + res.error.message); fichas = []; }
+        else { fichas = (res.data || []).map(filaDesdeSupabase); }
+        fichasActivas = fichas.filter(function(f){ return f['Activo']; });
+        actualizarKPIs();
+        renderListado();
+      });
+  }
+
+  function actualizarKPIs() {
+    var vigente = 0, porVencer = 0, vencido = 0, sinChaleco = 0, armamento = 0;
+    var telParticular = 0, telCelular = 0, telEmergencia = 0, contactoEmergencia = 0, poc = 0;
+    var domicilioTotal = 0, domicilioPBA = 0, domicilioCABA = 0;
+    var licMunicipal = 0, licPolicial = 0, licProfesional = 0, sinLicencia = 0;
+    var cluVigente = 0, cluPorVencer = 0, cluVencido = 0, cluSinDatos = 0;
+    var cluLegitimoUsuario = 0, cluInstructor = 0;
+    var cumpleTodos = 0, cumpleMes = 0, cumpleProximoInfo = null;
+    var mesActual = new Date().getMonth();
+    fichasActivas.forEach(function(f) {
+      var e = estadoChaleco(f['Vencimiento']);
+      if (e.label === 'VIGENTE') vigente++;
+      else if (e.label === 'POR VENCER') porVencer++;
+      else if (e.label === 'VENCIDO') vencido++;
+      else sinChaleco++;
+      if (str(f['Marca Armamento']) || str(f['Nro Armamento'])) armamento++;
+      if (str(f['Telefono Particular'])) telParticular++;
+      if (str(f['Telefono Celular'])) telCelular++;
+      if (str(f['Telefono Emergencia'])) telEmergencia++;
+      if (str(f['Nombre Contacto Emergencia'])) contactoEmergencia++;
+      if (str(f['POC'])) poc++;
+      var dir = str(f['Direccion']).toUpperCase();
+      if (dir) domicilioTotal++;
+      if (dir.indexOf('PBA') !== -1) domicilioPBA++;
+      if (dir.indexOf('CABA') !== -1) domicilioCABA++;
+      var esMunicipalSI = str(f['Licencia Conducir Municipal']).toUpperCase() === 'SI';
+      var esPolicialSI = str(f['Habilitacion Flota Policial']).toUpperCase() === 'SI';
+      if (esMunicipalSI) licMunicipal++;
+      if (esPolicialSI) licPolicial++;
+      var licProf = str(f['Licencia Profesional']).toUpperCase();
+      if (licProf === 'VIGENTE' || licProf === 'VENCIDA') licProfesional++;
+      if (!esMunicipalSI && !esPolicialSI) sinLicencia++;
+      var eClu = peorEstadoClu(f);
+      if (eClu.label === 'VIGENTE') cluVigente++;
+      else if (eClu.label === 'POR VENCER') cluPorVencer++;
+      else if (eClu.label === 'VENCIDO') cluVencido++;
+      else cluSinDatos++;
+      if (str(f['CLU Tipo']).toUpperCase() === 'LEGITIMO USUARIO DE ARMAS' || str(f['CLU2 Tipo']).toUpperCase() === 'LEGITIMO USUARIO DE ARMAS') cluLegitimoUsuario++;
+      if (str(f['CLU Tipo']).toUpperCase() === 'INSTR ARMAS CORTAS Y LARGAS' || str(f['CLU2 Tipo']).toUpperCase() === 'INSTR ARMAS CORTAS Y LARGAS') cluInstructor++;
+      var fnac = f['Fecha de Nacimiento'];
+      if (str(fnac)) {
+        cumpleTodos++;
+        if (Number(fnac.split('-')[1]) - 1 === mesActual) cumpleMes++;
+        var info = proximoCumple(fnac);
+        if (info && (!cumpleProximoInfo || info.dias < cumpleProximoInfo.dias)) {
+          cumpleProximoInfo = { f: f, dias: info.dias, fecha: info.fecha };
+        }
+      }
+    });
+    document.getElementById('kpiTotal').textContent = fichasActivas.length;
+    document.getElementById('kpiBajas').textContent = fichas.length - fichasActivas.length;
+    document.getElementById('kpiChalecoTotal').textContent = vigente + porVencer;
+    document.getElementById('kpiVigente').textContent = vigente;
+    document.getElementById('kpiPorVencer').textContent = porVencer;
+    document.getElementById('kpiVencido').textContent = vencido;
+    document.getElementById('kpiSinChaleco').textContent = sinChaleco;
+    document.getElementById('kpiArmamento').textContent = armamento;
+    document.getElementById('kpiTelParticular').textContent = telParticular;
+    document.getElementById('kpiTelCelular').textContent = telCelular;
+    document.getElementById('kpiTelEmergencia').textContent = telEmergencia;
+    document.getElementById('kpiContactoEmergencia').textContent = contactoEmergencia;
+    document.getElementById('kpiPOC').textContent = poc;
+    document.getElementById('kpiDomicilioTotal').textContent = domicilioTotal;
+    document.getElementById('kpiDomicilioPBA').textContent = domicilioPBA;
+    document.getElementById('kpiDomicilioCABA').textContent = domicilioCABA;
+
+    document.getElementById('kpiLicMunicipal').textContent = licMunicipal;
+    document.getElementById('kpiLicPolicial').textContent = licPolicial;
+    document.getElementById('kpiLicProfesional').textContent = licProfesional;
+    document.getElementById('kpiSinLicencia').textContent = sinLicencia;
+
+    document.getElementById('kpiCluVigente').textContent = cluVigente;
+    document.getElementById('kpiCluPorVencer').textContent = cluPorVencer;
+    document.getElementById('kpiCluVencido').textContent = cluVencido;
+    document.getElementById('kpiCluSinDatos').textContent = cluSinDatos;
+    document.getElementById('kpiCluLegitimoUsuario').textContent = cluLegitimoUsuario;
+    document.getElementById('kpiCluInstructor').textContent = cluInstructor;
+
+    document.getElementById('kpiCumpleTodos').textContent = cumpleTodos;
+    document.getElementById('kpiCumpleMes').textContent = cumpleMes;
+    var mesNombres = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    document.getElementById('kpiCumpleMesNombre').textContent = mesNombres[mesActual];
+    if (cumpleProximoInfo) {
+      document.getElementById('kpiCumpleProximo').textContent = cumpleProximoInfo.f['Apellido'] + ', ' + cumpleProximoInfo.f['Nombres'];
+      var diasTxt = cumpleProximoInfo.dias === 0 ? '¡Hoy!' : (cumpleProximoInfo.dias === 1 ? 'Mañana' : 'en ' + cumpleProximoInfo.dias + ' días');
+      document.getElementById('kpiCumpleProximoSub').textContent = fmtFechaCorta(cumpleProximoInfo.fecha) + ' — ' + diasTxt;
+    } else {
+      document.getElementById('kpiCumpleProximo').textContent = '–';
+      document.getElementById('kpiCumpleProximoSub').textContent = 'sin datos';
+    }
+  }
+
+  // ---- Tabla principal (solapa Personal): solo columnas clave ----
+  function renderListado() {
+    var q = (document.getElementById('listaBuscar').value || '').toLowerCase();
+    var mostrarBajas = document.getElementById('listaMostrarBajas').checked;
+    var origen = mostrarBajas ? fichas : fichasActivas;
+
+    var filtrados = origen.filter(function(f) {
+      if (!q) return true;
+      var hay = [f['LP'], f['Apellido'], f['Nombres'], f['Grado'], f['Dependencia']].join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+
+    document.getElementById('listaCount').textContent = filtrados.length + ' de ' + origen.length;
+
+    var wrap = document.getElementById('tablaListadoWrap');
+    if (!filtrados.length) {
+      wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin registros</div></div>';
+      return;
+    }
+
+    var html = '<table><thead><tr>' +
+      '<th>Grado</th><th>LP</th><th>Apellido</th><th>Nombres</th><th>Dependencia</th><th>Estado</th>' +
+      '</tr></thead><tbody>';
+
+    filtrados.forEach(function(f) {
+      var estadoBadge = f['Activo'] ? '<span class="badge b-green">ACTIVO</span>' : '<span class="badge b-gray">BAJA</span>';
+      html += '<tr class="clickable-row" onclick="verFichaModal(\''+esc(f['LP'])+'\')">' +
+        '<td>'+esc(f['Grado'])+'</td>' +
+        '<td>'+esc(f['LP'])+'</td>' +
+        '<td>'+esc(f['Apellido'])+'</td>' +
+        '<td>'+esc(f['Nombres'])+'</td>' +
+        '<td>'+esc(f['Dependencia'])+'</td>' +
+        '<td>'+estadoBadge+'</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  // ================= MODAL GENÉRICO =================
+  function openGenericModal(title, bodyHtml) {
+    document.getElementById('genericModalTitle').textContent = title;
+    document.getElementById('genericModalBody').innerHTML = bodyHtml;
+    document.getElementById('genericModalExportBtn').style.display = 'none';
+    document.getElementById('genericModal').classList.add('show');
+  }
+  function closeGenericModal() {
+    document.getElementById('genericModal').classList.remove('show');
+    lastBoxType = null;
+    lastCajaLista = null;
+    lastCajaCols = null;
+  }
+
+  // Cada columna: { k: nombre exacto del campo, label: título de la columna, date: true si hay que formatear como fecha }
+  var COLS_BASE = [
+    { k: 'Grado', label: 'Grado' },
+    { k: 'LP', label: 'LP' },
+    { k: 'Apellido', label: 'Apellido' },
+    { k: 'Nombres', label: 'Nombres' }
+  ];
+  var COLS_PERSONAL  = COLS_BASE.concat([{ k: 'Dependencia', label: 'Dependencia' }]);
+  var COLS_CHALECO   = COLS_BASE.concat([
+    { k: 'Chaleco Marca', label: 'Marca' }, { k: 'Modelo', label: 'Modelo' }, { k: 'Serie', label: 'Serie' },
+    { k: 'Talle', label: 'Talle' }, { k: 'Fabricacion', label: 'Fabricación', date: true }, { k: 'Vencimiento', label: 'Vencimiento', date: true }
+  ]);
+  var COLS_CONTACTO  = COLS_BASE.concat([
+    { k: 'Telefono Particular', label: 'Tel. particular' }, { k: 'Telefono Celular', label: 'Tel. celular' },
+    { k: 'Telefono Emergencia', label: 'Tel. emergencia' }, { k: 'Nombre Contacto Emergencia', label: 'Contacto emergencia' },
+    { k: 'POC', label: 'POC' }
+  ]);
+  var COLS_ARMAMENTO = COLS_BASE.concat([{ k: 'Marca Armamento', label: 'Marca armamento' }, { k: 'Nro Armamento', label: 'Nro. armamento' }]);
+  var COLS_DOMICILIO = COLS_BASE.concat([{ k: 'Direccion', label: 'Dirección' }]);
+  var COLS_LIC_MUNICIPAL = COLS_BASE.concat([
+    { k: 'Licencia Conducir Municipal', label: 'Licencia municipal' }, { k: 'Categoria Municipal', label: 'Categoría' },
+    { k: 'Vencimiento Licencia Municipal', label: 'Vencimiento', date: true }
+  ]);
+  var COLS_LIC_POLICIAL = COLS_BASE.concat([
+    { k: 'Habilitacion Flota Policial', label: 'Habilitación policial' }, { k: 'Categoria Policial', label: 'Categoría' },
+    { k: 'Vencimiento Licencia Policial', label: 'Vencimiento', date: true }
+  ]);
+  var COLS_LIC_PROFESIONAL = COLS_BASE.concat([{ k: 'Licencia Profesional', label: 'Licencia profesional' }]);
+  var COLS_SIN_LICENCIA = COLS_BASE.concat([
+    { k: 'Licencia Conducir Municipal', label: 'Licencia municipal' }, { k: 'Habilitacion Flota Policial', label: 'Habilitación policial' }
+  ]);
+  var COLS_CLU = COLS_BASE.concat([
+    { k: 'CLU Tipo', label: 'CLU N°1 — tipo' }, { k: 'CLU Numero', label: 'CLU N°1 — credencial' }, { k: 'CLU Vencimiento', label: 'CLU N°1 — vencimiento', date: true },
+    { k: 'CLU2 Tipo', label: 'CLU N°2 — tipo' }, { k: 'CLU2 Numero', label: 'CLU N°2 — credencial' }, { k: 'CLU2 Vencimiento', label: 'CLU N°2 — vencimiento', date: true }
+  ]);
+  var COLS_CUMPLE = COLS_BASE.concat([
+    { k: 'Fecha de Nacimiento', label: 'Fecha nac.', date: true },
+    { label: 'Próximo cumpleaños', calc: function(f){ return textoProximoCumple(f['Fecha de Nacimiento']); } }
+  ]);
+
+  // Devuelve el valor de una columna para una ficha, ya formateado y listo para mostrar/exportar.
+  function valorColumna(f, c) {
+    if (c.calc) return c.calc(f);
+    if (c.date) return fmtFecha(f[c.k]);
+    var v = f[c.k];
+    return v == null ? '' : v;
+  }
+
+  var CAJA_DEF = {
+    total:               { titulo: 'Todo el personal cargado', cols: COLS_PERSONAL,  filtro: function(f){ return true; } },
+    chalecoTotal:        { titulo: 'Chaleco cargado (vigente + por vencer)', cols: COLS_CHALECO, filtro: function(f){ var l = estadoChaleco(f['Vencimiento']).label; return l === 'VIGENTE' || l === 'POR VENCER'; } },
+    vigente:             { titulo: 'Chaleco vigente',           cols: COLS_CHALECO,  filtro: function(f){ return estadoChaleco(f['Vencimiento']).label === 'VIGENTE'; } },
+    porVencer:           { titulo: 'Chaleco por vencer (90 días)', cols: COLS_CHALECO, filtro: function(f){ return estadoChaleco(f['Vencimiento']).label === 'POR VENCER'; } },
+    vencido:             { titulo: 'Chaleco vencido',           cols: COLS_CHALECO,  filtro: function(f){ return estadoChaleco(f['Vencimiento']).label === 'VENCIDO'; } },
+    sinChaleco:          { titulo: 'Personal sin chaleco cargado', cols: COLS_PERSONAL, filtro: function(f){ return estadoChaleco(f['Vencimiento']).label === 'SIN DATOS'; } },
+    armamento:           { titulo: 'Con armamento cargado',     cols: COLS_ARMAMENTO, filtro: function(f){ return str(f['Marca Armamento']) || str(f['Nro Armamento']); } },
+    telParticular:       { titulo: 'Con teléfono particular cargado', cols: COLS_CONTACTO, filtro: function(f){ return str(f['Telefono Particular']); } },
+    telCelular:          { titulo: 'Con teléfono celular cargado',    cols: COLS_CONTACTO, filtro: function(f){ return str(f['Telefono Celular']); } },
+    telEmergencia:       { titulo: 'Con teléfono de emergencia cargado', cols: COLS_CONTACTO, filtro: function(f){ return str(f['Telefono Emergencia']); } },
+    contactoEmergencia:  { titulo: 'Con contacto de emergencia cargado', cols: COLS_CONTACTO, filtro: function(f){ return str(f['Nombre Contacto Emergencia']); } },
+    poc:                 { titulo: 'Con POC (tel. institucional) cargado', cols: COLS_CONTACTO, filtro: function(f){ return str(f['POC']); } },
+    domicilioTotal:      { titulo: 'Domicilio cargado',   cols: COLS_DOMICILIO, filtro: function(f){ return str(f['Direccion']); } },
+    domicilioPBA:        { titulo: 'Domicilio en PBA',    cols: COLS_DOMICILIO, filtro: function(f){ return str(f['Direccion']).toUpperCase().indexOf('PBA') !== -1; } },
+    domicilioCABA:       { titulo: 'Domicilio en CABA',   cols: COLS_DOMICILIO, filtro: function(f){ return str(f['Direccion']).toUpperCase().indexOf('CABA') !== -1; } },
+    licMunicipal:        { titulo: 'Con licencia de conducir municipal', cols: COLS_LIC_MUNICIPAL, filtro: function(f){ return str(f['Licencia Conducir Municipal']).toUpperCase() === 'SI'; } },
+    licPolicial:         { titulo: 'Con licencia de conducir policial (flota)', cols: COLS_LIC_POLICIAL, filtro: function(f){ return str(f['Habilitacion Flota Policial']).toUpperCase() === 'SI'; } },
+    licProfesional:      { titulo: 'Con licencia profesional (vigente o vencida)', cols: COLS_LIC_PROFESIONAL, filtro: function(f){ var v = str(f['Licencia Profesional']).toUpperCase(); return v === 'VIGENTE' || v === 'VENCIDA'; } },
+    sinLicencia:         { titulo: 'Personal sin licencia de conducir (ni municipal ni policial)', cols: COLS_SIN_LICENCIA, filtro: function(f){ return str(f['Licencia Conducir Municipal']).toUpperCase() !== 'SI' && str(f['Habilitacion Flota Policial']).toUpperCase() !== 'SI'; } },
+    cluVigente:          { titulo: 'CLU vigente (considerando ambas credenciales)', cols: COLS_CLU, filtro: function(f){ return peorEstadoClu(f).label === 'VIGENTE'; } },
+    cluPorVencer:        { titulo: 'CLU por vencer (90 días) — alguna de las dos credenciales', cols: COLS_CLU, filtro: function(f){ return peorEstadoClu(f).label === 'POR VENCER'; } },
+    cluVencido:          { titulo: 'CLU vencida — alguna de las dos credenciales', cols: COLS_CLU, filtro: function(f){ return peorEstadoClu(f).label === 'VENCIDO'; } },
+    cluSinDatos:         { titulo: 'Personal sin ninguna CLU cargada', cols: COLS_PERSONAL, filtro: function(f){ return peorEstadoClu(f).label === 'SIN DATOS'; } },
+    cluLegitimoUsuario:  { titulo: 'Personal con CLU — Legítimo Usuario de Armas', cols: COLS_CLU, filtro: function(f){ return f['CLU Tipo'] === 'LEGITIMO USUARIO DE ARMAS' || f['CLU2 Tipo'] === 'LEGITIMO USUARIO DE ARMAS'; } },
+    cluInstructor:       { titulo: 'Personal con CLU — Instr. Armas Cortas y Largas', cols: COLS_CLU, filtro: function(f){ return f['CLU Tipo'] === 'INSTR ARMAS CORTAS Y LARGAS' || f['CLU2 Tipo'] === 'INSTR ARMAS CORTAS Y LARGAS'; } },
+    cumpleProximo:       { titulo: 'Próximos cumpleaños (orden de proximidad)', cols: COLS_CUMPLE, filtro: function(f){ return str(f['Fecha de Nacimiento']); },
+                            sort: function(a,b){ return proximoCumple(a['Fecha de Nacimiento']).dias - proximoCumple(b['Fecha de Nacimiento']).dias; } },
+    cumpleMes:           { titulo: 'Cumpleaños de este mes', cols: COLS_CUMPLE, filtro: function(f){ var fnac = f['Fecha de Nacimiento']; return str(fnac) && (Number(fnac.split('-')[1]) - 1 === new Date().getMonth()); },
+                            sort: function(a,b){ return Number(a['Fecha de Nacimiento'].split('-')[2]) - Number(b['Fecha de Nacimiento'].split('-')[2]); } },
+    cumpleTodos:         { titulo: 'Todos los cumpleaños cargados (orden de proximidad)', cols: COLS_CUMPLE, filtro: function(f){ return str(f['Fecha de Nacimiento']); },
+                            sort: function(a,b){ return proximoCumple(a['Fecha de Nacimiento']).dias - proximoCumple(b['Fecha de Nacimiento']).dias; } },
+    bajas:               { titulo: 'Personal dado de baja (histórico)', cols: COLS_PERSONAL, filtro: function(f){ return true; }, todos: true }
+  };
+
+  function abrirCajaModal(tipo) {
+    lastBoxType = tipo;
+    var def = CAJA_DEF[tipo];
+    var origen = def.todos ? fichas : fichasActivas;
+    var lista = origen.filter(def.filtro);
+    if (def.sort) lista = lista.slice().sort(def.sort);
+    lastCajaLista = lista;
+    lastCajaCols = def.cols;
+    lastCajaTitulo = def.titulo;
+
+    var html = '';
+    if (!lista.length) {
+      html = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin personal en esta categoría</div></div>';
+    } else {
+      html = '<div class="modal-table-wrap"><table><thead><tr>' + def.cols.map(function(c){ return '<th>'+esc(c.label)+'</th>'; }).join('') + '</tr></thead><tbody>';
+      lista.forEach(function(f) {
+        html += '<tr class="clickable-row" onclick="verFichaModal(\''+esc(f['LP'])+'\')">' +
+          def.cols.map(function(c){ return '<td>' + esc(valorColumna(f, c)) + '</td>'; }).join('') +
+        '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    openGenericModal(def.titulo + ' (' + lista.length + ')', html);
+    if (lista.length) document.getElementById('genericModalExportBtn').style.display = 'inline-flex';
+  }
+
+  // ---- Exporta el listado actualmente abierto en el modal a un .csv (se abre directamente en Excel) ----
+  function exportarCajaCSV() {
+    if (!lastCajaLista || !lastCajaCols || !lastCajaLista.length) return;
+    var cols = lastCajaCols;
+    var filas = [cols.map(function(c){ return c.label; })];
+    lastCajaLista.forEach(function(f) {
+      filas.push(cols.map(function(c){ return String(valorColumna(f, c) == null ? '' : valorColumna(f, c)); }));
+    });
+    var csv = filas.map(function(fila) {
+      return fila.map(function(v) {
+        var s = String(v).replace(/"/g, '""');
+        return /[";\n]/.test(s) ? '"' + s + '"' : s;
+      }).join(';');
+    }).join('\r\n');
+    var BOM = '﻿'; // fuerza UTF-8 en Excel para que se vean bien las tildes/ñ
+    var blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var nombreArchivo = (lastCajaTitulo || 'listado').toLowerCase()
+      .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u')
+      .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'division_tiro_' + nombreArchivo + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // ---- Exporta la planilla oficial "Licencias de Conducir" (3 hojas, igual al modelo) ----
+  async function exportarPlanillaLicencias() {
+    if (typeof ExcelJS === 'undefined') {
+      alertShow('topAlert', 'error', 'No se pudo cargar la librería para generar el Excel. Revisá tu conexión y probá de nuevo.');
+      return;
+    }
+    showLoading('Generando planilla de Licencias de Conducir…');
+    try {
+      var telParticularOCelular = function(f){ return str(f['Telefono Particular']) || str(f['Telefono Celular']) || ''; };
+      var esLicenciaProfesional = function(f){ var v = str(f['Licencia Profesional']).toUpperCase(); return v === 'VIGENTE' || v === 'VENCIDA'; };
+      var conLicencia = fichasActivas.filter(esLicenciaProfesional);
+      var sinLicenciaList = fichasActivas.filter(function(f){ return !esLicenciaProfesional(f); });
+
+      var NOMBRE_HOJA_1 = 'LICENCIAS DE CONDUCIR PROFESION';
+      var NOMBRE_HOJA_2 = 'NO POSEEN LICENCIA DE CONDUCIR';
+
+      var wb = new ExcelJS.Workbook();
+      var estiloTitulo = { font: { bold: true, size: 12 }, alignment: { horizontal: 'center', vertical: 'middle' } };
+      var estiloHeader = {
+        font: { bold: true, color: { argb: 'FFFFFFFF' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A237E' } },
+        alignment: { vertical: 'middle', wrapText: true }
+      };
+
+      var sh1 = wb.addWorksheet(NOMBRE_HOJA_1);
+      sh1.columns = [
+        { width: 8 }, { width: 16 }, { width: 10 }, { width: 12 }, { width: 30 },
+        { width: 22 }, { width: 22 }, { width: 28 }, { width: 26 },
+        { width: 16 }, { width: 16 }, { width: 15 },
+        { width: 18 }, { width: 16 }, { width: 15 },
+        { width: 12 }, { width: 16 }, { width: 22 }
+      ];
+      sh1.mergeCells(1, 1, 1, 18);
+      sh1.getCell(1, 1).value = 'SUPERINTENDENCIA/DIRECCIÓN AUTÓNOMA';
+      Object.assign(sh1.getCell(1, 1), estiloTitulo);
+      var headers1 = [
+        'Orden', 'JERARQUIA', 'LP', 'DNI', 'NOMBRE Y APELLIDO',
+        'DEPENDENCIA (SEGÚN SIRHU)  ', 'DEPENDENCIA (REAL)', 'DOMICILIO PARTICULAR ', 'CORREO ELECTRONICO',
+        'LICENCIA DE CONDUCIR MUNICIPAL (SI/NO)', 'CATEGORIA MUNICIPAL', 'FECHA DE VENCIMIENTO',
+        'HABILITACION DE CONDUCTOR DE FLOTA POLICIAL (ISI/NO)', 'CATEGORIA POLICIAL', 'FECHA DE VENCIMIENTO',
+        'TELEFONO POC', 'TELEFONO PARTICULAR', 'CON LICENCIA PROFESIONAL (VIGENTE Y VENCIDA)'
+      ];
+      sh1.getRow(2).values = headers1;
+      sh1.getRow(2).eachCell(function(cell){ Object.assign(cell, estiloHeader); });
+      conLicencia.forEach(function(f, i) {
+        sh1.addRow([
+          i + 1, f['Grado'] || '', f['LP'] || '', f['DNI'] || '', str(f['Apellido']) + ', ' + str(f['Nombres']),
+          f['Dependencia'] || '', f['Dependencia'] || '', f['Direccion'] || '', f['Correo Electronico Personal'] || '',
+          f['Licencia Conducir Municipal'] || '', f['Categoria Municipal'] || '', fmtFecha(f['Vencimiento Licencia Municipal']),
+          f['Habilitacion Flota Policial'] || '', f['Categoria Policial'] || '', fmtFecha(f['Vencimiento Licencia Policial']),
+          f['POC'] || '', telParticularOCelular(f), f['Licencia Profesional'] || ''
+        ]);
+      });
+
+      var sh2 = wb.addWorksheet(NOMBRE_HOJA_2);
+      sh2.columns = [
+        { width: 8 }, { width: 16 }, { width: 10 }, { width: 12 }, { width: 30 },
+        { width: 22 }, { width: 22 }, { width: 28 }, { width: 26 },
+        { width: 16 }, { width: 16 }, { width: 15 },
+        { width: 12 }, { width: 16 }
+      ];
+      sh2.mergeCells(1, 1, 1, 14);
+      sh2.getCell(1, 1).value = 'SUPERINTENDENCIA/DIRECCIÓN AUTÓNOMA';
+      Object.assign(sh2.getCell(1, 1), estiloTitulo);
+      var headers2 = [
+        'Orden', 'JERARQUIA', 'LP', 'DNI', 'NOMBRE Y APELLIDO',
+        'DEPENDENCIA (SEGÚN SIRHU)  ', 'DEPENDENCIA (REAL)', 'DOMICILIO PARTICULAR ', 'CORREO ELECTRONICO',
+        'LICENCIA DE CONDUCIR MUNICIPAL (SI/NO)', 'CATEGORIA MUNICIPAL', 'FECHA DE VENCIMIENTO',
+        'TELEFONO POC', 'TELEFONO PARTICULAR'
+      ];
+      sh2.getRow(2).values = headers2;
+      sh2.getRow(2).eachCell(function(cell){ Object.assign(cell, estiloHeader); });
+      sinLicenciaList.forEach(function(f, i) {
+        sh2.addRow([
+          i + 1, f['Grado'] || '', f['LP'] || '', f['DNI'] || '', str(f['Apellido']) + ', ' + str(f['Nombres']),
+          f['Dependencia'] || '', f['Dependencia'] || '', f['Direccion'] || '', f['Correo Electronico Personal'] || '',
+          f['Licencia Conducir Municipal'] || '', f['Categoria Municipal'] || '', fmtFecha(f['Vencimiento Licencia Municipal']),
+          f['POC'] || '', telParticularOCelular(f)
+        ]);
+      });
+
+      var sh3 = wb.addWorksheet('Numérico');
+      sh3.columns = [{ width: 34 }, { width: 34 }, { width: 40 }, { width: 34 }];
+      sh3.getRow(1).values = [
+        'PERSONAL SIN LICENCIA NACIONAL DE CONDUCIR', 'PERSONAL CON LICENCIA NACIONAL DE CONDUCIR',
+        'PERSONAL CON LICENCIA NACIONAL DE CONDUCIR PROFESIONAL', 'PERSONAL HABILITADO CON LICENCIA POLICIAL'
+      ];
+      sh3.getRow(1).eachCell(function(cell){ cell.font = { bold: true }; cell.alignment = { wrapText: true }; });
+      sh3.getCell(2, 1).value = { formula: 'COUNTIF(\'' + NOMBRE_HOJA_2 + '\'!J:J,"NO")' };
+      sh3.getCell(2, 2).value = { formula: 'COUNTIF(\'' + NOMBRE_HOJA_2 + '\'!J:J,"SI")' };
+      sh3.getCell(2, 3).value = { formula: 'COUNTIF(\'' + NOMBRE_HOJA_1 + '\'!J:J,"SI")' };
+      sh3.getCell(2, 4).value = { formula: 'COUNTIF(\'' + NOMBRE_HOJA_1 + '\'!M:M,"SI")' };
+
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'Licencias_de_Conducir_Division_Tiro_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+    } catch (err) {
+      alertShow('topAlert', 'error', 'Error al generar la planilla: ' + err.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---- Detalle completo de una ficha (se abre desde cualquier tabla o caja) ----
+  function _fichaSeccion(titulo, campos, extraHtml) {
+    return '<div class="ficha-seccion"><div class="ficha-seccion-title">' + esc(titulo) + '</div>' +
+      '<div class="detail-grid">' + campos.map(function(c) {
+        return '<div class="detail-item"><label>' + esc(c[0]) + '</label><span>' + esc(c[1] || '—') + '</span></div>';
+      }).join('') + '</div>' +
+      (extraHtml || '') +
+      '</div>';
+  }
+
+  // ---- Detalle completo de una ficha, con formato de carnet: foto + secciones ordenadas ----
+  async function verFichaModal(lp) {
+    var f = fichas.find(function(x){ return x['LP'] === lp; });
+    if (!f) return;
+    var eChaleco = estadoChaleco(f['Vencimiento']);
+    var eClu = estadoChaleco(f['CLU Vencimiento']);
+    var eClu2 = estadoChaleco(f['CLU2 Vencimiento']);
+
+    // El bucket es privado, así que hay que pedir un link temporal por cada
+    // imagen antes de poder armar el HTML de la ficha.
+    var urls = await Promise.all([
+      signedUrlStorage(f['Foto Drive ID']),
+      signedUrlStorage(f['CLU Imagen Drive ID']),
+      signedUrlStorage(f['CLU2 Imagen Drive ID']),
+      signedUrlStorage(f['DNI Frente Drive ID']),
+      signedUrlStorage(f['DNI Dorso Drive ID'])
+    ]);
+    var urlFoto = urls[0], urlClu = urls[1], urlClu2 = urls[2], urlDniFrente = urls[3], urlDniDorso = urls[4];
+
+    var fotoHtml = urlFoto
+      ? '<img src="' + esc(urlFoto) + '" alt="Foto del personal">'
+      : '<span class="sin-foto">👤</span>';
+
+    var cluImagenHtml = urlClu
+      ? '<div class="clu-imagen-wrap"><img src="' + esc(urlClu) + '" alt="Credencial CLU" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '<div class="field-hint" style="margin-top:10px;">Sin imagen de la credencial N° 1 cargada.</div>';
+
+    var clu2ImagenHtml = urlClu2
+      ? '<div class="clu-imagen-wrap"><img src="' + esc(urlClu2) + '" alt="Segunda credencial CLU" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '';
+
+    var dniFrenteHtml = urlDniFrente
+      ? '<div class="clu-imagen-wrap"><div class="ficha-seccion-title" style="margin-bottom:6px;">DNI (frente)</div><img src="' + esc(urlDniFrente) + '" alt="DNI frente" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '';
+    var dniDorsoHtml = urlDniDorso
+      ? '<div class="clu-imagen-wrap"><div class="ficha-seccion-title" style="margin-bottom:6px;">DNI (dorso)</div><img src="' + esc(urlDniDorso) + '" alt="DNI dorso" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '';
+
+    var backBtn = lastBoxType ? '<button class="modal-back" onclick="abrirCajaModal(\''+lastBoxType+'\')">← Volver al listado</button>' : '';
+
+    var fechaGenerado = new Date();
+    var fechaGeneradoStr = fechaGenerado.toLocaleDateString('es-AR') + ' ' + fechaGenerado.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+    var html = backBtn;
+
+    html += '<div class="print-masthead"><span>División Tiro — Ficha de personal</span><span>Generado: ' + esc(fechaGeneradoStr) + '</span></div>';
+
+    html += '<div class="ficha-header">' +
+      '<div class="ficha-foto">' + fotoHtml + '</div>' +
+      '<div>' +
+        '<div class="ficha-nombre">' + esc(f['Apellido']) + ', ' + esc(f['Nombres']) + (f['Activo'] ? '' : ' <span class="badge b-gray">BAJA</span>') + '</div>' +
+        '<div class="ficha-grado">' + esc(f['Grado'] || '—') + ' — LP ' + esc(f['LP']) + (f['DNI'] ? ' — DNI ' + esc(f['DNI']) : '') + '</div>' +
+        '<div class="ficha-dependencia">' + esc(f['Dependencia'] || 'Sin dependencia cargada') + '</div>' +
+      '</div>' +
+    '</div>';
+
+    html += '<div class="ficha-secciones">';
+
+    html += _fichaSeccion('Datos personales', [
+      ['Fecha de nacimiento', fmtFecha(f['Fecha de Nacimiento'])],
+      ['Sexo', f['Sexo']],
+      ['Nacionalidad', f['Nacionalidad']],
+      ['Grupo sanguíneo', f['Grupo Sanguineo']],
+      ['Receptor de órganos', f['Receptor de Organos']],
+      ['Dono órganos', f['Dono Organos']]
+    ], dniFrenteHtml + dniDorsoHtml);
+
+    html += _fichaSeccion('Contacto', [
+      ['Dirección', f['Direccion']],
+      ['Domicilio (DNI)', f['Domicilio DNI']],
+      ['Teléfono particular', f['Telefono Particular']],
+      ['Teléfono celular', f['Telefono Celular']],
+      ['Teléfono emergencia', f['Telefono Emergencia']],
+      ['Contacto emergencia', f['Nombre Contacto Emergencia']],
+      ['POC (tel. institucional)', f['POC']],
+      ['Correo personal', f['Correo Electronico Personal']],
+      ['Correo institucional', f['Correo Electronico Institucional']],
+      ['Correo policial', f['Correo Electronico Policial']]
+    ]);
+
+    var tieneClu2 = !!(f['CLU2 Tipo'] || f['CLU2 Numero'] || f['CLU2 Vencimiento'] || f['CLU2 Imagen Drive ID']);
+
+    var armamentoHtml = '<div class="detail-grid">' +
+      [['Marca armamento', f['Marca Armamento']], ['Nro. armamento', f['Nro Armamento']]].map(function(c) {
+        return '<div class="detail-item"><label>' + esc(c[0]) + '</label><span>' + esc(c[1] || '—') + '</span></div>';
+      }).join('') + '</div>';
+
+    var clu1Html = '<div class="ficha-seccion-title" style="margin-top:14px;">CLU N°1</div><div class="detail-grid">' +
+      [['Tipo', f['CLU Tipo']], ['Credencial', f['CLU Numero']],
+       ['Vencimiento', f['CLU Vencimiento'] ? (fmtFecha(f['CLU Vencimiento']) + ' (' + eClu.label + ')') : '']].map(function(c) {
+        return '<div class="detail-item"><label>' + esc(c[0]) + '</label><span>' + esc(c[1] || '—') + '</span></div>';
+      }).join('') + '</div>' + cluImagenHtml;
+
+    var clu2Html = tieneClu2
+      ? '<div class="ficha-seccion-title" style="margin-top:14px;">CLU N°2</div><div class="detail-grid">' +
+        [['Tipo', f['CLU2 Tipo']], ['Credencial', f['CLU2 Numero']],
+         ['Vencimiento', f['CLU2 Vencimiento'] ? (fmtFecha(f['CLU2 Vencimiento']) + ' (' + eClu2.label + ')') : '']].map(function(c) {
+          return '<div class="detail-item"><label>' + esc(c[0]) + '</label><span>' + esc(c[1] || '—') + '</span></div>';
+        }).join('') + '</div>' + clu2ImagenHtml
+      : '';
+
+    html += '<div class="ficha-seccion"><div class="ficha-seccion-title">Armamento y CLU</div>' +
+      armamentoHtml + clu1Html + clu2Html + '</div>';
+
+    html += _fichaSeccion('Chaleco antibalas', [
+      ['Marca', f['Chaleco Marca']], ['Modelo', f['Modelo']], ['Serie', f['Serie']], ['Talle', f['Talle']],
+      ['Fabricación', fmtFecha(f['Fabricacion'])],
+      ['Vencimiento', f['Vencimiento'] ? (fmtFecha(f['Vencimiento']) + ' (' + eChaleco.label + ')') : '']
+    ]);
+
+    html += _fichaSeccion('Licencia de conducir', [
+      ['Licencia municipal', f['Licencia Conducir Municipal']], ['Categoría municipal', f['Categoria Municipal']],
+      ['Vencimiento lic. municipal', fmtFecha(f['Vencimiento Licencia Municipal'])],
+      ['Habilitación flota policial', f['Habilitacion Flota Policial']], ['Categoría policial', f['Categoria Policial']],
+      ['Vencimiento lic. policial', fmtFecha(f['Vencimiento Licencia Policial'])],
+      ['Licencia profesional', f['Licencia Profesional']]
+    ]);
+
+    html += _fichaSeccion('Esposas', [
+      ['Esposas', f['Esposas']], ['Nro. esposas', f['Nro Esposas']]
+    ]);
+
+    html += '</div>';
+
+    var botonEstado = f['Activo']
+      ? '<button class="btn btn-danger btn-sm" onclick="darDeBajaFicha(\''+esc(f['LP'])+'\')">🚫 Dar de baja</button>'
+      : '<button class="btn btn-success btn-sm" onclick="reactivarFicha(\''+esc(f['LP'])+'\')">♻️ Reactivar</button>';
+
+    html += '<div class="btn-row" style="margin-top:20px;">' +
+      '<button class="btn btn-primary btn-sm" onclick="editarDesdeFicha(\''+esc(f['LP'])+'\')">✏️ Editar</button>' +
+      '<button class="btn btn-success btn-sm" onclick="exportarFichaPDF(\''+esc(f['LP'])+'\')">📄 Exportar a PDF</button>' +
+      botonEstado +
+    '</div>';
+
+    openGenericModal(f['Apellido'] + ', ' + f['Nombres'] + ' — LP ' + f['LP'], html);
+  }
+
+  // Exporta la ficha abierta a PDF usando la función nativa de impresión del navegador
+  // (el usuario elige "Guardar como PDF" en el diálogo de impresión).
+  function exportarFichaPDF(lp) {
+    var f = fichas.find(function (x) { return x['LP'] === lp; });
+    var tituloOriginal = document.title;
+    var tituloImpresion = 'Ficha Personal - ' + (f ? (f['Apellido'] + ' ' + f['Nombres']) : 'Personal');
+
+    function limpiar() {
+      document.title = tituloOriginal;
+      document.body.classList.remove('modo-impresion-ficha');
+      window.removeEventListener('afterprint', limpiar);
+    }
+    document.title = tituloImpresion;
+    document.body.classList.add('modo-impresion-ficha');
+    window.addEventListener('afterprint', limpiar);
+    setTimeout(function () {
+      window.print();
+      setTimeout(limpiar, 3000);
+    }, 50);
+  }
+
+  // ---- Inicio ----
+  initAuth();
+
+</script>
+</body>
+</html>
