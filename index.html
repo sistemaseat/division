@@ -2199,12 +2199,37 @@
     }, { textoOk: 'Reactivar', icon: '♻️' });
   }
 
+  // ---- Orden del personal: por Grado (jerarquía) y, dentro del mismo grado,
+  // por Dependencia (primero División Tiro, después la Sección). Un grado o
+  // dependencia que no esté en la lista se manda al final, sin romper nada. ----
+  var ORDEN_GRADO = ['Comisario', 'Subcomisario', 'Principal', 'Inspector', 'Oficial Mayor', 'Oficial Primero', 'Oficial'];
+  var ORDEN_DEPENDENCIA = ['DIVISION TIRO', 'SECCION TIRO DE FORMACION INICIAL'];
+
+  function rankGrado(g) {
+    var i = ORDEN_GRADO.indexOf(String(g || '').trim());
+    return i === -1 ? ORDEN_GRADO.length : i;
+  }
+  function rankDependencia(d) {
+    var i = ORDEN_DEPENDENCIA.indexOf(String(d || '').trim().toUpperCase());
+    return i === -1 ? ORDEN_DEPENDENCIA.length : i;
+  }
+  function compararPersonal(a, b) {
+    var rg = rankGrado(a['Grado']) - rankGrado(b['Grado']);
+    if (rg !== 0) return rg;
+    var rd = rankDependencia(a['Dependencia']) - rankDependencia(b['Dependencia']);
+    if (rd !== 0) return rd;
+    var ap = String(a['Apellido'] || '').localeCompare(String(b['Apellido'] || ''), 'es');
+    if (ap !== 0) return ap;
+    return String(a['Nombres'] || '').localeCompare(String(b['Nombres'] || ''), 'es');
+  }
+
   // ---- Carga de fichas + KPIs ----
   function cargarFichas() {
     supabaseClient.from('personal_tiro').select('*').order('apellido', { ascending: true }).order('nombres', { ascending: true })
       .then(function(res) {
         if (res.error) { alertShow('topAlert','error','Error al cargar el listado: ' + res.error.message); fichas = []; }
         else { fichas = (res.data || []).map(filaDesdeSupabase); }
+        fichas.sort(compararPersonal);
         fichasActivas = fichas.filter(function(f){ return f['Activo']; });
         actualizarKPIs();
         renderListado();
