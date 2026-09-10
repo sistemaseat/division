@@ -397,12 +397,20 @@
     .print-masthead { display: none; }
     @page { size: A4; margin: 12mm 14mm; }
     @media print {
-      body.modo-impresion-ficha > .header,
-      body.modo-impresion-ficha > .tabs,
-      body.modo-impresion-ficha > .content,
+      /* El header/tabs/tabla de Personal viven dentro de #appRoot (no son hijos
+         directos de <body>), así que hay que ocultar ese contenedor entero —
+         si no, además de la ficha se imprime todo lo que sigue: el listado
+         completo de personal, etc. */
+      body.modo-impresion-ficha #appRoot,
       body.modo-impresion-ficha .loading-overlay,
       body.modo-impresion-ficha .pantalla-auth { display: none !important; }
-      body.modo-impresion-ficha .modal-overlay {
+      /* Solo se muestra el modal que esté realmente abierto (el de la ficha).
+         Sin el ":not(.show)" de abajo, TODOS los modal-overlay del documento
+         se fuerzan a mostrarse — incluido el de recortar imagen (con la
+         última foto que se haya encuadrado, de cualquier persona) y el de
+         confirmación — y terminan apareciendo también en el PDF. */
+      body.modo-impresion-ficha .modal-overlay:not(.show) { display: none !important; }
+      body.modo-impresion-ficha .modal-overlay.show {
         position: static !important; display: block !important; background: none !important; padding: 0 !important;
       }
       body.modo-impresion-ficha .modal {
@@ -1915,6 +1923,7 @@
   function _cerrarRecorteModal() {
     document.getElementById('recorteModal').classList.remove('show');
     if (_recorteCropper) { _recorteCropper.destroy(); _recorteCropper = null; }
+    document.getElementById('recorteImg').src = ''; // no dejar la última foto encuadrada pegada en el DOM
   }
 
   function confirmarRecorte() {
