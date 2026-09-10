@@ -914,7 +914,6 @@
           <div class="subtab-pane" id="subtab-contacto">
             <div class="form-grid">
               <div class="form-group full"><label class="form-label">Dirección</label><input type="text" id="fDireccion"></div>
-              <div class="form-group full"><label class="form-label">Domicilio (según DNI)</label><input type="text" id="fDomicilioDNI"><span class="field-hint">Solo si difiere de la dirección real de arriba.</span></div>
               <div class="form-group"><label class="form-label">Teléfono particular</label><input type="text" id="fTelParticular"></div>
               <div class="form-group"><label class="form-label">Teléfono celular</label><input type="text" id="fTelCelular"></div>
               <div class="form-group"><label class="form-label">Teléfono emergencia</label><input type="text" id="fTelEmergencia"></div>
@@ -1155,7 +1154,7 @@
   const COL_MAP = {
     'Grado': 'grado', 'LP': 'lp', 'Apellido': 'apellido', 'Nombres': 'nombres', 'Dependencia': 'dependencia',
     'Fecha de Nacimiento': 'fecha_nacimiento', 'Receptor de Organos': 'receptor_organos', 'Dono Organos': 'dono_organos',
-    'Direccion': 'direccion', 'Domicilio DNI': 'domicilio_dni',
+    'Direccion': 'direccion',
     'Telefono Particular': 'telefono_particular', 'Telefono Celular': 'telefono_celular', 'Telefono Emergencia': 'telefono_emergencia',
     'Nombre Contacto Emergencia': 'contacto_emergencia', 'POC': 'poc',
     'Correo Electronico Personal': 'correo_personal', 'Correo Electronico Institucional': 'correo_institucional', 'Correo Electronico Policial': 'correo_policial',
@@ -1186,17 +1185,35 @@
     return obj;
   }
 
-  function pgVal(raw) {
-    if (raw === undefined || raw === null) return null;
-    var v = String(raw).trim();
-    return v === '' ? null : v;
+  // Columnas de texto "not null default ''" en Postgres: si el campo queda
+  // vacío hay que mandar '' (nunca null), porque el NOT NULL se aplica
+  // siempre a un null explícito — el DEFAULT solo cubre la columna omitida
+  // del INSERT, no un null puesto a mano (mismo motivo que el error de
+  // datos_personal_tiro.sql). El resto de las columnas (fechas, las que
+  // tienen CHECK, y los ids de Storage) sí son nullables y usan null.
+  var TEXTO_NOT_NULL_LABELS = {
+    'Grado': true, 'Apellido': true, 'Nombres': true, 'Dependencia': true,
+    'Nacionalidad': true, 'DNI': true, 'Direccion': true,
+    'Telefono Particular': true, 'Telefono Celular': true, 'Telefono Emergencia': true,
+    'Nombre Contacto Emergencia': true, 'POC': true,
+    'Correo Electronico Personal': true, 'Correo Electronico Institucional': true, 'Correo Electronico Policial': true,
+    'Marca Armamento': true, 'Nro Armamento': true,
+    'CLU Numero': true, 'CLU2 Numero': true,
+    'Chaleco Marca': true, 'Modelo': true, 'Serie': true,
+    'Nro Esposas': true, 'Categoria Municipal': true, 'Categoria Policial': true
+  };
+
+  function pgVal(raw, esTextoNotNull) {
+    var v = (raw === undefined || raw === null) ? '' : String(raw).trim();
+    if (v !== '') return v;
+    return esTextoNotNull ? '' : null;
   }
 
   function entryToSupabasePayload(entry) {
     var payload = {};
     Object.keys(COL_MAP).forEach(function(label) {
       if (label === 'Vencimiento' || label === 'Activo') return; // no se envían desde el formulario
-      payload[COL_MAP[label]] = pgVal(entry[label]);
+      payload[COL_MAP[label]] = pgVal(entry[label], !!TEXTO_NOT_NULL_LABELS[label]);
     });
     return payload;
   }
@@ -1565,7 +1582,6 @@
     fReceptorOrganos: 'Receptor de Organos',
     fDonoOrganos: 'Dono Organos',
     fDireccion: 'Direccion',
-    fDomicilioDNI: 'Domicilio DNI',
     fTelParticular: 'Telefono Particular',
     fTelCelular: 'Telefono Celular',
     fTelEmergencia: 'Telefono Emergencia',
@@ -1785,16 +1801,26 @@
     // El DNI argentino siempre se imprime con puntos de miles (X.XXX.XXX u
     // XX.XXX.XXX) — el número de trámite (que suele quedar pegado al lado,
     // cerca de la etiqueta "Tramite") nunca lleva puntos y tiene más dígitos
-    // (normalmente 11). Por eso priorizamos el número CON puntos: es la única
-    // forma de distinguirlos de forma confiable y evita el error de leer el
-    // número de trámite en vez del DNI.
-    var mDoc2 = texto.match(/\b(\d{1,2}\.\d{3}\.\d{3})\b/);
-    if (mDoc2) {
-      out.dni = mDoc2[1].replace(/\./g, '');
+    // (normalmente 11). Por eso priorizamos el número CON puntos: es la
+    // forma más confiable de distinguirlos y evita leer el número de
+    // trámite en vez del DNI. El OCR a veces confunde el punto con un
+    // espacio, así que lo toleramos también.
+    var mConPuntos = texto.match(/\b(\d{1,2})[.\s](\d{3})[.\s](\d{3})\b/);
+    if (mConPuntos) {
+      out.dni = mConPuntos[1] + mConPuntos[2] + mConPuntos[3];
     } else {
+      // Si el OCR perdió el punto por completo (queda como un solo número
+      // pegado), buscamos en el bloque entre "Document" y "Tramite"...
       var bloqueDoc = _textoEntreEtiquetas(texto, '\\bDocument\\b', 'Tramite');
       var mDoc = bloqueDoc.match(/\b(\d{7,8})\b/); // el DNI tiene 7 u 8 dígitos, nunca más (eso ya es el nro de trámite)
-      if (mDoc) out.dni = mDoc[1];
+      if (mDoc) {
+        out.dni = mDoc[1];
+      } else {
+        // ...y como último recurso, cualquier número suelto de 7 u 8 dígitos
+        // en todo el texto (el de trámite tiene 9 dígitos o más, así que no entra acá).
+        var mSuelto = texto.match(/\b\d{7,8}\b/);
+        if (mSuelto) out.dni = mSuelto[0];
+      }
     }
 
     var meses = { ENE:'01', FEB:'02', MAR:'03', ABR:'04', MAY:'05', JUN:'06', JUL:'07', AGO:'08', SEP:'09', SET:'09', OCT:'10', NOV:'11', DIC:'12' };
@@ -1902,7 +1928,12 @@
       if (typeof Tesseract !== 'undefined') {
         try {
           var resultado = await Tesseract.recognize(croppedDataUrl, 'spa');
-          datos = parsearTextoDNIFrente((resultado && resultado.data && resultado.data.text) || '');
+          var textoOcr = (resultado && resultado.data && resultado.data.text) || '';
+          datos = parsearTextoDNIFrente(textoOcr);
+          // Si no se pudo sacar el número de documento, dejamos el texto crudo
+          // que leyó el OCR en la consola del navegador (F12 → Console) — sirve
+          // para ver por qué falló sin tener que repetir la prueba a ciegas.
+          if (!datos.dni) console.log('Texto OCR del DNI (no se detectó el número):', textoOcr);
         } catch (err) { console.error('Error de OCR del DNI: ', err); }
       }
 
@@ -2715,7 +2746,6 @@
 
     html += _fichaSeccion('Contacto', [
       ['Dirección', f['Direccion']],
-      ['Domicilio (DNI)', f['Domicilio DNI']],
       ['Teléfono particular', f['Telefono Particular']],
       ['Teléfono celular', f['Telefono Celular']],
       ['Teléfono emergencia', f['Telefono Emergencia']],
