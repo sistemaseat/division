@@ -1782,12 +1782,19 @@
     if (mSexo) out.sexo = mSexo[1].toUpperCase();
     if (/ARGENTINA/i.test(bloqueSexo)) out.nacionalidad = 'ARGENTINA';
 
-    var bloqueDoc = _textoEntreEtiquetas(texto, '\\bDocument\\b', 'Tramite');
-    var mDoc = bloqueDoc.match(/([\d.]{6,12})/);
-    if (mDoc) out.dni = mDoc[1].replace(/\./g, '');
-    if (!out.dni) {
-      var mDoc2 = texto.match(/\b(\d{1,2}\.\d{3}\.\d{3})\b/);
-      if (mDoc2) out.dni = mDoc2[1].replace(/\./g, '');
+    // El DNI argentino siempre se imprime con puntos de miles (X.XXX.XXX u
+    // XX.XXX.XXX) — el número de trámite (que suele quedar pegado al lado,
+    // cerca de la etiqueta "Tramite") nunca lleva puntos y tiene más dígitos
+    // (normalmente 11). Por eso priorizamos el número CON puntos: es la única
+    // forma de distinguirlos de forma confiable y evita el error de leer el
+    // número de trámite en vez del DNI.
+    var mDoc2 = texto.match(/\b(\d{1,2}\.\d{3}\.\d{3})\b/);
+    if (mDoc2) {
+      out.dni = mDoc2[1].replace(/\./g, '');
+    } else {
+      var bloqueDoc = _textoEntreEtiquetas(texto, '\\bDocument\\b', 'Tramite');
+      var mDoc = bloqueDoc.match(/\b(\d{7,8})\b/); // el DNI tiene 7 u 8 dígitos, nunca más (eso ya es el nro de trámite)
+      if (mDoc) out.dni = mDoc[1];
     }
 
     var meses = { ENE:'01', FEB:'02', MAR:'03', ABR:'04', MAY:'05', JUN:'06', JUL:'07', AGO:'08', SEP:'09', SET:'09', OCT:'10', NOV:'11', DIC:'12' };
