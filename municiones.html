@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Municiones — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLAS DE AUTENTICACIÓN */
+  .pantalla-auth {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    align-items: center; justify-content: center;
+    min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box {
+    background: white; border-radius: 16px; padding: 48px 40px;
+    text-align: center; box-shadow: var(--shadow-lg); max-width: 420px;
+  }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip {
+    background: #f5f5f5; border-radius: 8px; padding: 8px 14px;
+    font-family: monospace; font-size: 13px; color: #333;
+    margin: 4px 0 16px; display: inline-block;
+  }
+  .header-user { display: flex; align-items: center; gap: 14px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* HEADER */
+  .header {
+    background: var(--primary);
+    color: white;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi {
+    background: var(--card); border-radius: 12px; padding: 18px 20px;
+    border-left: 4px solid; box-shadow: var(--shadow);
+    transition: transform .12s, box-shadow .12s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-orange { border-left-color: var(--accent); }
+  .kpi.c-red    { border-left-color: var(--red-light); }
+  .kpi.c-purple { border-left-color: var(--purple); }
+  .kpi.c-teal   { border-left-color: var(--teal); }
+  .kpi.c-gray   { border-left-color: #9e9e9e; }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-size: 30px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+  .kpi-val.kpi-val-sm { font-size: 15px; line-height: 1.3; margin-bottom: 6px; }
+  .kpi-sub   { font-size: 11px; color: var(--muted); }
+
+  /* SEARCH BAR / FORM CONTROLS */
+  .search-bar {
+    background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
+    display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow);
+  }
+  .search-input-wrap { position: relative; flex: 1; min-width: 200px; }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; margin-bottom: 4px; display: block; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 2px; }
+  select, input[type="date"], input[type="text"], input[type="number"], input[type="time"], input[type="file"], textarea {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* TABLE */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .section-title .ico { font-size: 16px; }
+  .section-title-left { display: flex; align-items: center; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th {
+    background: var(--primary); color: white; padding: 10px 13px; text-align: left;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
+  }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+  .action-col { white-space: nowrap; text-align: right; }
+  .action-col button { margin-left: 4px; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+  .b-blue   { background: #e3f2fd; color: #0277bd; }
+  .b-gray   { background: #f5f5f5; color: #616161; }
+
+  /* AUTOCOMPLETE */
+  .autocomplete-list {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+    max-height: 240px; overflow-y: auto; z-index: 9200; box-shadow: var(--shadow-lg); margin-top: 4px;
+  }
+  .autocomplete-list.show { display: block; }
+  .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: #f0f2f5; }
+  .autocomplete-item b { color: var(--primary); }
+  .autocomplete-item small { display: block; color: var(--muted); font-size: 11px; }
+  .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+
+  /* FORM (dentro de modales) */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group.half { grid-column: span 2; }
+  .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .required-star { color: var(--red); margin-left: 2px; }
+  .field-hint { font-size: 11px; color: var(--muted); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* ALERT */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* NO DATA */
+  .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+  .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 900px; width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* GRÁFICOS */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .chart-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .chart-card canvas { max-height: 280px; }
+
+  /* CONFIGURACIÓN — listas editables */
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .config-add-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .config-add-row input { flex: 1; }
+  .config-list { list-style: none; max-height: 420px; overflow-y: auto; }
+  .config-list li {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .config-list li:last-child { border-bottom: none; }
+  .config-list li:hover { background: #f5f7fa; }
+
+  /* SEMANA (Reporte Semanal) */
+  .week-nav { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .week-nav .week-label { font-size: 15px; font-weight: 800; color: var(--primary); }
+
+  @media (max-width: 900px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .form-group.half { grid-column: span 2; }
+    .chart-grid, .config-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.half { grid-column: 1; }
+    .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+    .content { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<!-- MODAL: nuevo/editar ingreso -->
+<div class="modal-overlay" id="modalIngreso">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modalIngresoTitulo">➕ Nuevo ingreso</div>
+      <button class="modal-close" onclick="cerrarModalIngreso()">✕</button>
+    </div>
+    <input type="hidden" id="ingId">
+    <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="form-group full">
+        <label class="form-label">Munición<span class="required-star">*</span></label>
+        <select id="ingMunicion"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha<span class="required-star">*</span></label>
+        <input type="date" id="ingFecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cantidad<span class="required-star">*</span></label>
+        <input type="number" id="ingCantidad" min="0" step="1">
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="cerrarModalIngreso()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarIngreso()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: nueva/editar actividad -->
+<div class="modal-overlay" id="modalActividad">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modalActividadTitulo">➕ Nuevo registro de actividad</div>
+      <button class="modal-close" onclick="cerrarModalActividad()">✕</button>
+    </div>
+    <input type="hidden" id="actId">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Fecha<span class="required-star">*</span></label>
+        <input type="date" id="actFecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Horario</label>
+        <input type="time" id="actHorario">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Actividad<span class="required-star">*</span></label>
+        <select id="actActividad"></select>
+      </div>
+      <div class="form-group full" style="position:relative;">
+        <label class="form-label">Personal que retira</label>
+        <input type="text" id="actRetira" autocomplete="off" placeholder="LP, apellido o nombre" oninput="buscarSugerenciasPersonal('actRetira')" onblur="ocultarSugerenciasConDelay('actRetiraSuggest')">
+        <div class="autocomplete-list" id="actRetiraSuggest"></div>
+      </div>
+      <div class="form-group full" style="position:relative;">
+        <label class="form-label">Personal que devuelve</label>
+        <input type="text" id="actDevuelve" autocomplete="off" placeholder="LP, apellido o nombre" oninput="buscarSugerenciasPersonal('actDevuelve')" onblur="ocultarSugerenciasConDelay('actDevuelveSuggest')">
+        <div class="autocomplete-list" id="actDevuelveSuggest"></div>
+      </div>
+      <div class="form-group half">
+        <label class="form-label">Munición<span class="required-star">*</span></label>
+        <select id="actMunicion"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Retira</label>
+        <input type="number" id="actRetiraCant" min="0" step="1" oninput="calcularDevueltoSinUso()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Consumido</label>
+        <input type="number" id="actConsumido" min="0" step="1" oninput="calcularDevueltoSinUso()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Devuelto sin uso</label>
+        <input type="number" id="actDevueltoSinUso" min="0" step="1">
+        <span class="field-hint">Se calcula solo (retira − consumido), pero se puede ajustar a mano.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vainas</label>
+        <input type="number" id="actVainas" min="0" step="1">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Observaciones</label>
+        <textarea id="actObservaciones" placeholder="Presentismo, convocados/presentes/ausentes, etc."></textarea>
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="cerrarModalActividad()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarActividad()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">🔫</div>
+    <div>
+      <div class="brand-title">MUNICIONES — DIVISIÓN TIRO</div>
+      <div class="brand-sub">Ingresos, consumo por actividad y stock</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="ingresos" onclick="switchTab('ingresos')">📥 Ingresos</button>
+  <button class="tab-btn" data-tab="actividades" onclick="switchTab('actividades')">🎯 Actividades</button>
+  <button class="tab-btn" data-tab="reporte" onclick="switchTab('reporte')">📅 Reporte Semanal</button>
+  <button class="tab-btn" data-tab="filtros" onclick="switchTab('filtros')">🔎 Filtros y Exportar</button>
+  <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Configuración</button>
+</nav>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="section-title"><span class="ico">📈</span> Consumo por actividad (top 10)</div>
+        <canvas id="chartActividad"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="section-title"><span class="ico">📉</span> Consumo por semana</div>
+        <canvas id="chartSemanal"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">📦</span> Stock estimado por munición</div>
+      <div class="field-hint" style="margin-bottom:10px;">Ingresado − Consumido en actividades. Es un estimado a partir de lo cargado en el sistema, no reemplaza un recuento físico.</div>
+      <table>
+        <thead><tr><th>Munición</th><th>Ingresado</th><th>Consumido</th><th>Saldo estimado</th></tr></thead>
+        <tbody id="tbodyStock"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== INGRESOS ==================== -->
+  <div class="tab-pane" id="pane-ingresos">
+    <div class="search-bar">
+      <div class="ctrl-group" style="min-width:160px;">
+        <label class="ctrl-label">Munición</label>
+        <select id="fIngMunicion" onchange="renderIngresosTable()"><option value="">Todas</option></select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Desde</label>
+        <input type="date" id="fIngDesde" onchange="renderIngresosTable()">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Hasta</label>
+        <input type="date" id="fIngHasta" onchange="renderIngresosTable()">
+      </div>
+      <span class="count-pill" id="ingCountPill">0 ingresos</span>
+      <button class="btn btn-primary" onclick="abrirModalIngreso()">➕ Nuevo ingreso</button>
+    </div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>Fecha</th><th>Munición</th><th>Cantidad</th><th class="action-col">Acciones</th></tr></thead>
+        <tbody id="tbodyIngresos"></tbody>
+      </table>
+      <div class="no-data" id="ingresosNoData" style="display:none;">
+        <div class="no-data-icon">📭</div>
+        <div class="no-data-text">No hay ingresos cargados con este filtro</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ACTIVIDADES ==================== -->
+  <div class="tab-pane" id="pane-actividades">
+    <div class="search-bar">
+      <div class="ctrl-group" style="min-width:180px;">
+        <label class="ctrl-label">Actividad</label>
+        <select id="fActActividad" onchange="renderActividadesTable()"><option value="">Todas</option></select>
+      </div>
+      <div class="ctrl-group" style="min-width:160px;">
+        <label class="ctrl-label">Munición</label>
+        <select id="fActMunicion" onchange="renderActividadesTable()"><option value="">Todas</option></select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Desde</label>
+        <input type="date" id="fActDesde" onchange="renderActividadesTable()">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Hasta</label>
+        <input type="date" id="fActHasta" onchange="renderActividadesTable()">
+      </div>
+      <span class="count-pill" id="actCountPill">0 registros</span>
+      <button class="btn btn-primary" onclick="abrirModalActividad()">➕ Nuevo registro</button>
+    </div>
+    <div class="table-card">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Horario</th><th>Actividad</th><th>Retira</th><th>Devuelve</th>
+          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th>
+          <th class="action-col">Acciones</th>
+        </tr></thead>
+        <tbody id="tbodyActividades"></tbody>
+      </table>
+      <div class="no-data" id="actividadesNoData" style="display:none;">
+        <div class="no-data-icon">📭</div>
+        <div class="no-data-text">No hay registros con este filtro</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== REPORTE SEMANAL ==================== -->
+  <div class="tab-pane" id="pane-reporte">
+    <div class="week-nav">
+      <button class="btn btn-ghost btn-sm" onclick="cambiarSemana(-1)">◀ Semana anterior</button>
+      <div class="week-label" id="semanaLabel">—</div>
+      <button class="btn btn-ghost btn-sm" onclick="cambiarSemana(1)">Semana siguiente ▶</button>
+      <button class="btn btn-ghost btn-sm" onclick="cambiarSemana(0)">Esta semana</button>
+    </div>
+    <div class="kpi-grid" id="kpiSemana"></div>
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🎯</span> Por actividad</div>
+      <table>
+        <thead><tr><th>Actividad</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th></tr></thead>
+        <tbody id="tbodySemanaActividad"></tbody>
+      </table>
+    </div>
+    <div class="table-card">
+      <div class="section-title"><span class="ico">📦</span> Por munición</div>
+      <table>
+        <thead><tr><th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th></tr></thead>
+        <tbody id="tbodySemanaMunicion"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== FILTROS Y EXPORTAR ==================== -->
+  <div class="tab-pane" id="pane-filtros">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Desde</label>
+        <input type="date" id="fExpDesde">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Hasta</label>
+        <input type="date" id="fExpHasta">
+      </div>
+      <div class="ctrl-group" style="min-width:180px;">
+        <label class="ctrl-label">Actividad</label>
+        <select id="fExpActividad"><option value="">Todas</option></select>
+      </div>
+      <div class="ctrl-group" style="min-width:160px;">
+        <label class="ctrl-label">Munición</label>
+        <select id="fExpMunicion"><option value="">Todas</option></select>
+      </div>
+      <button class="btn btn-primary" onclick="aplicarFiltroExportar()">🔎 Filtrar</button>
+      <button class="btn btn-success" onclick="exportarFiltroExcel()">⬇️ Exportar a Excel</button>
+    </div>
+    <div class="table-card">
+      <div class="section-title">
+        <span class="section-title-left"><span class="ico">📋</span> Resultado del filtro</span>
+        <span class="count-pill" id="expCountPill">0 registros</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Horario</th><th>Actividad</th><th>Retira</th><th>Devuelve</th>
+          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th>
+        </tr></thead>
+        <tbody id="tbodyExportar"></tbody>
+      </table>
+      <div class="no-data" id="exportarNoData" style="display:none;">
+        <div class="no-data-icon">🔎</div>
+        <div class="no-data-text">Elegí un filtro y apretá "Filtrar"</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CONFIGURACIÓN ==================== -->
+  <div class="tab-pane" id="pane-config">
+    <div class="config-grid">
+      <div class="table-card">
+        <div class="section-title"><span class="ico">🎯</span> Actividades</div>
+        <div class="config-add-row">
+          <input type="text" id="nuevaActividad" placeholder="Nombre de la actividad">
+          <button class="btn btn-primary btn-sm" onclick="agregarConfigActividad()">➕ Agregar</button>
+        </div>
+        <ul class="config-list" id="listaConfigActividades"></ul>
+      </div>
+      <div class="table-card">
+        <div class="section-title"><span class="ico">📦</span> Tipos de munición</div>
+        <div class="config-add-row">
+          <input type="text" id="nuevaMunicion" placeholder="Nombre de la munición">
+          <button class="btn btn-primary btn-sm" onclick="agregarConfigMunicion()">➕ Agregar</button>
+        </div>
+        <ul class="config-list" id="listaConfigMuniciones"></ul>
+      </div>
+    </div>
+    <div class="field-hint" style="margin-top:12px;">Sacar un nombre de estas listas solo lo saca del desplegable para cargas nuevas — no borra ni modifica los registros históricos que ya se cargaron con ese nombre.</div>
+  </div>
+
+</div>
+</div><!-- /appRoot -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var personalDirectorio = {}; // LP -> {grado, apellido, nombre} — misma planilla general que usa Personal
+  var personalArray = [];
+  var configActividades = [];  // ["CADETES", ...]
+  var configMuniciones = [];   // ["9MM", ...]
+  var ingresos = [];           // filas crudas de municiones_ingresos
+  var actividades = [];        // filas crudas de municiones_actividades
+  var semanaOffset = 0;        // 0 = semana actual, -1 = anterior, +1 = siguiente
+  var lastExportRows = [];     // último resultado de "Filtros y Exportar", para el botón de Excel
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function fmtHorario(t) { return t ? String(t).slice(0,5) : '—'; }
+  function fmtNum(n) { return Number(n || 0).toLocaleString('es-AR'); }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    setTimeout(function(){ el.classList.remove('show'); }, 6000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que personal.html: el login se hace
+  // en la portada (index.html); acá solo se verifica la sesión y, si
+  // corresponde, se muestra "acceso denegado".
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) {
+        console.error('Error al verificar el acceso: ', res.error);
+        mostrarPantalla('login');
+        return;
+      }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarTodo();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() {
+    supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
+  }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarTodo() {
+    showLoading('Cargando datos…');
+    try {
+      await Promise.all([cargarDirectorioPersonal(), cargarConfig(), cargarIngresos(), cargarActividades()]);
+      renderDashboard();
+      renderIngresosTable();
+      renderActividadesTable();
+      renderSemana();
+      renderConfigLists();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function cargarDirectorioPersonal() {
+    var res = await supabaseClient.from('personal_general').select('lp,grado,apellido,nombres');
+    if (res.error) { console.error('No se pudo cargar el directorio de personal: ', res.error); return; }
+    personalDirectorio = {};
+    (res.data || []).forEach(function(p) {
+      personalDirectorio[p.lp] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombres || '' };
+    });
+    personalArray = Object.keys(personalDirectorio).map(function(lp) {
+      var p = personalDirectorio[lp];
+      return { lp: lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre };
+    });
+  }
+
+  async function cargarConfig() {
+    var [rA, rM] = await Promise.all([
+      supabaseClient.from('municiones_config_actividades').select('nombre').order('nombre'),
+      supabaseClient.from('municiones_config_municiones').select('nombre').order('nombre')
+    ]);
+    if (rA.error) throw rA.error;
+    if (rM.error) throw rM.error;
+    configActividades = (rA.data || []).map(function(r){ return r.nombre; });
+    configMuniciones  = (rM.data || []).map(function(r){ return r.nombre; });
+    llenarSelectsConfig();
+  }
+
+  async function cargarIngresos() {
+    var res = await supabaseClient.from('municiones_ingresos').select('*').order('fecha', { ascending: false });
+    if (res.error) throw res.error;
+    ingresos = res.data || [];
+  }
+
+  async function cargarActividades() {
+    var res = await supabaseClient.from('municiones_actividades').select('*').order('fecha', { ascending: false }).order('horario', { ascending: false });
+    if (res.error) throw res.error;
+    actividades = res.data || [];
+  }
+
+  function llenarSelectsConfig() {
+    var selectsMunicion = ['ingMunicion','actMunicion','fIngMunicion','fActMunicion','fExpMunicion'];
+    var selectsActividad = ['actActividad','fActActividad','fExpActividad'];
+    selectsMunicion.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var conFiltro = id.charAt(0) === 'f';
+      var actual = el.value;
+      el.innerHTML = (conFiltro ? '<option value="">Todas</option>' : '') +
+        configMuniciones.map(function(m){ return '<option value="'+esc(m)+'">'+esc(m)+'</option>'; }).join('');
+      if (actual) el.value = actual;
+    });
+    selectsActividad.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var conFiltro = id.charAt(0) === 'f';
+      var actual = el.value;
+      el.innerHTML = (conFiltro ? '<option value="">Todas</option>' : '') +
+        configActividades.map(function(a){ return '<option value="'+esc(a)+'">'+esc(a)+'</option>'; }).join('');
+      if (actual) el.value = actual;
+    });
+  }
+
+  // ============================================================
+  // DASHBOARD
+  // ============================================================
+  function renderDashboard() {
+    var totalIngresado = ingresos.reduce(function(s,i){ return s + Number(i.cantidad||0); }, 0);
+    var totalConsumido = actividades.reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
+    var totalRetirado = actividades.reduce(function(s,a){ return s + Number(a.retira||0); }, 0);
+    var totalDevuelto = actividades.reduce(function(s,a){ return s + Number(a.devuelto_sin_uso||0); }, 0);
+
+    var kpis = [
+      { label: 'Tipos de munición', val: configMuniciones.length, sub: 'cargados en Configuración', c: 'blue' },
+      { label: 'Ingresos registrados', val: ingresos.length, sub: fmtNum(totalIngresado) + ' unidades ingresadas', c: 'green' },
+      { label: 'Registros de actividad', val: actividades.length, sub: 'entregas de munición cargadas', c: 'purple' },
+      { label: 'Total retirado', val: fmtNum(totalRetirado), sub: 'en todas las actividades', c: 'orange' },
+      { label: 'Total consumido', val: fmtNum(totalConsumido), sub: 'en todas las actividades', c: 'red' },
+      { label: 'Devuelto sin uso', val: fmtNum(totalDevuelto), sub: 'total histórico', c: 'teal' }
+    ];
+    document.getElementById('kpiGrid').innerHTML = kpis.map(function(k) {
+      return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div><div class="kpi-sub">'+esc(k.sub)+'</div></div>';
+    }).join('');
+
+    renderStockTable();
+    renderChartActividad();
+    renderChartSemanal();
+  }
+
+  function renderStockTable() {
+    var nombres = {};
+    configMuniciones.forEach(function(m){ nombres[m] = true; });
+    ingresos.forEach(function(i){ if (i.municion) nombres[i.municion] = true; });
+    actividades.forEach(function(a){ if (a.municion) nombres[a.municion] = true; });
+
+    var filas = Object.keys(nombres).sort().map(function(m) {
+      var ing = ingresos.filter(function(i){ return i.municion === m; }).reduce(function(s,i){ return s + Number(i.cantidad||0); }, 0);
+      var con = actividades.filter(function(a){ return a.municion === m; }).reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
+      return { m: m, ing: ing, con: con, saldo: ing - con };
+    }).filter(function(f){ return f.ing > 0 || f.con > 0; });
+
+    filas.sort(function(a,b){ return b.ing - a.ing; });
+
+    document.getElementById('tbodyStock').innerHTML = filas.length ? filas.map(function(f) {
+      var badge = f.saldo < 0 ? 'b-red' : (f.saldo === 0 ? 'b-gray' : 'b-green');
+      return '<tr><td><b>'+esc(f.m)+'</b></td><td>'+fmtNum(f.ing)+'</td><td>'+fmtNum(f.con)+'</td>' +
+        '<td><span class="badge '+badge+'">'+fmtNum(f.saldo)+'</span></td></tr>';
+    }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">Sin datos todavía</td></tr>';
+  }
+
+  var _chartActividad = null, _chartSemanal = null;
+  function renderChartActividad() {
+    var porActividad = {};
+    actividades.forEach(function(a) {
+      var k = a.actividad || '(sin actividad)';
+      porActividad[k] = (porActividad[k] || 0) + Number(a.consumido || 0);
+    });
+    var top = Object.keys(porActividad).map(function(k){ return { k:k, v:porActividad[k] }; })
+      .sort(function(a,b){ return b.v - a.v; }).slice(0, 10);
+
+    var ctx = document.getElementById('chartActividad').getContext('2d');
+    if (_chartActividad) _chartActividad.destroy();
+    _chartActividad = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: top.map(function(t){ return t.k; }),
+        datasets: [{ label: 'Consumido', data: top.map(function(t){ return t.v; }), backgroundColor: '#1a237e' }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+  }
+
+  function mondayOf(d) {
+    var r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var day = r.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    r.setDate(r.getDate() + diff);
+    return r;
+  }
+  function isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function renderChartSemanal() {
+    // Últimas 10 semanas (lunes a domingo) hasta la semana actual.
+    var hoy = new Date();
+    var semanaActual = mondayOf(hoy);
+    var semanas = [];
+    for (var i = 9; i >= 0; i--) {
+      var inicio = new Date(semanaActual);
+      inicio.setDate(inicio.getDate() - i*7);
+      var fin = new Date(inicio); fin.setDate(fin.getDate() + 6);
+      semanas.push({ inicio: isoDate(inicio), fin: isoDate(fin), label: fmtFechaCorta(inicio) });
+    }
+    var totales = semanas.map(function(s) {
+      return actividades.filter(function(a){ return a.fecha >= s.inicio && a.fecha <= s.fin; })
+        .reduce(function(sum,a){ return sum + Number(a.consumido||0); }, 0);
+    });
+
+    var ctx = document.getElementById('chartSemanal').getContext('2d');
+    if (_chartSemanal) _chartSemanal.destroy();
+    _chartSemanal = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: semanas.map(function(s){ return s.label; }),
+        datasets: [{ label: 'Consumido', data: totales, borderColor: '#0277bd', backgroundColor: 'rgba(2,119,189,.15)', fill: true, tension: .25 }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+  function fmtFechaCorta(d) { return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); }
+
+  // ============================================================
+  // INGRESOS
+  // ============================================================
+  function renderIngresosTable() {
+    var fMunicion = document.getElementById('fIngMunicion').value;
+    var fDesde = document.getElementById('fIngDesde').value;
+    var fHasta = document.getElementById('fIngHasta').value;
+
+    var filas = ingresos.filter(function(i) {
+      if (fMunicion && i.municion !== fMunicion) return false;
+      if (fDesde && i.fecha < fDesde) return false;
+      if (fHasta && i.fecha > fHasta) return false;
+      return true;
+    });
+
+    document.getElementById('ingCountPill').textContent = filas.length + (filas.length === 1 ? ' ingreso' : ' ingresos');
+    document.getElementById('ingresosNoData').style.display = filas.length ? 'none' : 'block';
+    document.getElementById('tbodyIngresos').innerHTML = filas.map(function(i) {
+      return '<tr><td>'+fmtFecha(i.fecha)+'</td><td>'+esc(i.municion)+'</td><td>'+fmtNum(i.cantidad)+'</td>' +
+        '<td class="action-col">' +
+        '<button class="btn btn-ghost btn-sm" onclick="abrirModalIngreso(\''+i.id+'\')">✏️</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarIngreso(\''+i.id+'\')">🗑️</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  function abrirModalIngreso(id) {
+    document.getElementById('ingId').value = id || '';
+    if (id) {
+      var i = ingresos.find(function(x){ return x.id === id; });
+      document.getElementById('modalIngresoTitulo').textContent = '✏️ Editar ingreso';
+      document.getElementById('ingMunicion').value = i.municion || '';
+      document.getElementById('ingFecha').value = i.fecha || '';
+      document.getElementById('ingCantidad').value = i.cantidad || '';
+    } else {
+      document.getElementById('modalIngresoTitulo').textContent = '➕ Nuevo ingreso';
+      document.getElementById('ingMunicion').selectedIndex = 0;
+      document.getElementById('ingFecha').value = isoDate(new Date());
+      document.getElementById('ingCantidad').value = '';
+    }
+    document.getElementById('modalIngreso').classList.add('show');
+  }
+  function cerrarModalIngreso() { document.getElementById('modalIngreso').classList.remove('show'); }
+
+  async function guardarIngreso() {
+    var id = document.getElementById('ingId').value;
+    var municion = document.getElementById('ingMunicion').value;
+    var fecha = document.getElementById('ingFecha').value;
+    var cantidad = document.getElementById('ingCantidad').value;
+    if (!municion || !fecha || cantidad === '') {
+      alertShow('topAlert', 'error', 'Completá munición, fecha y cantidad.');
+      return;
+    }
+    var payload = { municion: municion, fecha: fecha, cantidad: Number(cantidad) };
+    showLoading('Guardando…');
+    try {
+      var res = id
+        ? await supabaseClient.from('municiones_ingresos').update(payload).eq('id', id)
+        : await supabaseClient.from('municiones_ingresos').insert(payload);
+      if (res.error) throw res.error;
+      cerrarModalIngreso();
+      await cargarIngresos();
+      renderIngresosTable();
+      renderDashboard();
+      alertShow('topAlert', 'success', '✅ Ingreso guardado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarIngreso(id) {
+    showConfirm('¿Eliminar este ingreso? No se puede deshacer.', function() { eliminarIngreso(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
+  async function eliminarIngreso(id) {
+    showLoading('Eliminando…');
+    try {
+      var res = await supabaseClient.from('municiones_ingresos').delete().eq('id', id);
+      if (res.error) throw res.error;
+      await cargarIngresos();
+      renderIngresosTable();
+      renderDashboard();
+      alertShow('topAlert', 'success', '🗑️ Ingreso eliminado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // ACTIVIDADES
+  // ============================================================
+  function renderActividadesTable() {
+    var fActividad = document.getElementById('fActActividad').value;
+    var fMunicion = document.getElementById('fActMunicion').value;
+    var fDesde = document.getElementById('fActDesde').value;
+    var fHasta = document.getElementById('fActHasta').value;
+
+    var filas = actividades.filter(function(a) {
+      if (fActividad && a.actividad !== fActividad) return false;
+      if (fMunicion && a.municion !== fMunicion) return false;
+      if (fDesde && a.fecha < fDesde) return false;
+      if (fHasta && a.fecha > fHasta) return false;
+      return true;
+    });
+
+    document.getElementById('actCountPill').textContent = filas.length + (filas.length === 1 ? ' registro' : ' registros');
+    document.getElementById('actividadesNoData').style.display = filas.length ? 'none' : 'block';
+    document.getElementById('tbodyActividades').innerHTML = filas.map(function(a) {
+      return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
+        '<td>'+esc(a.personal_retira)+'</td><td>'+esc(a.personal_devuelve)+'</td><td>'+esc(a.municion)+'</td>' +
+        '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td>' +
+        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td>' +
+        '<td class="action-col">' +
+        '<button class="btn btn-ghost btn-sm" onclick="abrirModalActividad(\''+a.id+'\')">✏️</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarActividad(\''+a.id+'\')">🗑️</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  function abrirModalActividad(id) {
+    document.getElementById('actId').value = id || '';
+    if (id) {
+      var a = actividades.find(function(x){ return x.id === id; });
+      document.getElementById('modalActividadTitulo').textContent = '✏️ Editar registro';
+      document.getElementById('actFecha').value = a.fecha || '';
+      document.getElementById('actHorario').value = a.horario ? String(a.horario).slice(0,5) : '';
+      document.getElementById('actActividad').value = a.actividad || '';
+      document.getElementById('actRetira').value = a.personal_retira || '';
+      document.getElementById('actDevuelve').value = a.personal_devuelve || '';
+      document.getElementById('actMunicion').value = a.municion || '';
+      document.getElementById('actRetiraCant').value = a.retira || '';
+      document.getElementById('actConsumido').value = a.consumido || '';
+      document.getElementById('actDevueltoSinUso').value = a.devuelto_sin_uso || '';
+      document.getElementById('actVainas').value = a.vainas != null ? a.vainas : '';
+      document.getElementById('actObservaciones').value = a.observaciones || '';
+    } else {
+      document.getElementById('modalActividadTitulo').textContent = '➕ Nuevo registro de actividad';
+      document.getElementById('actFecha').value = isoDate(new Date());
+      ['actHorario','actRetira','actDevuelve','actRetiraCant','actConsumido','actDevueltoSinUso','actVainas','actObservaciones'].forEach(function(id) {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('actActividad').selectedIndex = 0;
+      document.getElementById('actMunicion').selectedIndex = 0;
+    }
+    document.getElementById('modalActividad').classList.add('show');
+  }
+  function cerrarModalActividad() { document.getElementById('modalActividad').classList.remove('show'); }
+
+  function calcularDevueltoSinUso() {
+    var retira = Number(document.getElementById('actRetiraCant').value || 0);
+    var consumido = Number(document.getElementById('actConsumido').value || 0);
+    document.getElementById('actDevueltoSinUso').value = Math.max(0, retira - consumido);
+  }
+
+  async function guardarActividad() {
+    var id = document.getElementById('actId').value;
+    var fecha = document.getElementById('actFecha').value;
+    var actividad = document.getElementById('actActividad').value;
+    var municion = document.getElementById('actMunicion').value;
+    if (!fecha || !actividad || !municion) {
+      alertShow('topAlert', 'error', 'Completá fecha, actividad y munición.');
+      return;
+    }
+    var payload = {
+      fecha: fecha,
+      horario: document.getElementById('actHorario').value || null,
+      actividad: actividad,
+      personal_retira: str(document.getElementById('actRetira').value),
+      personal_devuelve: str(document.getElementById('actDevuelve').value),
+      municion: municion,
+      retira: Number(document.getElementById('actRetiraCant').value || 0),
+      consumido: Number(document.getElementById('actConsumido').value || 0),
+      devuelto_sin_uso: Number(document.getElementById('actDevueltoSinUso').value || 0),
+      vainas: document.getElementById('actVainas').value === '' ? null : Number(document.getElementById('actVainas').value),
+      observaciones: document.getElementById('actObservaciones').value || null
+    };
+    showLoading('Guardando…');
+    try {
+      var res = id
+        ? await supabaseClient.from('municiones_actividades').update(payload).eq('id', id)
+        : await supabaseClient.from('municiones_actividades').insert(payload);
+      if (res.error) throw res.error;
+      cerrarModalActividad();
+      await cargarActividades();
+      renderActividadesTable();
+      renderDashboard();
+      renderSemana();
+      alertShow('topAlert', 'success', '✅ Registro guardado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarActividad(id) {
+    showConfirm('¿Eliminar este registro de actividad? No se puede deshacer.', function() { eliminarActividad(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
+  async function eliminarActividad(id) {
+    showLoading('Eliminando…');
+    try {
+      var res = await supabaseClient.from('municiones_actividades').delete().eq('id', id);
+      if (res.error) throw res.error;
+      await cargarActividades();
+      renderActividadesTable();
+      renderDashboard();
+      renderSemana();
+      alertShow('topAlert', 'success', '🗑️ Registro eliminado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---- Autocompletado de personal (retira/devuelve), misma base que Personal ----
+  function buscarSugerenciasPersonal(inputId) {
+    var input = document.getElementById(inputId);
+    var listEl = document.getElementById(inputId + 'Suggest');
+    var q = input.value.trim().toLowerCase();
+    if (!q) { listEl.classList.remove('show'); listEl.innerHTML = ''; return; }
+
+    var matches = personalArray.filter(function(p) {
+      return String(p.lp).toLowerCase().indexOf(q) !== -1 ||
+             (p.apellido || '').toLowerCase().indexOf(q) !== -1 ||
+             (p.nombre   || '').toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 8);
+
+    if (!matches.length) {
+      listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en la planilla general de Personal</div>';
+    } else {
+      listEl.innerHTML = matches.map(function(p) {
+        var texto = str(p.grado) + ' ' + str(p.lp) + ' ' + str(p.apellido) + ' ' + str(p.nombre);
+        return '<div class="autocomplete-item" onmousedown="seleccionarPersonal(\''+inputId+'\', \''+esc(texto).replace(/'/g,"\\'")+'\')">' +
+          '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b>' +
+          '<small>LP '+esc(p.lp)+' — '+esc(p.grado)+'</small></div>';
+      }).join('');
+    }
+    listEl.classList.add('show');
+  }
+  function seleccionarPersonal(inputId, texto) {
+    document.getElementById(inputId).value = texto.trim();
+    document.getElementById(inputId + 'Suggest').classList.remove('show');
+  }
+  function ocultarSugerenciasConDelay(listId) {
+    setTimeout(function() { document.getElementById(listId).classList.remove('show'); }, 150);
+  }
+
+  // ============================================================
+  // REPORTE SEMANAL
+  // ============================================================
+  function renderSemana() {
+    var semanaActual = mondayOf(new Date());
+    var inicio = new Date(semanaActual); inicio.setDate(inicio.getDate() + semanaOffset*7);
+    var fin = new Date(inicio); fin.setDate(fin.getDate() + 6);
+    var inicioIso = isoDate(inicio), finIso = isoDate(fin);
+
+    document.getElementById('semanaLabel').textContent = fmtFecha(inicioIso) + ' al ' + fmtFecha(finIso) +
+      (semanaOffset === 0 ? ' (esta semana)' : '');
+
+    var filas = actividades.filter(function(a){ return a.fecha >= inicioIso && a.fecha <= finIso; });
+
+    var totRetira = filas.reduce(function(s,a){ return s + Number(a.retira||0); }, 0);
+    var totConsumido = filas.reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
+    var totDevuelto = filas.reduce(function(s,a){ return s + Number(a.devuelto_sin_uso||0); }, 0);
+
+    document.getElementById('kpiSemana').innerHTML = [
+      { label: 'Registros esta semana', val: filas.length, c: 'blue' },
+      { label: 'Total retirado', val: fmtNum(totRetira), c: 'orange' },
+      { label: 'Total consumido', val: fmtNum(totConsumido), c: 'red' },
+      { label: 'Devuelto sin uso', val: fmtNum(totDevuelto), c: 'teal' }
+    ].map(function(k) {
+      return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div></div>';
+    }).join('');
+
+    function agrupar(campo) {
+      var m = {};
+      filas.forEach(function(a) {
+        var k = a[campo] || '(sin dato)';
+        if (!m[k]) m[k] = { retira:0, consumido:0, devuelto:0, vainas:0 };
+        m[k].retira += Number(a.retira||0);
+        m[k].consumido += Number(a.consumido||0);
+        m[k].devuelto += Number(a.devuelto_sin_uso||0);
+        m[k].vainas += Number(a.vainas||0);
+      });
+      return Object.keys(m).sort().map(function(k){ return Object.assign({ nombre:k }, m[k]); });
+    }
+
+    function tablaHtml(rows) {
+      if (!rows.length) return '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">Sin registros esta semana</td></tr>';
+      return rows.map(function(r) {
+        return '<tr><td>'+esc(r.nombre)+'</td><td>'+fmtNum(r.retira)+'</td><td>'+fmtNum(r.consumido)+'</td><td>'+fmtNum(r.devuelto)+'</td><td>'+fmtNum(r.vainas)+'</td></tr>';
+      }).join('');
+    }
+
+    document.getElementById('tbodySemanaActividad').innerHTML = tablaHtml(agrupar('actividad'));
+    document.getElementById('tbodySemanaMunicion').innerHTML = tablaHtml(agrupar('municion'));
+  }
+
+  function cambiarSemana(delta) {
+    semanaOffset = delta === 0 ? 0 : semanaOffset + delta;
+    renderSemana();
+  }
+
+  // ============================================================
+  // FILTROS Y EXPORTAR
+  // ============================================================
+  function aplicarFiltroExportar() {
+    var desde = document.getElementById('fExpDesde').value;
+    var hasta = document.getElementById('fExpHasta').value;
+    var actividad = document.getElementById('fExpActividad').value;
+    var municion = document.getElementById('fExpMunicion').value;
+
+    lastExportRows = actividades.filter(function(a) {
+      if (desde && a.fecha < desde) return false;
+      if (hasta && a.fecha > hasta) return false;
+      if (actividad && a.actividad !== actividad) return false;
+      if (municion && a.municion !== municion) return false;
+      return true;
+    });
+
+    document.getElementById('expCountPill').textContent = lastExportRows.length + (lastExportRows.length === 1 ? ' registro' : ' registros');
+    document.getElementById('exportarNoData').style.display = lastExportRows.length ? 'none' : 'block';
+    document.getElementById('tbodyExportar').innerHTML = lastExportRows.map(function(a) {
+      return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
+        '<td>'+esc(a.personal_retira)+'</td><td>'+esc(a.personal_devuelve)+'</td><td>'+esc(a.municion)+'</td>' +
+        '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td>' +
+        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td></tr>';
+    }).join('');
+  }
+
+  async function exportarFiltroExcel() {
+    if (!lastExportRows.length) {
+      alertShow('topAlert', 'error', 'Primero aplicá un filtro (o dejalo vacío para exportar todo) y apretá "Filtrar".');
+      return;
+    }
+    showLoading('Generando Excel…');
+    try {
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('Reporte de Consumo');
+      ws.addRow(['SISTEMA DE GESTIÓN DE MUNICIONES']);
+      ws.addRow(['Reporte de Consumo']);
+      ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
+      ws.addRow([]);
+      var headers = ['Fecha','Horario','Actividad','Personal que retira','Personal que devuelve','Munición','Retira','Consumido','Devuelto sin uso','Vainas','Observaciones'];
+      var headerRow = ws.addRow(headers);
+      headerRow.font = { bold: true };
+      lastExportRows.forEach(function(a) {
+        ws.addRow([
+          fmtFecha(a.fecha), fmtHorario(a.horario), a.actividad || '', a.personal_retira || '', a.personal_devuelve || '',
+          a.municion || '', Number(a.retira||0), Number(a.consumido||0), Number(a.devuelto_sin_uso||0),
+          a.vainas != null ? Number(a.vainas) : '', a.observaciones || ''
+        ]);
+      });
+      ws.columns.forEach(function(c){ c.width = 18; });
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'municiones_reporte_' + isoDate(new Date()) + '.xlsx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al generar el Excel: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // CONFIGURACIÓN — listas de actividades y municiones
+  // ============================================================
+  function renderConfigLists() {
+    document.getElementById('listaConfigActividades').innerHTML = configActividades.map(function(a) {
+      return '<li><span>'+esc(a)+'</span><button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigActividad(\''+esc(a).replace(/'/g,"\\'")+'\')">🗑️</button></li>';
+    }).join('') || '<li style="color:var(--muted);">Sin actividades cargadas</li>';
+    document.getElementById('listaConfigMuniciones').innerHTML = configMuniciones.map(function(m) {
+      return '<li><span>'+esc(m)+'</span><button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigMunicion(\''+esc(m).replace(/'/g,"\\'")+'\')">🗑️</button></li>';
+    }).join('') || '<li style="color:var(--muted);">Sin municiones cargadas</li>';
+  }
+
+  async function agregarConfigActividad() {
+    var input = document.getElementById('nuevaActividad');
+    var nombre = str(input.value).toUpperCase();
+    if (!nombre) return;
+    showLoading('Agregando…');
+    try {
+      var res = await supabaseClient.from('municiones_config_actividades').insert({ nombre: nombre });
+      if (res.error) throw res.error;
+      input.value = '';
+      await cargarConfig();
+      renderConfigLists();
+      alertShow('topAlert', 'success', '✅ Actividad agregada.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al agregar (¿ya existe?): ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+  async function agregarConfigMunicion() {
+    var input = document.getElementById('nuevaMunicion');
+    var nombre = str(input.value).toUpperCase();
+    if (!nombre) return;
+    showLoading('Agregando…');
+    try {
+      var res = await supabaseClient.from('municiones_config_municiones').insert({ nombre: nombre });
+      if (res.error) throw res.error;
+      input.value = '';
+      await cargarConfig();
+      renderConfigLists();
+      alertShow('topAlert', 'success', '✅ Munición agregada.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al agregar (¿ya existe?): ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarConfigActividad(nombre) {
+    showConfirm('¿Sacar "'+nombre+'" de la lista de actividades? No borra los registros históricos ya cargados con ese nombre.', function() { eliminarConfigActividad(nombre); }, { peligroso: true, textoOk: 'Sacar', icon: '🗑️' });
+  }
+  async function eliminarConfigActividad(nombre) {
+    showLoading('Quitando…');
+    try {
+      var res = await supabaseClient.from('municiones_config_actividades').delete().eq('nombre', nombre);
+      if (res.error) throw res.error;
+      await cargarConfig();
+      renderConfigLists();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+  function confirmarEliminarConfigMunicion(nombre) {
+    showConfirm('¿Sacar "'+nombre+'" de la lista de municiones? No borra los registros históricos ya cargados con ese nombre.', function() { eliminarConfigMunicion(nombre); }, { peligroso: true, textoOk: 'Sacar', icon: '🗑️' });
+  }
+  async function eliminarConfigMunicion(nombre) {
+    showLoading('Quitando…');
+    try {
+      var res = await supabaseClient.from('municiones_config_municiones').delete().eq('nombre', nombre);
+      if (res.error) throw res.error;
+      await cargarConfig();
+      renderConfigLists();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>
