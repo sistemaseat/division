@@ -665,7 +665,37 @@
   const SERVICIOS_AUTOCOMPLETAN = ['SERVICIO SATURACION', 'ESPACIOS PUBLICOS'];
   const SERVICIOS_TIPO_PRESENCIA = 'SERVICIO FUERA DE JURISDICCION';
 
-  var personal = [];        // [{lp,grado,apellido,nombres,dependencia}] — activos de personal_tiro
+  // Orden de Grado a pedido de Enzo: Carga Diaria y Control Mensual siempre
+  // listan al personal ordenado por esta jerarquía (de mayor a menor), y
+  // dentro de un mismo grado se ordena por apellido/nombre. La exportación a
+  // Excel usa el mismo orden de grado, pero agrupando antes por Dependencia
+  // (División Tiro primero, después la Sección) — ver compararCaratula.
+  const GRADOS_ORDEN = ['Comisario Inspector', 'Comisario', 'Subcomisario', 'Principal', 'Inspector', 'Oficial Mayor', 'Oficial Primero', 'Oficial'];
+  // Dependencia: División Tiro va siempre antes que la Sección en exportación.
+  const DEPENDENCIAS_ORDEN = ['DIVISION TIRO', 'SECCION TIRO DE FORMACION INICIAL'];
+
+  function gradoRank(g) {
+    var idx = GRADOS_ORDEN.indexOf(String(g || '').trim());
+    return idx === -1 ? GRADOS_ORDEN.length : idx;
+  }
+  function dependenciaRank(d) {
+    var idx = DEPENDENCIAS_ORDEN.indexOf(String(d || '').trim().toUpperCase());
+    return idx === -1 ? DEPENDENCIAS_ORDEN.length : idx;
+  }
+  function compararPersonal(a, b) {
+    var rg = gradoRank(a.grado) - gradoRank(b.grado);
+    if (rg !== 0) return rg;
+    var ap = String(a.apellido || '').localeCompare(String(b.apellido || ''), 'es', { sensitivity: 'base' });
+    if (ap !== 0) return ap;
+    return String(a.nombres || a.nombre || '').localeCompare(String(b.nombres || b.nombre || ''), 'es', { sensitivity: 'base' });
+  }
+  function compararCaratula(a, b) {
+    var rd = dependenciaRank(a.dependencia) - dependenciaRank(b.dependencia);
+    if (rd !== 0) return rd;
+    return compararPersonal(a, b);
+  }
+
+  var personal = [];        // [{lp,grado,apellido,nombres,dependencia}] — activos de personal_tiro, ordenado por Grado (ver GRADOS_ORDEN)
   var personalMapa = {};    // lp -> persona
   var configTipos = [];     // [{nombre,activo,orden}]
   var configMotivos = [];   // [{nombre,activo,orden}]
@@ -828,7 +858,7 @@
       .eq('activo', true)
       .order('apellido', { ascending: true }).order('nombres', { ascending: true });
     if (res.error) throw res.error;
-    personal = res.data || [];
+    personal = (res.data || []).slice().sort(compararPersonal);
     personalMapa = {};
     personal.forEach(function(p){ personalMapa[String(p.lp)] = p; });
   }
@@ -880,6 +910,7 @@
       grado: r.grado || per.grado || '',
       apellido: r.apellido || per.apellido || '',
       nombre: r.nombre || per.nombres || '',
+      dependencia: r.dependencia || per.dependencia || '',
     });
   }
   async function cargarRegistroDeFecha(fecha) {
@@ -1748,8 +1779,9 @@
     var headRow = ['Sección','N°','Grado','LP','Apellido/s','Nombre/s','Observaciones'];
     headRow.forEach(function(h, i){ var c = ws.getCell(6, i+1); c.value = h; c.font = { bold: true, color: {argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; });
 
-    var jefe = _jefeDe(personalArr);
-    var sinJefe = personalArr.filter(function(p){ return !jefe || String(p.lp) !== String(jefe.lp); });
+    var ordenado = personalArr.slice().sort(compararCaratula);
+    var jefe = _jefeDe(ordenado);
+    var sinJefe = ordenado.filter(function(p){ return !jefe || String(p.lp) !== String(jefe.lp); });
     sinJefe.forEach(function(p, i) {
       var row = 7 + i;
       var vals = [p.dependencia, i+1, p.grado, p.lp, p.apellido, p.nombres, ''];
@@ -1779,7 +1811,7 @@
     ];
     var row = 8;
     tipos.forEach(function(tipo) {
-      var grupo = presentes.filter(function(p){ return tipo.keys.indexOf(p.tipo_presencia) !== -1; });
+      var grupo = presentes.filter(function(p){ return tipo.keys.indexOf(p.tipo_presencia) !== -1; }).sort(compararPersonal);
       if (tipo.keys.indexOf('TAREAS INTERNAS') === -1 && grupo.length === 0) return;
       var lblCell = ws.getCell(row, 1); lblCell.value = tipo.label; lblCell.font = { bold:true, color:{argb:'FFFFFFFF'} }; lblCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; lblCell.alignment = { wrapText:true, vertical:'middle' };
       tipo.cols.forEach(function(h, i){ var c = ws.getCell(row, 2+i); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; c.alignment = { wrapText:true }; });
@@ -1807,6 +1839,7 @@
     ws.mergeCells(5,1,5,8); var tCell = ws.getCell(5,1); tCell.value = 'TOTAL AUSENTES AL SERVICIO: ' + totalStr; tCell.font = { bold:true }; tCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_NARANJA} };
     var headRow = ['Nº','Grado','L.P.','Apellido/s','Nombre/s','Motivo','Justificado','Turno de ausencia'];
     headRow.forEach(function(h,i){ var c = ws.getCell(8, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; });
+    ausentes = ausentes.slice().sort(compararPersonal);
     ausentes.forEach(function(p, i) {
       var row = 9 + i;
       var vals = [i+1, p.grado, p.lp, p.apellido, p.nombre, p.motivo||'', p.justificado||'SI', p.horario||''];
@@ -1827,6 +1860,7 @@
     var headRow = ['Recargos (Servicios prevencionales)','Nº','Grado','LP','Apellido/s','Nombre/s','Lugar (QTH)','Ordenado por / Mag interviniente','Misión','Turno horario','Observaciones'];
     headRow.forEach(function(h,i){ var c = ws.getCell(7, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; c.alignment = { wrapText:true }; });
     var row = 8;
+    recargos = recargos.slice().sort(compararPersonal);
     if (recargos.length === 0) { ws.getCell(row, 2).value = 1; ws.getCell(row, 3).value = 'SIN RECARGOS'; row++; }
     else {
       recargos.forEach(function(p, i) {
@@ -2133,7 +2167,7 @@
       var recargos  = presentes.filter(function(r){ return r.tipo_presencia === 'RECARGO'; });
       var jefe = _jefeDe(personal);
       var KEYS_FUERA = ['SERVICIO FUERA DE JURISDICCION','SATURACION','ESPACIOS PUBLICOS'];
-      var colsPres = function(grupo){ return grupo.map(function(p,i){ return [i+1, p.grado, p.lp, p.apellido, p.nombre, p.sector||'', p.dispuesto_por||'', p.funcion||'', p.horario||'', p.observaciones||'']; }); };
+      var colsPres = function(grupo){ return grupo.slice().sort(compararPersonal).map(function(p,i){ return [i+1, p.grado, p.lp, p.apellido, p.nombre, p.sector||'', p.dispuesto_por||'', p.funcion||'', p.horario||'', p.observaciones||'']; }); };
       textos = {
         '{{FECHA}}': fmtFecha(fecha),
         '{{TOTAL_PRESENTES}}': numLetras(presentes.length) + ' (' + presentes.length + ')',
@@ -2152,8 +2186,8 @@
         PRESENTES_PARADAS: colsPres(presentes.filter(function(p){ return p.tipo_presencia === 'PARADAS Y VIGILANCIA'; })),
         PRESENTES_RECARGOS: colsPres(presentes.filter(function(p){ return p.tipo_presencia === 'RECARGO'; })),
         PRESENTES_TAREAS: colsPres(presentes.filter(function(p){ return p.tipo_presencia === 'TAREAS INTERNAS' || p.tipo_presencia === 'CURSO'; })),
-        AUSENTES: ausentes.map(function(p,i){ return [i+1,p.grado,p.lp,p.apellido,p.nombre,p.motivo||'',p.justificado||'SI',p.horario||'',p.observaciones||'']; }),
-        CARATULA_PERSONAL: personal.filter(function(p){ var g=(p.grado||'').toLowerCase(); return g.indexOf('comisario')===-1 || g.indexOf('sub')!==-1; }).map(function(p,i){ return [i+1,p.grado,p.lp,p.apellido,p.nombres,p.dependencia]; }),
+        AUSENTES: ausentes.slice().sort(compararPersonal).map(function(p,i){ return [i+1,p.grado,p.lp,p.apellido,p.nombre,p.motivo||'',p.justificado||'SI',p.horario||'',p.observaciones||'']; }),
+        CARATULA_PERSONAL: personal.slice().sort(compararCaratula).filter(function(p){ var g=(p.grado||'').toLowerCase(); return g.indexOf('comisario')===-1 || g.indexOf('sub')!==-1; }).map(function(p,i){ return [i+1,p.grado,p.lp,p.apellido,p.nombres,p.dependencia]; }),
         RECARGOS_PREV: colsPres(recargos),
       };
     } else if (tipo === 'edt') {
