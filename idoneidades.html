@@ -558,6 +558,12 @@
           <label class="form-label">Nombre<span class="required-star">*</span></label>
           <input type="text" id="nNombreNice">
         </div>
+        <div class="form-group" id="grupoLactancia">
+          <label class="form-label">&nbsp;</label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; padding-top:8px;">
+            <input type="checkbox" id="nLactancia" style="width:auto;"> 🍼 Lactancia
+          </label>
+        </div>
         <div class="form-group full">
           <label class="form-label">Observaciones</label>
           <textarea id="nObservaciones"></textarea>
@@ -603,7 +609,7 @@
     </div>
     <div class="table-card">
       <table>
-        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th class="action-col">Acciones</th></tr></thead>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th>🍼</th><th class="action-col">Acciones</th></tr></thead>
         <tbody id="tbodyRegistros"></tbody>
       </table>
       <div class="no-data" id="registrosNoData" style="display:none;">
@@ -1351,6 +1357,7 @@
     document.getElementById('grupoDni').style.display = isNice ? '' : 'none';
     document.getElementById('grupoApellidoNice').style.display = isNice ? '' : 'none';
     document.getElementById('grupoNombreNice').style.display = isNice ? '' : 'none';
+    document.getElementById('grupoLactancia').style.display = isNice ? 'none' : '';
     if (isNice) limpiarPersonalSeleccionado();
   }
 
@@ -1439,9 +1446,11 @@
       } else {
         if (!personalSeleccionado) { alertShow('topAlert', 'error', 'Buscá y seleccioná a la persona de la lista.'); hideLoading(); return; }
         var p = personalSeleccionado;
+        var lactancia = document.getElementById('nLactancia').checked;
         var res2 = await supabaseClient.from('idoneidades').insert({
           tipo: tipo, estado: estado, fecha: fecha, hora: hora, usuario: usuario, observaciones: observaciones,
-          grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || ''
+          grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || '',
+          lactancia: lactancia
         });
         if (res2.error) throw res2.error;
         // Ya no hace falta mantener un directorio propio (idoneidades_personal):
@@ -1468,6 +1477,7 @@
     document.getElementById('nDni').value = '';
     document.getElementById('nApellidoNice').value = '';
     document.getElementById('nNombreNice').value = '';
+    document.getElementById('nLactancia').checked = false;
     limpiarPersonalSeleccionado();
     onTipoChange();
   }
@@ -1514,6 +1524,7 @@
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.estado)+'" onchange="cambiarEstado(\'idoneidades\',\''+r.id+'\',this.value,this)">' +
             ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
+          '<td style="text-align:center;"><input type="checkbox" '+(r.lactancia?'checked':'')+' onchange="cambiarLactancia(\''+r.id+'\',this.checked,this)" title="Lactancia"></td>' +
           '<td class="action-col"><button class="btn btn-danger btn-sm" onclick="confirmarEliminarRegistro(\''+r.id+'\')">🗑️</button></td></tr>';
       }).join('');
 
@@ -1553,6 +1564,19 @@
       if (prev) selectEl.value = prev;
     } finally {
       selectEl.disabled = false;
+    }
+  }
+
+  async function cambiarLactancia(id, checked, checkboxEl) {
+    checkboxEl.disabled = true;
+    try {
+      var res = await supabaseClient.from('idoneidades').update({ lactancia: checked }).eq('id', id);
+      if (res.error) throw res.error;
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al actualizar Lactancia: ' + (e.message || e));
+      checkboxEl.checked = !checked;
+    } finally {
+      checkboxEl.disabled = false;
     }
   }
 
@@ -1858,7 +1882,7 @@
 
     previewEl.innerHTML = '<div class="resultado-preview">Buscando en Registros…</div>';
     var res = await supabaseClient.from('idoneidades')
-      .select('grado,lp,apellido,nombre,estado')
+      .select('grado,lp,apellido,nombre,estado,lactancia,usuario')
       .eq('tipo', TIPO_POR_SCOPE_RESULTADO[scope])
       .eq('fecha', fecha)
       .order('apellido');
@@ -1885,7 +1909,9 @@
     var fecha = fmtFecha(fechaRaw);
     var nombreArma = NOMBRE_BONITO_RESULTADO[scope];
 
-    function nombreCorto(r) { return (r.grado ? r.grado+' ' : '') + r.apellido + ', ' + r.nombre + ' (LP '+r.lp+')'; }
+    function nombreCorto(r) {
+      return (r.grado ? r.grado+' ' : '') + r.apellido + ', ' + r.nombre + ' (LP '+r.lp+')' + (r.lactancia ? ' - LACTANCIA' : '');
+    }
     function bloque(titulo, arr) {
       if (!arr.length) return '';
       return '<b>'+titulo+':</b><ul>' + arr.map(function(r){ return '<li>'+esc(nombreCorto(r))+'</li>'; }).join('') + '</ul>';
@@ -1895,7 +1921,14 @@
     var desaprobados = filas.filter(function(r){ return r.estado === 'Desaprobado'; });
     var ausentes = filas.filter(function(r){ return r.estado === 'Ausente'; });
     var pendientes = filas.filter(function(r){ return r.estado === 'Pendiente'; });
-    var todos = filas.slice().sort(function(a,b){ return (a.apellido||'').localeCompare(b.apellido||''); });
+
+    // Usuarios que cargaron los registros de esta idoneidad (columna
+    // "usuario"), sin repetir — van al final del texto.
+    var usuarios = [];
+    filas.forEach(function(r) {
+      var u = str(r.usuario);
+      if (u && usuarios.indexOf(u) === -1) usuarios.push(u);
+    });
 
     document.getElementById('resultado'+(scope==='beretta'?'Beretta':'Benelli')).innerHTML =
       'Por medio de la presente, me dirijo a Ud. en relación a la Idoneidad de <b>'+esc(nombreArma)+'</b> llevada a cabo el día <b>'+fecha+'</b>, informando la resultancia del personal interviniente:' +
@@ -1904,8 +1937,8 @@
       bloque('Desaprobados', desaprobados) +
       bloque('Ausentes', ausentes) +
       bloque('Pendientes', pendientes) +
-      '<br><b>Listado completo del personal:</b><ul>' + todos.map(function(r){ return '<li>'+esc(nombreCorto(r))+'</li>'; }).join('') + '</ul>' +
-      '<br>Se eleva la presente para conocimiento y prosecución administrativa.';
+      '<br>Se eleva la presente para conocimiento y prosecución administrativa.' +
+      (usuarios.length ? '<br><br><b>Personal evaluador interviniente:</b><br>' + usuarios.map(esc).join(', ') : '');
   }
 
   function copiarTexto(id) {
