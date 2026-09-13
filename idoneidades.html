@@ -1352,12 +1352,15 @@
   // NUEVA IDONEIDAD
   // ============================================================
   function onTipoChange() {
-    var isNice = document.getElementById('nTipo').value === 'Reingreso NICE';
+    var tipoVal = document.getElementById('nTipo').value;
+    var isNice = tipoVal === 'Reingreso NICE';
     document.getElementById('grupoPersonal').style.display = isNice ? 'none' : '';
     document.getElementById('grupoDni').style.display = isNice ? '' : 'none';
     document.getElementById('grupoApellidoNice').style.display = isNice ? '' : 'none';
     document.getElementById('grupoNombreNice').style.display = isNice ? '' : 'none';
-    document.getElementById('grupoLactancia').style.display = isNice ? 'none' : '';
+    var esPx4 = tipoVal === 'Idoneidad Px4';
+    document.getElementById('grupoLactancia').style.display = esPx4 ? '' : 'none';
+    if (!esPx4) document.getElementById('nLactancia').checked = false;
     if (isNice) limpiarPersonalSeleccionado();
   }
 
