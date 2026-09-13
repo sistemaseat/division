@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idoneidades — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLAS DE AUTENTICACIÓN */
+  .pantalla-auth {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    align-items: center; justify-content: center;
+    min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box {
+    background: white; border-radius: 16px; padding: 48px 40px;
+    text-align: center; box-shadow: var(--shadow-lg); max-width: 420px;
+  }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip {
+    background: #f5f5f5; border-radius: 8px; padding: 8px 14px;
+    font-family: monospace; font-size: 13px; color: #333;
+    margin: 4px 0 16px; display: inline-block;
+  }
+  .header-user { display: flex; align-items: center; gap: 14px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* HEADER */
+  .header {
+    background: var(--primary); color: white; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px; background: var(--accent); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi {
+    background: var(--card); border-radius: 12px; padding: 18px 20px;
+    border-left: 4px solid; box-shadow: var(--shadow);
+    cursor: pointer; transition: transform .12s, box-shadow .12s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-orange { border-left-color: var(--accent); }
+  .kpi.c-red    { border-left-color: var(--red-light); }
+  .kpi.c-purple { border-left-color: var(--purple); }
+  .kpi.c-teal   { border-left-color: var(--teal); }
+  .kpi.c-gray   { border-left-color: #9e9e9e; }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-size: 30px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+  .kpi-sub   { font-size: 11px; color: var(--muted); }
+
+  /* TIPO CARDS */
+  .tipo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .tipo-card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+  .tipo-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .tipo-card-header { padding: 12px 16px; background: var(--primary); color: white; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; }
+  .tipo-card-body { padding: 14px 16px; display: flex; gap: 10px; }
+  .tipo-stat { flex: 1; text-align: center; }
+  .tipo-stat .ts-num { font-size: 20px; font-weight: 800; }
+  .tipo-stat .ts-label { font-size: 10px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+  .tipo-stat.aprobado .ts-num { color: var(--green); }
+  .tipo-stat.desaprobado .ts-num { color: var(--red); }
+  .tipo-stat.ausente .ts-num { color: var(--orange); }
+  .tipo-stat.pendiente .ts-num { color: var(--purple); }
+  .tipo-total { padding: 8px 16px 12px; font-size: 11px; color: var(--muted); text-align: right; }
+  .tipo-total b { color: var(--primary); font-size: 13px; }
+
+  /* SEARCH BAR / FORM CONTROLS */
+  .search-bar {
+    background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
+    display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow);
+  }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; margin-bottom: 4px; display: block; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 2px; }
+  select, input[type="date"], input[type="text"], input[type="number"], input[type="time"], textarea {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* TABLE */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .section-title .ico { font-size: 16px; }
+  .section-title-left { display: flex; align-items: center; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th {
+    background: var(--primary); color: white; padding: 10px 13px; text-align: left;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
+  }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+  .action-col { white-space: nowrap; text-align: right; }
+  .action-col button { margin-left: 4px; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+  .b-blue   { background: #e3f2fd; color: #0277bd; }
+  .b-purple { background: #ede7f6; color: #4527a0; }
+  .b-gray   { background: #f5f5f5; color: #616161; }
+
+  select.estado-inline {
+    border: 1.5px solid transparent; border-radius: 20px; padding: 3px 10px 3px 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+  }
+  select.est-pendiente   { border-color:#4527a0; background-color:#ede7f6; color:#4527a0; }
+  select.est-aprobado    { border-color:var(--green); background-color:#e8f5e9; color:var(--green); }
+  select.est-desaprobado { border-color:var(--red); background-color:#ffebee; color:var(--red); }
+  select.est-ausente     { border-color:var(--orange); background-color:#fff8e1; color:var(--orange); }
+  select.estado-inline:disabled { opacity: .6; cursor: wait; }
+
+  /* AUTOCOMPLETE */
+  .autocomplete-list {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+    max-height: 280px; overflow-y: auto; z-index: 9200; box-shadow: var(--shadow-lg); margin-top: 4px;
+  }
+  .autocomplete-list.show { display: block; }
+  .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: #f0f2f5; }
+  .autocomplete-item b { color: var(--primary); }
+  .autocomplete-item small { display: block; color: var(--muted); font-size: 11px; }
+  .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group.half { grid-column: span 2; }
+  .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .required-star { color: var(--red); margin-left: 2px; }
+  .field-hint { font-size: 11px; color: var(--muted); }
+
+  .personal-selected {
+    display: none; background: #e8eaf6; border: 1.5px solid var(--primary); border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; align-items: center; gap: 10px; grid-column: 1/-1;
+  }
+  .personal-selected.show { display: flex; }
+  .personal-selected b { color: var(--primary); }
+  .btn-clear-personal { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 16px; margin-left: auto; }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* ALERT */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* NO DATA */
+  .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+  .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 900px; width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* PAGINACIÓN */
+  .pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 12px; margin-top: 6px; border-top: 1px solid var(--border); font-size: 12.5px; }
+  .pg-info { color: var(--muted); }
+  .pg-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pg-btn { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; color: var(--primary); }
+  .pg-btn:hover:not(:disabled) { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .pg-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+  .pg-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  @media (max-width: 900px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .form-group.half { grid-column: span 2; }
+  }
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.half { grid-column: 1; }
+    .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+    .content { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá. -->
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">🎯</div>
+    <div>
+      <div class="brand-title">IDONEIDADES — DIVISIÓN TIRO</div>
+      <div class="brand-sub">Px4, Benelli, Armas Particulares, Halcon, FMK3, FN303-Tippman y Reingreso NICE</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="nueva" onclick="switchTab('nueva')">➕ Nueva Idoneidad</button>
+  <button class="tab-btn" data-tab="registros" onclick="switchTab('registros')">📋 Registros</button>
+  <button class="tab-btn" data-tab="nice" onclick="switchTab('nice')">🔄 Reingreso NICE</button>
+  <button class="tab-btn" data-tab="exportar" onclick="switchTab('exportar')">⬇️ Exportar</button>
+</nav>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="tipo-grid" id="tipoGrid"></div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">⏳</span> Pendientes (más recientes primero)</div>
+      <table>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Fecha</th><th>Tipo</th><th>Estado</th></tr></thead>
+        <tbody id="tbodyPendientes"></tbody>
+      </table>
+      <div class="no-data" id="pendientesNoData" style="display:none;">
+        <div class="no-data-icon">✅</div>
+        <div class="no-data-text">Sin pendientes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== NUEVA IDONEIDAD ==================== -->
+  <div class="tab-pane" id="pane-nueva">
+    <div class="table-card">
+      <div class="section-title"><span class="ico">➕</span> Registrar nueva idoneidad</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Tipo<span class="required-star">*</span></label>
+          <select id="nTipo" onchange="onTipoChange()">
+            <option value="">-- Seleccionar --</option>
+            <option value="Idoneidad Px4">Idoneidad Px4</option>
+            <option value="Idoneidad Benelli">Idoneidad Benelli</option>
+            <option value="Idoneidad Armas Particulares">Idoneidad Armas Particulares</option>
+            <option value="Idoneidad Halcon">Idoneidad Halcon</option>
+            <option value="Idoneidad FMK3">Idoneidad FMK3</option>
+            <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+            <option value="Reingreso NICE">Reingreso NICE</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado<span class="required-star">*</span></label>
+          <select id="nEstado">
+            <option value="Pendiente" selected>◷ Pendiente</option>
+            <option value="Aprobado">✓ Aprobado</option>
+            <option value="Desaprobado">✗ Desaprobado</option>
+            <option value="Ausente">– Ausente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha<span class="required-star">*</span></label>
+          <input type="date" id="nFecha">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora</label>
+          <input type="time" id="nHora">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Usuario</label>
+          <input type="text" id="nUsuario" placeholder="Quién registra">
+        </div>
+        <div class="form-group full" id="grupoPersonal" style="position:relative;">
+          <label class="form-label">Personal (legajo, apellido o nombre)<span class="required-star">*</span></label>
+          <input type="text" id="nPersonalBusqueda" autocomplete="off" placeholder="Escribí al menos 3 caracteres…" oninput="buscarPersonalIdoneidad()" onblur="ocultarSugerenciasConDelay('nPersonalSuggest')">
+          <div class="autocomplete-list" id="nPersonalSuggest"></div>
+          <div class="personal-selected" id="nPersonalSeleccionado">
+            <span>🎖️</span>
+            <span><b id="nPersonalTexto">—</b></span>
+            <button type="button" class="btn-clear-personal" onclick="limpiarPersonalSeleccionado()" title="Cambiar">✕</button>
+          </div>
+        </div>
+        <div class="form-group" id="grupoDni" style="display:none;">
+          <label class="form-label">DNI<span class="required-star">*</span></label>
+          <input type="text" id="nDni" placeholder="Número de DNI">
+        </div>
+        <div class="form-group" id="grupoApellidoNice" style="display:none;">
+          <label class="form-label">Apellido<span class="required-star">*</span></label>
+          <input type="text" id="nApellidoNice">
+        </div>
+        <div class="form-group" id="grupoNombreNice" style="display:none;">
+          <label class="form-label">Nombre<span class="required-star">*</span></label>
+          <input type="text" id="nNombreNice">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Observaciones</label>
+          <textarea id="nObservaciones"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="guardarIdoneidad()">💾 Guardar registro</button>
+        <button class="btn btn-ghost" onclick="limpiarFormularioNueva()">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== REGISTROS ==================== -->
+  <div class="tab-pane" id="pane-registros">
+    <div class="search-bar">
+      <div class="ctrl-group" style="min-width:200px;">
+        <label class="ctrl-label">Tipo</label>
+        <select id="fRegTipo" onchange="recargarRegistros(true)">
+          <option value="">Todos</option>
+          <option value="Idoneidad Px4">Idoneidad Px4</option>
+          <option value="Idoneidad Benelli">Idoneidad Benelli</option>
+          <option value="Idoneidad Armas Particulares">Idoneidad Armas Particulares</option>
+          <option value="Idoneidad Halcon">Idoneidad Halcon</option>
+          <option value="Idoneidad FMK3">Idoneidad FMK3</option>
+          <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Estado</label>
+        <select id="fRegEstado" onchange="recargarRegistros(true)">
+          <option value="">Todos</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Aprobado">Aprobado</option>
+          <option value="Desaprobado">Desaprobado</option>
+          <option value="Ausente">Ausente</option>
+        </select>
+      </div>
+      <div class="ctrl-group" style="flex:1; min-width:220px;">
+        <label class="ctrl-label">Buscar (legajo, apellido, nombre)</label>
+        <input type="text" id="fRegBuscar" oninput="debounceRegistros()">
+      </div>
+      <span class="count-pill" id="regCountPill">0 registros</span>
+    </div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th class="action-col">Acciones</th></tr></thead>
+        <tbody id="tbodyRegistros"></tbody>
+      </table>
+      <div class="no-data" id="registrosNoData" style="display:none;">
+        <div class="no-data-icon">🔎</div>
+        <div class="no-data-text">Sin resultados con este filtro</div>
+      </div>
+      <div class="pagination" id="pagRegistros"></div>
+    </div>
+  </div>
+
+  <!-- ==================== REINGRESO NICE ==================== -->
+  <div class="tab-pane" id="pane-nice">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Estado</label>
+        <select id="fNiceEstado" onchange="renderNiceTable()">
+          <option value="">Todos</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Aprobado">Aprobado</option>
+          <option value="Desaprobado">Desaprobado</option>
+          <option value="Ausente">Ausente</option>
+        </select>
+      </div>
+      <span class="count-pill" id="niceCountPill">0 registros</span>
+    </div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>DNI</th><th>Apellido</th><th>Nombre</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Usuario</th><th class="action-col">Acciones</th></tr></thead>
+        <tbody id="tbodyNice"></tbody>
+      </table>
+      <div class="no-data" id="niceNoData" style="display:none;">
+        <div class="no-data-icon">📭</div>
+        <div class="no-data-text">No hay registros con este filtro</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== EXPORTAR ==================== -->
+  <div class="tab-pane" id="pane-exportar">
+    <div class="search-bar">
+      <div class="ctrl-group" style="min-width:200px;">
+        <label class="ctrl-label">Tipo</label>
+        <select id="fExpTipo">
+          <option value="">Todos</option>
+          <option value="Idoneidad Px4">Idoneidad Px4</option>
+          <option value="Idoneidad Benelli">Idoneidad Benelli</option>
+          <option value="Idoneidad Armas Particulares">Idoneidad Armas Particulares</option>
+          <option value="Idoneidad Halcon">Idoneidad Halcon</option>
+          <option value="Idoneidad FMK3">Idoneidad FMK3</option>
+          <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Estado</label>
+        <select id="fExpEstado">
+          <option value="">Todos</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Aprobado">Aprobado</option>
+          <option value="Desaprobado">Desaprobado</option>
+          <option value="Ausente">Ausente</option>
+        </select>
+      </div>
+      <div class="ctrl-group"><label class="ctrl-label">Desde</label><input type="date" id="fExpDesde"></div>
+      <div class="ctrl-group"><label class="ctrl-label">Hasta</label><input type="date" id="fExpHasta"></div>
+      <button class="btn btn-success" onclick="exportarIdoneidadesExcel()">⬇️ Generar Excel</button>
+    </div>
+    <div class="field-hint">Con filtros muy amplios (por ejemplo "Todos" sin fechas) la exportación puede tardar unos segundos: hay más de 22.000 registros históricos.</div>
+  </div>
+
+</div>
+</div><!-- /appRoot -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var TIPOS = ['Idoneidad Px4','Idoneidad Benelli','Idoneidad Armas Particulares','Idoneidad Halcon','Idoneidad FMK3','Idoneidad FN 303 - TIPPMAN'];
+  var ESTADOS = ['Pendiente','Aprobado','Desaprobado','Ausente'];
+
+  var nicePersonal = [];       // filas de idoneidades_nice (tabla chica, se carga entera)
+  var personalSeleccionado = null;
+  var regPage = 0;             // página actual de Registros (0-indexed)
+  var regPageSize = 50;
+  var regTotal = 0;
+  var regDebounceTimer = null;
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function fmtHorario(t) { return t ? String(t).slice(0,5) : '—'; }
+  function fmtNum(n) { return Number(n || 0).toLocaleString('es-AR'); }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    setTimeout(function(){ el.classList.remove('show'); }, 6000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+    if (tab === 'registros' && !document.getElementById('tbodyRegistros').children.length) recargarRegistros(true);
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — mismo patrón que personal.html / municiones.html.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) {
+        console.error('Error al verificar el acceso: ', res.error);
+        mostrarPantalla('login');
+        return;
+      }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      document.getElementById('nUsuario').value = session.user.email;
+      document.getElementById('nFecha').value = isoDate(new Date());
+      await Promise.all([cargarDashboard(), cargarNice()]);
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() {
+    supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
+  }
+
+  // ============================================================
+  // DASHBOARD — usa la función idoneidades_stats() (agregada en el
+  // servidor) en vez de traer los 22.000 registros al navegador.
+  // ============================================================
+  async function cargarDashboard() {
+    showLoading('Cargando estadísticas…');
+    try {
+      var [statsRes, pendRes, niceRes] = await Promise.all([
+        supabaseClient.rpc('idoneidades_stats'),
+        supabaseClient.from('idoneidades').select('grado,lp,apellido,nombre,dependencia,fecha,tipo,estado')
+          .eq('estado', 'Pendiente').order('fecha', { ascending: false, nullsFirst: false }).limit(30),
+        supabaseClient.from('idoneidades_nice').select('id', { count: 'exact', head: true }).eq('estado', 'Pendiente')
+      ]);
+      if (statsRes.error) throw statsRes.error;
+      if (pendRes.error) throw pendRes.error;
+
+      var stats = statsRes.data || [];
+      var total = 0, porEstado = {}, porTipo = {};
+      ESTADOS.forEach(function(e){ porEstado[e] = 0; });
+      TIPOS.forEach(function(t){ porTipo[t] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 }; });
+      stats.forEach(function(row) {
+        var tipo = row.tipo, estado = row.estado, n = Number(row.total || 0);
+        total += n;
+        if (porEstado[estado] !== undefined) porEstado[estado] += n;
+        if (porTipo[tipo]) {
+          if (porTipo[tipo][estado] === undefined) porTipo[tipo][estado] = 0;
+          porTipo[tipo][estado] += n;
+        }
+      });
+      var pendNiceCount = niceRes.count || 0;
+
+      var kpis = [
+        { label: 'Total de registros', val: fmtNum(total), sub: 'todas las idoneidades (sin NICE)', c: 'blue' },
+        { label: 'Aprobados', val: fmtNum(porEstado.Aprobado), c: 'green' },
+        { label: 'Desaprobados', val: fmtNum(porEstado.Desaprobado), c: 'red' },
+        { label: 'Ausentes', val: fmtNum(porEstado.Ausente), c: 'orange' },
+        { label: 'Pendientes', val: fmtNum(porEstado.Pendiente), c: 'purple' },
+        { label: 'Pendientes Reingreso NICE', val: fmtNum(pendNiceCount), c: 'teal' }
+      ];
+      document.getElementById('kpiGrid').innerHTML = kpis.map(function(k) {
+        return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div>'+(k.sub ? '<div class="kpi-sub">'+esc(k.sub)+'</div>' : '')+'</div>';
+      }).join('');
+
+      document.getElementById('tipoGrid').innerHTML = TIPOS.map(function(t) {
+        var s = porTipo[t] || { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+        var totalTipo = s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente;
+        return '<div class="tipo-card" onclick="irARegistrosPorTipo(\''+esc(t).replace(/'/g,"\\'")+'\')">' +
+          '<div class="tipo-card-header">'+esc(t.replace('Idoneidad ',''))+'</div>' +
+          '<div class="tipo-card-body">' +
+            '<div class="tipo-stat aprobado"><div class="ts-num">'+s.Aprobado+'</div><div class="ts-label">Aprob.</div></div>' +
+            '<div class="tipo-stat desaprobado"><div class="ts-num">'+s.Desaprobado+'</div><div class="ts-label">Desaprob.</div></div>' +
+            '<div class="tipo-stat ausente"><div class="ts-num">'+s.Ausente+'</div><div class="ts-label">Ausente</div></div>' +
+            '<div class="tipo-stat pendiente"><div class="ts-num">'+s.Pendiente+'</div><div class="ts-label">Pend.</div></div>' +
+          '</div>' +
+          '<div class="tipo-total">Total: <b>'+fmtNum(totalTipo)+'</b></div>' +
+        '</div>';
+      }).join('');
+
+      var pend = pendRes.data || [];
+      document.getElementById('pendientesNoData').style.display = pend.length ? 'none' : 'block';
+      document.getElementById('tbodyPendientes').innerHTML = pend.map(function(r) {
+        return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td>'+fmtFecha(r.fecha)+'</td><td>'+esc((r.tipo||'').replace('Idoneidad ',''))+'</td>' +
+          '<td><span class="badge b-purple">Pendiente</span></td></tr>';
+      }).join('');
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar el dashboard: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function irARegistrosPorTipo(tipo) {
+    switchTab('registros');
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'registros'); });
+    document.getElementById('fRegTipo').value = tipo;
+    recargarRegistros(true);
+  }
+
+  // ============================================================
+  // NUEVA IDONEIDAD
+  // ============================================================
+  function onTipoChange() {
+    var isNice = document.getElementById('nTipo').value === 'Reingreso NICE';
+    document.getElementById('grupoPersonal').style.display = isNice ? 'none' : '';
+    document.getElementById('grupoDni').style.display = isNice ? '' : 'none';
+    document.getElementById('grupoApellidoNice').style.display = isNice ? '' : 'none';
+    document.getElementById('grupoNombreNice').style.display = isNice ? '' : 'none';
+    if (isNice) limpiarPersonalSeleccionado();
+  }
+
+  var _personalDebounce = null;
+  function buscarPersonalIdoneidad() {
+    var q = document.getElementById('nPersonalBusqueda').value.trim();
+    var listEl = document.getElementById('nPersonalSuggest');
+    clearTimeout(_personalDebounce);
+    if (q.length < 3) {
+      listEl.innerHTML = q.length ? '<div class="autocomplete-empty">Escribí al menos 3 caracteres</div>' : '';
+      listEl.classList.toggle('show', q.length > 0);
+      return;
+    }
+    listEl.innerHTML = '<div class="autocomplete-empty">Buscando…</div>';
+    listEl.classList.add('show');
+    _personalDebounce = setTimeout(async function() {
+      var qEsc = q.replace(/[%_,]/g, '');
+      // Busca en nomina_general (padrón de TODA la fuerza) en vez de la
+      // vieja tabla propia idoneidades_personal — ver GUIA_INSTALACION.md.
+      // Se pide "lp:legajo" para que el resto del código (que espera p.lp)
+      // no tenga que cambiar.
+      var res = await supabaseClient.from('nomina_general')
+        .select('lp:legajo,grado,apellido,nombre,dependencia')
+        .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
+        .limit(10);
+      if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+      var matches = res.data || [];
+      if (!matches.length) {
+        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias — se puede seguir cargando el registro con los datos que tengas a mano.</div>';
+      } else {
+        listEl.innerHTML = matches.map(function(p) {
+          return '<div class="autocomplete-item" onmousedown="seleccionarPersonalIdoneidad('+esc(JSON.stringify(p).replace(/"/g,'&quot;'))+')">' +
+            '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b><small>LP '+esc(p.lp)+' — '+esc(p.grado)+' — '+esc(p.dependencia)+'</small></div>';
+        }).join('');
+      }
+      listEl.classList.add('show');
+    }, 400);
+  }
+  function seleccionarPersonalIdoneidad(dataStr) {
+    var p = JSON.parse(String(dataStr).replace(/&quot;/g,'"'));
+    personalSeleccionado = p;
+    document.getElementById('nPersonalBusqueda').value = '';
+    document.getElementById('nPersonalSuggest').classList.remove('show');
+    document.getElementById('nPersonalTexto').textContent = str(p.grado)+' — LP '+str(p.lp)+' — '+str(p.apellido)+', '+str(p.nombre);
+    document.getElementById('nPersonalSeleccionado').classList.add('show');
+  }
+  function limpiarPersonalSeleccionado() {
+    personalSeleccionado = null;
+    document.getElementById('nPersonalSeleccionado').classList.remove('show');
+    document.getElementById('nPersonalBusqueda').value = '';
+  }
+  function ocultarSugerenciasConDelay(listId) {
+    setTimeout(function() { document.getElementById(listId).classList.remove('show'); }, 150);
+  }
+
+  async function guardarIdoneidad() {
+    var tipo = document.getElementById('nTipo').value;
+    var estado = document.getElementById('nEstado').value;
+    var fecha = document.getElementById('nFecha').value;
+    var hora = document.getElementById('nHora').value || null;
+    var usuario = str(document.getElementById('nUsuario').value);
+    var observaciones = document.getElementById('nObservaciones').value || null;
+
+    if (!tipo || !fecha) { alertShow('topAlert', 'error', 'Completá tipo y fecha.'); return; }
+
+    showLoading('Guardando…');
+    try {
+      if (tipo === 'Reingreso NICE') {
+        var dni = str(document.getElementById('nDni').value);
+        var apellido = str(document.getElementById('nApellidoNice').value);
+        var nombre = str(document.getElementById('nNombreNice').value);
+        if (!dni || !apellido || !nombre) { alertShow('topAlert', 'error', 'Completá DNI, Apellido y Nombre.'); hideLoading(); return; }
+        var res = await supabaseClient.from('idoneidades_nice').insert({
+          dni: dni, apellido: apellido, nombre: nombre, fecha: fecha, hora: hora,
+          estado: estado, usuario: usuario, observaciones: observaciones
+        });
+        if (res.error) throw res.error;
+        await cargarNice();
+      } else {
+        if (!personalSeleccionado) { alertShow('topAlert', 'error', 'Buscá y seleccioná a la persona de la lista.'); hideLoading(); return; }
+        var p = personalSeleccionado;
+        var res2 = await supabaseClient.from('idoneidades').insert({
+          tipo: tipo, estado: estado, fecha: fecha, hora: hora, usuario: usuario, observaciones: observaciones,
+          grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || ''
+        });
+        if (res2.error) throw res2.error;
+        // Ya no hace falta mantener un directorio propio (idoneidades_personal):
+        // el buscador de arriba ahora lee directo de nomina_general, el padrón
+        // de toda la fuerza, que se actualiza corriendo datos_nomina.sql cuando
+        // Enzo manda una planilla nueva — no desde acá.
+        await cargarDashboard();
+      }
+      limpiarFormularioNueva();
+      alertShow('topAlert', 'success', '✅ Registro guardado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function limpiarFormularioNueva() {
+    document.getElementById('nTipo').selectedIndex = 0;
+    document.getElementById('nEstado').value = 'Pendiente';
+    document.getElementById('nFecha').value = isoDate(new Date());
+    document.getElementById('nHora').value = '';
+    document.getElementById('nObservaciones').value = '';
+    document.getElementById('nDni').value = '';
+    document.getElementById('nApellidoNice').value = '';
+    document.getElementById('nNombreNice').value = '';
+    limpiarPersonalSeleccionado();
+    onTipoChange();
+  }
+
+  // ============================================================
+  // REGISTROS — paginado y filtrado del lado del servidor (22.000+
+  // filas no entran cómodas en el navegador de una sola vez, y
+  // Supabase no devuelve más de 1000 filas por consulta sin range()).
+  // ============================================================
+  function debounceRegistros() {
+    clearTimeout(regDebounceTimer);
+    regDebounceTimer = setTimeout(function(){ recargarRegistros(true); }, 400);
+  }
+
+  async function recargarRegistros(resetPage) {
+    if (resetPage) regPage = 0;
+    var tipo = document.getElementById('fRegTipo').value;
+    var estado = document.getElementById('fRegEstado').value;
+    var buscar = str(document.getElementById('fRegBuscar').value);
+
+    showLoading('Buscando registros…');
+    try {
+      var q = supabaseClient.from('idoneidades').select('*', { count: 'exact' });
+      if (tipo) q = q.eq('tipo', tipo);
+      if (estado) q = q.eq('estado', estado);
+      if (buscar) {
+        var b = buscar.replace(/[%_,]/g, '');
+        q = q.or('lp.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%');
+      }
+      var from = regPage * regPageSize, to = from + regPageSize - 1;
+      q = q.order('fecha', { ascending: false, nullsFirst: false }).order('hora', { ascending: false, nullsFirst: false }).range(from, to);
+      var res = await q;
+      if (res.error) throw res.error;
+
+      regTotal = res.count || 0;
+      var filas = res.data || [];
+      document.getElementById('regCountPill').textContent = fmtNum(regTotal) + (regTotal === 1 ? ' registro' : ' registros');
+      document.getElementById('registrosNoData').style.display = filas.length ? 'none' : 'block';
+      document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
+        var cls = r.estado === 'Aprobado' ? 'est-aprobado' : r.estado === 'Desaprobado' ? 'est-desaprobado' : r.estado === 'Ausente' ? 'est-ausente' : 'est-pendiente';
+        return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td>'+fmtFecha(r.fecha)+'</td><td>'+fmtHorario(r.hora)+'</td>' +
+          '<td>'+esc((r.tipo||'').replace('Idoneidad ',''))+'</td>' +
+          '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.estado)+'" onchange="cambiarEstado(\'idoneidades\',\''+r.id+'\',this.value,this)">' +
+            ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
+          '</select></td>' +
+          '<td class="action-col"><button class="btn btn-danger btn-sm" onclick="confirmarEliminarRegistro(\''+r.id+'\')">🗑️</button></td></tr>';
+      }).join('');
+
+      var totalPages = Math.max(1, Math.ceil(regTotal / regPageSize));
+      var curPage = regPage + 1;
+      document.getElementById('pagRegistros').innerHTML =
+        '<div class="pg-info">Página '+curPage+' de '+fmtNum(totalPages)+' — mostrando '+(filas.length ? (from+1) : 0)+'–'+(from+filas.length)+' de '+fmtNum(regTotal)+'</div>' +
+        '<div class="pg-btns">' +
+          '<button class="pg-btn" onclick="irPaginaRegistros(0)" '+(regPage===0?'disabled':'')+'>« Primera</button>' +
+          '<button class="pg-btn" onclick="irPaginaRegistros('+(regPage-1)+')" '+(regPage===0?'disabled':'')+'>‹ Anterior</button>' +
+          '<button class="pg-btn" onclick="irPaginaRegistros('+(regPage+1)+')" '+(curPage>=totalPages?'disabled':'')+'>Siguiente ›</button>' +
+          '<button class="pg-btn" onclick="irPaginaRegistros('+(totalPages-1)+')" '+(curPage>=totalPages?'disabled':'')+'>Última »</button>' +
+        '</div>';
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al buscar registros: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+  function irPaginaRegistros(p) {
+    regPage = Math.max(0, p);
+    recargarRegistros(false);
+  }
+
+  async function cambiarEstado(tabla, id, nuevoEstado, selectEl) {
+    var prev = selectEl.dataset.prev || null;
+    selectEl.disabled = true;
+    try {
+      var res = await supabaseClient.from(tabla).update({ estado: nuevoEstado }).eq('id', id);
+      if (res.error) throw res.error;
+      selectEl.className = 'estado-inline ' + (nuevoEstado === 'Aprobado' ? 'est-aprobado' : nuevoEstado === 'Desaprobado' ? 'est-desaprobado' : nuevoEstado === 'Ausente' ? 'est-ausente' : 'est-pendiente');
+      selectEl.dataset.prev = nuevoEstado;
+      alertShow('topAlert', 'success', '✅ Estado actualizado.');
+      cargarDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cambiar el estado: ' + (e.message || e));
+      if (prev) selectEl.value = prev;
+    } finally {
+      selectEl.disabled = false;
+    }
+  }
+
+  function confirmarEliminarRegistro(id) {
+    showConfirm('¿Eliminar este registro? No se puede deshacer.', function() { eliminarRegistro(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
+  async function eliminarRegistro(id) {
+    showLoading('Eliminando…');
+    try {
+      var res = await supabaseClient.from('idoneidades').delete().eq('id', id);
+      if (res.error) throw res.error;
+      await recargarRegistros(false);
+      cargarDashboard();
+      alertShow('topAlert', 'success', '🗑️ Registro eliminado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // REINGRESO NICE — tabla chica (decenas de filas), se carga entera.
+  // ============================================================
+  async function cargarNice() {
+    var res = await supabaseClient.from('idoneidades_nice').select('*').order('fecha', { ascending: false, nullsFirst: false });
+    if (res.error) { console.error(res.error); return; }
+    nicePersonal = res.data || [];
+    renderNiceTable();
+  }
+  function renderNiceTable() {
+    var estado = document.getElementById('fNiceEstado').value;
+    var filas = nicePersonal.filter(function(r){ return !estado || r.estado === estado; });
+    document.getElementById('niceCountPill').textContent = filas.length + (filas.length === 1 ? ' registro' : ' registros');
+    document.getElementById('niceNoData').style.display = filas.length ? 'none' : 'block';
+    document.getElementById('tbodyNice').innerHTML = filas.map(function(r) {
+      var cls = r.estado === 'Aprobado' ? 'est-aprobado' : r.estado === 'Desaprobado' ? 'est-desaprobado' : r.estado === 'Ausente' ? 'est-ausente' : 'est-pendiente';
+      return '<tr><td>'+esc(r.dni)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td><td>'+fmtFecha(r.fecha)+'</td><td>'+fmtHorario(r.hora)+'</td>' +
+        '<td><select class="estado-inline '+cls+'" onchange="cambiarEstadoNice(\''+r.id+'\',this.value,this)">' +
+          ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
+        '</select></td><td>'+esc(r.usuario)+'</td>' +
+        '<td class="action-col"><button class="btn btn-danger btn-sm" onclick="confirmarEliminarNice(\''+r.id+'\')">🗑️</button></td></tr>';
+    }).join('');
+  }
+  async function cambiarEstadoNice(id, nuevoEstado, selectEl) {
+    selectEl.disabled = true;
+    try {
+      var res = await supabaseClient.from('idoneidades_nice').update({ estado: nuevoEstado }).eq('id', id);
+      if (res.error) throw res.error;
+      var i = nicePersonal.findIndex(function(r){ return r.id === id; });
+      if (i >= 0) nicePersonal[i].estado = nuevoEstado;
+      selectEl.className = 'estado-inline ' + (nuevoEstado === 'Aprobado' ? 'est-aprobado' : nuevoEstado === 'Desaprobado' ? 'est-desaprobado' : nuevoEstado === 'Ausente' ? 'est-ausente' : 'est-pendiente');
+      alertShow('topAlert', 'success', '✅ Estado actualizado.');
+      cargarDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cambiar el estado: ' + (e.message || e));
+    } finally {
+      selectEl.disabled = false;
+    }
+  }
+  function confirmarEliminarNice(id) {
+    showConfirm('¿Eliminar este registro de Reingreso NICE? No se puede deshacer.', function() { eliminarNice(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
+  async function eliminarNice(id) {
+    showLoading('Eliminando…');
+    try {
+      var res = await supabaseClient.from('idoneidades_nice').delete().eq('id', id);
+      if (res.error) throw res.error;
+      await cargarNice();
+      cargarDashboard();
+      alertShow('topAlert', 'success', '🗑️ Registro eliminado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // EXPORTAR — trae el resultado filtrado en bloques de 1000 (por el
+  // límite de filas por consulta de Supabase) y arma el Excel.
+  // ============================================================
+  async function exportarIdoneidadesExcel() {
+    var tipo = document.getElementById('fExpTipo').value;
+    var estado = document.getElementById('fExpEstado').value;
+    var desde = document.getElementById('fExpDesde').value;
+    var hasta = document.getElementById('fExpHasta').value;
+
+    showLoading('Trayendo registros…');
+    try {
+      var all = [];
+      var page = 0, pageSize = 1000;
+      while (true) {
+        var q = supabaseClient.from('idoneidades').select('*');
+        if (tipo) q = q.eq('tipo', tipo);
+        if (estado) q = q.eq('estado', estado);
+        if (desde) q = q.gte('fecha', desde);
+        if (hasta) q = q.lte('fecha', hasta);
+        q = q.order('fecha', { ascending: true }).range(page*pageSize, page*pageSize + pageSize - 1);
+        var res = await q;
+        if (res.error) throw res.error;
+        var batch = res.data || [];
+        all = all.concat(batch);
+        showLoading('Trayendo registros… (' + fmtNum(all.length) + ')');
+        if (batch.length < pageSize) break;
+        page++;
+      }
+
+      if (!all.length) {
+        alertShow('topAlert', 'error', 'No hay registros con ese filtro.');
+        return;
+      }
+
+      showLoading('Generando Excel…');
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('Idoneidades');
+      ws.addRow(['SISTEMA DE IDONEIDADES — DIVISIÓN TIRO']);
+      ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
+      ws.addRow([]);
+      var headers = ['Grado','Legajo','Apellido','Nombre','Dependencia','Fecha','Hora','Tipo','Estado','Usuario','Observaciones'];
+      var headerRow = ws.addRow(headers);
+      headerRow.font = { bold: true };
+      all.forEach(function(r) {
+        ws.addRow([r.grado||'', r.lp||'', r.apellido||'', r.nombre||'', r.dependencia||'', fmtFecha(r.fecha), fmtHorario(r.hora), r.tipo||'', r.estado||'', r.usuario||'', r.observaciones||'']);
+      });
+      ws.columns.forEach(function(c){ c.width = 18; });
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'idoneidades_export_' + isoDate(new Date()) + '.xlsx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alertShow('topAlert', 'success', '✅ Excel generado con ' + fmtNum(all.length) + ' registros.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>

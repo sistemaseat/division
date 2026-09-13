@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nómina General — Sistema Trabajo Web</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLAS DE AUTENTICACIÓN */
+  .pantalla-auth {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    align-items: center; justify-content: center;
+    min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box {
+    background: white; border-radius: 16px; padding: 48px 40px;
+    text-align: center; box-shadow: var(--shadow-lg); max-width: 420px;
+  }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip {
+    background: #f5f5f5; border-radius: 8px; padding: 8px 14px;
+    font-family: monospace; font-size: 13px; color: #333;
+    margin: 4px 0 16px; display: inline-block;
+  }
+  .header-user { display: flex; align-items: center; gap: 14px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* HEADER */
+  .header {
+    background: var(--primary); color: white; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px; background: var(--accent); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi {
+    background: var(--card); border-radius: 12px; padding: 18px 20px;
+    border-left: 4px solid; box-shadow: var(--shadow);
+    cursor: pointer; transition: transform .12s, box-shadow .12s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-orange { border-left-color: var(--accent); }
+  .kpi.c-red    { border-left-color: var(--red-light); }
+  .kpi.c-purple { border-left-color: var(--purple); }
+  .kpi.c-teal   { border-left-color: var(--teal); }
+  .kpi.c-gray   { border-left-color: #9e9e9e; }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-size: 30px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+  .kpi-sub   { font-size: 11px; color: var(--muted); }
+
+  .section-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 20px 0 8px; }
+  .section-label:first-child { margin-top: 0; }
+
+  /* SEARCH BAR / FORM CONTROLS */
+  .search-bar {
+    background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
+    display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow);
+  }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; margin-bottom: 4px; display: block; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 2px; }
+  select, input[type="date"], input[type="text"], input[type="number"], input[type="time"], textarea {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* VISTA TABS (chips) */
+  .vista-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .vista-chip {
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 20px;
+    padding: 8px 16px; font-size: 12.5px; font-weight: 700; color: var(--text);
+    cursor: pointer; white-space: nowrap; box-shadow: var(--shadow);
+  }
+  .vista-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+  .vista-chip .n { opacity: .75; margin-left: 4px; }
+
+  /* TABLE */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .section-title .ico { font-size: 16px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th {
+    background: var(--primary); color: white; padding: 10px 13px; text-align: left;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
+  }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+  .b-blue   { background: #e3f2fd; color: #0277bd; }
+  .b-purple { background: #ede7f6; color: #4527a0; }
+  .b-gray   { background: #f5f5f5; color: #616161; }
+  .tag-div { background: #fff3cd; color: #856404; }
+  .tag-sec { background: #d1ecf1; color: #0c5460; }
+
+  /* FORM (filtros export) */
+  .field-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* ALERT */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* NO DATA */
+  .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+  .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 900px; width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+  .dsec-title { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--primary); border-bottom: 2px solid #e0e8f5; padding-bottom: 4px; margin-bottom: 10px; }
+  .df { margin-bottom: 10px; }
+  .dl { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 1px; }
+  .dv { font-size: 14px; color: #222; }
+  .dv.empty { color: #bbb; font-style: italic; font-size: 13px; }
+
+  /* PAGINACIÓN */
+  .pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 12px; margin-top: 6px; border-top: 1px solid var(--border); font-size: 12.5px; }
+  .pg-info { color: var(--muted); }
+  .pg-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pg-btn { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; color: var(--primary); }
+  .pg-btn:hover:not(:disabled) { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .pg-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+    .content { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá. -->
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">🪪</div>
+    <div>
+      <div class="brand-title">NÓMINA GENERAL</div>
+      <div class="brand-sub">Padrón completo de personal — toda la fuerza</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="padron" onclick="switchTab('padron')">👥 Padrón</button>
+  <button class="tab-btn" data-tab="exportar" onclick="switchTab('exportar')">⬇️ Exportar</button>
+</nav>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="section-label">Personal en actividad</div>
+    <div class="kpi-grid" id="kpiGridActividad"></div>
+
+    <div class="section-label">Situación de revista — Actividad</div>
+    <div class="kpi-grid" id="kpiGridSitRev"></div>
+
+    <div class="section-label">Desvinculación de actividad</div>
+    <div class="kpi-grid" id="kpiGridDesv"></div>
+  </div>
+
+  <!-- ==================== PADRÓN ==================== -->
+  <div class="tab-pane" id="pane-padron">
+    <div class="vista-chips" id="vistaChips">
+      <button class="vista-chip active" data-vista="all" onclick="cambiarVista('all')">Todo Actividad <span class="n" id="cAll"></span></button>
+      <button class="vista-chip" data-vista="dceissp" onclick="cambiarVista('dceissp')">DCEISSP <span class="n" id="cDceissp"></span></button>
+      <button class="vista-chip" data-vista="tiro" onclick="cambiarVista('tiro')">Tiro <span class="n" id="cTiro"></span></button>
+      <button class="vista-chip" data-vista="desvinculados" onclick="cambiarVista('desvinculados')">Desvinculados <span class="n" id="cDesv"></span></button>
+    </div>
+    <div class="search-bar">
+      <div class="ctrl-group" style="flex:1; min-width:260px;">
+        <label class="ctrl-label">Buscar (legajo, apellido, nombre o DNI)</label>
+        <input type="text" id="fBuscar" oninput="debouncePadron()" placeholder="Escribí para buscar…">
+      </div>
+      <span class="count-pill" id="padronCountPill">0 registros</span>
+    </div>
+    <div class="table-card">
+      <table>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Dependencia</th></tr></thead>
+        <tbody id="tbodyPadron"></tbody>
+      </table>
+      <div class="no-data" id="padronNoData" style="display:none;">
+        <div class="no-data-icon">🔎</div>
+        <div class="no-data-text">Sin resultados con este filtro</div>
+      </div>
+      <div class="pagination" id="pagPadron"></div>
+    </div>
+  </div>
+
+  <!-- ==================== EXPORTAR ==================== -->
+  <div class="tab-pane" id="pane-exportar">
+    <div class="search-bar">
+      <div class="ctrl-group" style="min-width:220px;">
+        <label class="ctrl-label">Vista</label>
+        <select id="fExpVista">
+          <option value="all">Todo Actividad</option>
+          <option value="dceissp">DCEISSP</option>
+          <option value="tiro">Tiro</option>
+          <option value="desvinculados">Desvinculados</option>
+          <option value="">Todos (Actividad + Desvinculados)</option>
+        </select>
+      </div>
+      <div class="ctrl-group" style="flex:1; min-width:220px;">
+        <label class="ctrl-label">Buscar (opcional)</label>
+        <input type="text" id="fExpBuscar" placeholder="legajo, apellido, nombre o DNI">
+      </div>
+      <button class="btn btn-success" onclick="exportarNominaExcel()">⬇️ Generar Excel</button>
+    </div>
+    <div class="field-hint">Con filtros muy amplios (por ejemplo "Todos" sin buscar nada) la exportación puede tardar bastante: hay más de 46.000 legajos en el padrón.</div>
+  </div>
+
+</div>
+</div><!-- /appRoot -->
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="mName">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="mSub"></div>
+      </div>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var VISTA = 'all';
+  var padPage = 0, padPageSize = 50, padTotal = 0, padDebounceTimer = null;
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function fmtNum(n) { return Number(n || 0).toLocaleString('es-AR'); }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function r(v) { return v !== undefined && v !== null ? v : ''; }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    setTimeout(function(){ el.classList.remove('show'); }, 6000);
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+    if (tab === 'padron' && !document.getElementById('tbodyPadron').children.length) recargarPadron(true);
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — mismo patrón que el resto del sitio.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) {
+        console.error('Error al verificar el acceso: ', res.error);
+        mostrarPantalla('login');
+        return;
+      }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarDashboard();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() {
+    supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
+  }
+
+  // ============================================================
+  // DASHBOARD — usa nomina_general_stats() (agregado en el servidor)
+  // en vez de traer los 46.000 registros al navegador.
+  // ============================================================
+  async function cargarDashboard() {
+    showLoading('Cargando estadísticas…');
+    try {
+      var res = await supabaseClient.rpc('nomina_general_stats');
+      if (res.error) throw res.error;
+      var s = (res.data && res.data[0]) || {};
+
+      document.getElementById('kpiGridActividad').innerHTML = [
+        { label: 'Personal en Actividad', val: s.actividad, c: 'blue' },
+        { label: 'DCEISSP', val: s.dceissp, c: 'green' },
+        { label: 'División Tiro (DCEISSP)', val: s.div_tiro, c: 'orange' },
+        { label: 'Sección Tiro Formación Inicial (DCEISSP)', val: s.sec_tiro, c: 'teal' }
+      ].map(kpiHtml).join('');
+
+      document.getElementById('kpiGridSitRev').innerHTML = [
+        { label: 'Servicio Efectivo', val: s.srv_efectivo, c: 'blue' },
+        { label: 'Disponibilidad', val: s.disponibilidad, c: 'purple' },
+        { label: 'Pasiva', val: s.pasiva, c: 'gray' }
+      ].map(kpiHtml).join('');
+
+      document.getElementById('kpiGridDesv').innerHTML = [
+        { label: 'Total Desvinculados', val: s.desv_total, c: 'red' },
+        { label: 'Retiro', val: s.retiro, c: 'red' },
+        { label: 'Baja Obligatoria', val: s.baja_obligatoria, c: 'orange' },
+        { label: 'Baja Voluntaria', val: s.baja_voluntaria, c: 'orange' },
+        { label: 'Traspasado PFA', val: s.traspasado_pfa, c: 'purple' },
+        { label: 'Renuncia', val: s.renuncia, c: 'blue' },
+        { label: 'Desconvocado', val: s.desconvocado, c: 'gray' },
+        { label: 'Jubilación', val: s.jubilacion, c: 'green' }
+      ].map(kpiHtml).join('');
+
+      // Contadores de las chips de vista del Padrón (totales, sin filtro de búsqueda)
+      document.getElementById('cAll').textContent     = '(' + fmtNum(s.actividad) + ')';
+      document.getElementById('cDceissp').textContent = '(' + fmtNum(s.dceissp) + ')';
+      document.getElementById('cTiro').textContent    = '(' + fmtNum(Number(s.div_tiro||0) + Number(s.sec_tiro||0)) + ')';
+      document.getElementById('cDesv').textContent    = '(' + fmtNum(s.desv_total) + ')';
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar el dashboard: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function kpiHtml(k) {
+    return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+fmtNum(k.val)+'</div></div>';
+  }
+
+  // ============================================================
+  // PADRÓN — paginado y filtrado del lado del servidor (46.000+ filas
+  // no entran en el navegador de una, y Supabase no devuelve más de
+  // 1000 filas por consulta sin range()).
+  // ============================================================
+  function cambiarVista(v) {
+    VISTA = v;
+    document.querySelectorAll('.vista-chip').forEach(function(c){ c.classList.toggle('active', c.dataset.vista === v); });
+    recargarPadron(true);
+  }
+
+  function debouncePadron() {
+    clearTimeout(padDebounceTimer);
+    padDebounceTimer = setTimeout(function(){ recargarPadron(true); }, 400);
+  }
+
+  function aplicarFiltrosVista(q, vista) {
+    if (vista === 'all')          q = q.eq('tipo', 'Actividad');
+    if (vista === 'dceissp')      q = q.eq('tipo', 'Actividad').ilike('dependencia_padre', '%DCEISSP%');
+    if (vista === 'tiro')         q = q.eq('tipo', 'Actividad').ilike('dependencia', '%TIRO%');
+    if (vista === 'desvinculados') q = q.eq('tipo', 'Desvinculación de actividad');
+    return q;
+  }
+
+  async function recargarPadron(resetPage) {
+    if (resetPage) padPage = 0;
+    var buscar = str(document.getElementById('fBuscar').value);
+
+    showLoading('Buscando en el padrón…');
+    try {
+      var q = supabaseClient.from('nomina_general').select('legajo,grado,apellido,nombre,dni,dependencia', { count: 'exact' });
+      q = aplicarFiltrosVista(q, VISTA);
+      if (buscar) {
+        var b = buscar.replace(/[%_,]/g, '');
+        q = q.or('legajo.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%,dni.ilike.%'+b+'%');
+      }
+      var from = padPage * padPageSize, to = from + padPageSize - 1;
+      q = q.order('apellido', { ascending: true }).order('nombre', { ascending: true }).range(from, to);
+      var res = await q;
+      if (res.error) throw res.error;
+
+      padTotal = res.count || 0;
+      var filas = res.data || [];
+      document.getElementById('padronCountPill').textContent = fmtNum(padTotal) + (padTotal === 1 ? ' registro' : ' registros');
+      document.getElementById('padronNoData').style.display = filas.length ? 'none' : 'block';
+      document.getElementById('tbodyPadron').innerHTML = filas.map(function(row) {
+        var du = (row.dependencia || '').toUpperCase();
+        var tag = du.indexOf('DIVISION TIRO') !== -1
+          ? ' <span class="badge tag-div">DIV.TIRO</span>'
+          : (du.indexOf('SECCION TIRO') !== -1 ? ' <span class="badge tag-sec">SEC.TIRO</span>' : '');
+        return '<tr onclick="abrirModal(\''+esc(row.legajo)+'\')">' +
+          '<td>'+esc(row.grado)+'</td><td><strong>'+esc(row.legajo)+'</strong></td>' +
+          '<td>'+esc(row.apellido)+'</td><td>'+esc(row.nombre)+'</td>' +
+          '<td class="text-muted">'+esc(row.dni)+'</td>' +
+          '<td style="font-size:11px;">'+esc(row.dependencia)+tag+'</td></tr>';
+      }).join('');
+
+      var totalPages = Math.max(1, Math.ceil(padTotal / padPageSize));
+      var curPage = padPage + 1;
+      document.getElementById('pagPadron').innerHTML =
+        '<div class="pg-info">Página '+curPage+' de '+fmtNum(totalPages)+' — mostrando '+(filas.length ? (from+1) : 0)+'–'+(from+filas.length)+' de '+fmtNum(padTotal)+'</div>' +
+        '<div class="pg-btns">' +
+          '<button class="pg-btn" onclick="irPaginaPadron(0)" '+(padPage===0?'disabled':'')+'>« Primera</button>' +
+          '<button class="pg-btn" onclick="irPaginaPadron('+(padPage-1)+')" '+(padPage===0?'disabled':'')+'>‹ Anterior</button>' +
+          '<button class="pg-btn" onclick="irPaginaPadron('+(padPage+1)+')" '+(curPage>=totalPages?'disabled':'')+'>Siguiente ›</button>' +
+          '<button class="pg-btn" onclick="irPaginaPadron('+(totalPages-1)+')" '+(curPage>=totalPages?'disabled':'')+'>Última »</button>' +
+        '</div>';
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al buscar en el padrón: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+  function irPaginaPadron(p) {
+    padPage = Math.max(0, p);
+    recargarPadron(false);
+  }
+
+  // ============================================================
+  // MODAL DE DETALLE — trae UNA sola fila por legajo (rápido incluso
+  // con 46.000 registros en la tabla).
+  // ============================================================
+  async function abrirModal(legajo) {
+    document.getElementById('mName').textContent = 'Cargando…';
+    document.getElementById('mSub').textContent = '';
+    document.getElementById('modalBody').innerHTML = '<div class="no-data"><div class="no-data-icon">⏳</div></div>';
+    document.getElementById('detailModal').classList.add('show');
+    try {
+      var res = await supabaseClient.from('nomina_general').select('*').eq('legajo', legajo).maybeSingle();
+      if (res.error) throw res.error;
+      if (!res.data) { document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted)">No se encontró el registro.</p>'; return; }
+      renderModal(res.data);
+    } catch (e) {
+      document.getElementById('modalBody').innerHTML = '<p style="color:var(--red)">Error al cargar: '+esc(e.message||'')+'</p>';
+    }
+  }
+  function cerrarModal() { document.getElementById('detailModal').classList.remove('show'); }
+
+  function renderModal(d) {
+    document.getElementById('mName').textContent = d.apellido + ', ' + d.nombre;
+    document.getElementById('mSub').textContent = str(d.grado) + ' — Legajo ' + str(d.legajo);
+
+    var du = (d.dependencia || '').toUpperCase();
+    var tag = du.indexOf('DIVISION TIRO') !== -1
+      ? ' <span class="badge tag-div">DIV.TIRO</span>'
+      : (du.indexOf('SECCION TIRO') !== -1 ? ' <span class="badge tag-sec">SEC.TIRO</span>' : '');
+
+    var sections = [
+      { title:'Datos Personales', fields:[
+        ['Legajo',r(d.legajo)],['DNI',r(d.dni)],['CUIL',r(d.cuil)],
+        ['Apellido',r(d.apellido)],['Nombre',r(d.nombre)],
+        ['Fecha Nac.',fmtFecha(d.fecha_nac)],['Estado Civil',r(d.estado_civil)],
+        ['Sexo',r(d.sexo)],['Correo',r(d.correo)],['Teléfono',r(d.telefono)],
+        ['Hijos c/Discapacidad',r(d.hijos_discapacidad)]
+      ]},
+      { title:'Situación de Revista', fields:[
+        ['Grado',r(d.grado)],['Tipo (Rel. Empleo)',r(d.tipo)],['Sit. Rev.',r(d.sit_rev)],
+        ['Tipo Sit. Rev.',r(d.tipo_sit_rev)],['Situación Admin.',r(d.situacion_admin)],
+        ['Tipo Desvinculación',r(d.tipo_desvinculacion)]
+      ]},
+      { title:'Destino', fields:[
+        ['Dependencia', d.dependencia + tag, true],
+        ['Dependencia Padre', r(d.dependencia_padre)],
+        ['Comisión',r(d.comision)],['Desde',fmtFecha(d.desde)],['Hasta',fmtFecha(d.hasta)]
+      ]},
+      { title:'Antigüedad y Resoluciones', fields:[
+        ['Fecha Alta',fmtFecha(d.fecha_alta)],['Antigüedad Gral.',r(d.antiguedad_gral)],
+        ['Antigüedad en el Grado',r(d.antiguedad_grado)],['Tiempo Mínimo',r(d.tiempo_minimo)],
+        ['TMGCA',r(d.tmgca)],['Resol. (Grado)',r(d.resol_grado)],
+        ['BOCBA (Grado)',r(d.bocba_grado)],['Fecha BOCBA Grado',fmtFecha(d.fecha_bocba_grado)],
+        ['Fecha Resol. (Destino)',fmtFecha(d.fecha_resol_destino)],['Resol. (Destino)',r(d.resol_destino)],
+        ['BOCBA (Destino)',r(d.bocba_destino)],['Fecha BOCBA Destino',fmtFecha(d.fecha_bocba_destino)]
+      ]},
+      { title:'Fuerza Anterior', fields:[
+        ['Fuerza Anterior',r(d.fuerza_anterior)],['Origen',r(d.origen)],
+        ['Fecha Alta Fuerza',fmtFecha(d.fecha_alta_fuerza)],['Fecha Baja Fuerza',fmtFecha(d.fecha_baja_fuerza)]
+      ]},
+      { title:'Domicilio', fields:[
+        ['Calle / Nro.', r(d.calle) + (d.nro ? ' ' + d.nro : '')],
+        ['Localidad',r(d.localidad)],['C.P.',r(d.cp)]
+      ]}
+    ];
+
+    var html = '';
+    sections.forEach(function (s) {
+      var has = s.fields.some(function(f){ return String(f[1]||'').trim(); });
+      if (!has) return;
+      html += '<div class="df" style="margin-bottom:22px;"><div class="dsec-title">'+esc(s.title)+'</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">';
+      s.fields.forEach(function (f) {
+        var val = String(f[1]||'').trim();
+        html += '<div>' +
+          '<div class="dl">'+esc(f[0])+'</div>' +
+          '<div class="dv'+(val?'':' empty')+'">'+(val ? (f[2] ? f[1] : esc(val)) : '—')+'</div>' +
+          '</div>';
+      });
+      html += '</div></div>';
+    });
+    document.getElementById('modalBody').innerHTML = html;
+  }
+
+  // ============================================================
+  // EXPORTAR — trae el resultado filtrado en bloques de 1000 (por el
+  // límite de filas por consulta de Supabase) y arma el Excel.
+  // ============================================================
+  async function exportarNominaExcel() {
+    var vista = document.getElementById('fExpVista').value;
+    var buscar = str(document.getElementById('fExpBuscar').value);
+
+    showLoading('Trayendo registros…');
+    try {
+      var all = [];
+      var page = 0, pageSize = 1000;
+      while (true) {
+        var q = supabaseClient.from('nomina_general').select('legajo,grado,apellido,nombre,dni,dependencia,dependencia_padre,sit_rev,tipo,correo,telefono');
+        q = aplicarFiltrosVista(q, vista);
+        if (buscar) {
+          var b = buscar.replace(/[%_,]/g, '');
+          q = q.or('legajo.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%,dni.ilike.%'+b+'%');
+        }
+        q = q.order('apellido', { ascending: true }).range(page*pageSize, page*pageSize + pageSize - 1);
+        var res = await q;
+        if (res.error) throw res.error;
+        var batch = res.data || [];
+        all = all.concat(batch);
+        showLoading('Trayendo registros… (' + fmtNum(all.length) + ')');
+        if (batch.length < pageSize) break;
+        page++;
+      }
+
+      if (!all.length) {
+        alertShow('topAlert', 'error', 'No hay registros con ese filtro.');
+        return;
+      }
+
+      showLoading('Generando Excel…');
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('Nómina General');
+      ws.addRow(['NÓMINA GENERAL — PADRÓN DE PERSONAL']);
+      ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
+      ws.addRow([]);
+      var headers = ['Grado','Legajo','Apellido','Nombre','DNI','Dependencia','Dependencia Padre','Sit. Rev.','Tipo','Correo','Teléfono'];
+      var headerRow = ws.addRow(headers);
+      headerRow.font = { bold: true };
+      all.forEach(function(row) {
+        ws.addRow([row.grado||'', row.legajo||'', row.apellido||'', row.nombre||'', row.dni||'', row.dependencia||'', row.dependencia_padre||'', row.sit_rev||'', row.tipo||'', row.correo||'', row.telefono||'']);
+      });
+      ws.columns.forEach(function(c){ c.width = 20; });
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'nomina_general_export_' + isoDate(new Date()) + '.xlsx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alertShow('topAlert', 'success', '✅ Excel generado con ' + fmtNum(all.length) + ' registros.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>
