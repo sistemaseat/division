@@ -1941,7 +1941,7 @@
       bloque('Ausentes', ausentes) +
       bloque('Pendientes', pendientes) +
       '<br>Se eleva la presente para conocimiento y prosecución administrativa.' +
-      (usuarios.length ? '<br><br><b>Personal evaluador interviniente:</b><br>' + usuarios.map(esc).join(', ') : '');
+      (usuarios.length ? '<br><br><b>Personal evaluador interviniente:</b><br>' + usuarios.map(esc).join('<br>') : '');
   }
 
   function copiarTexto(id) {
