@@ -668,7 +668,7 @@
     try {
       var [statsRes, pendRes, niceRes] = await Promise.all([
         supabaseClient.rpc('idoneidades_stats'),
-        supabaseClient.from('idoneidades').select('grado,lp,apellido,nombre,dependencia,fecha,tipo,estado')
+        supabaseClient.from('idoneidades').select('id,grado,lp,apellido,nombre,dependencia,fecha,tipo,estado')
           .eq('estado', 'Pendiente').order('fecha', { ascending: false, nullsFirst: false }).limit(30),
         supabaseClient.from('idoneidades_nice').select('id', { count: 'exact', head: true }).eq('estado', 'Pendiente')
       ]);
@@ -691,15 +691,16 @@
       var pendNiceCount = niceRes.count || 0;
 
       var kpis = [
-        { label: 'Total de registros', val: fmtNum(total), sub: 'todas las idoneidades (sin NICE)', c: 'blue' },
-        { label: 'Aprobados', val: fmtNum(porEstado.Aprobado), c: 'green' },
-        { label: 'Desaprobados', val: fmtNum(porEstado.Desaprobado), c: 'red' },
-        { label: 'Ausentes', val: fmtNum(porEstado.Ausente), c: 'orange' },
-        { label: 'Pendientes', val: fmtNum(porEstado.Pendiente), c: 'purple' },
-        { label: 'Pendientes Reingreso NICE', val: fmtNum(pendNiceCount), c: 'teal' }
+        { label: 'Total de registros', val: fmtNum(total), sub: 'todas las idoneidades (sin NICE)', c: 'blue', estado: '' },
+        { label: 'Aprobados', val: fmtNum(porEstado.Aprobado), c: 'green', estado: 'Aprobado' },
+        { label: 'Desaprobados', val: fmtNum(porEstado.Desaprobado), c: 'red', estado: 'Desaprobado' },
+        { label: 'Ausentes', val: fmtNum(porEstado.Ausente), c: 'orange', estado: 'Ausente' },
+        { label: 'Pendientes', val: fmtNum(porEstado.Pendiente), c: 'purple', estado: 'Pendiente' },
+        { label: 'Pendientes Reingreso NICE', val: fmtNum(pendNiceCount), c: 'teal', nice: true, estado: 'Pendiente' }
       ];
       document.getElementById('kpiGrid').innerHTML = kpis.map(function(k) {
-        return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div>'+(k.sub ? '<div class="kpi-sub">'+esc(k.sub)+'</div>' : '')+'</div>';
+        var onclick = k.nice ? "irANicePorEstado('"+k.estado+"')" : "irARegistrosPorEstado('"+k.estado+"')";
+        return '<div class="kpi c-'+k.c+' kpi-click" onclick="'+onclick+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div>'+(k.sub ? '<div class="kpi-sub">'+esc(k.sub)+'</div>' : '')+'</div>';
       }).join('');
 
       document.getElementById('tipoGrid').innerHTML = TIPOS.map(function(t) {
@@ -722,7 +723,9 @@
       document.getElementById('tbodyPendientes').innerHTML = pend.map(function(r) {
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
           '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td>'+fmtFecha(r.fecha)+'</td><td>'+esc((r.tipo||'').replace('Idoneidad ',''))+'</td>' +
-          '<td><span class="badge b-purple">Pendiente</span></td></tr>';
+          '<td><select class="estado-inline est-pendiente" data-prev="Pendiente" onchange="cambiarEstado(\'idoneidades\',\''+r.id+'\',this.value,this)">' +
+            ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e==='Pendiente'?' selected':'')+'>'+e+'</option>'; }).join('') +
+          '</select></td></tr>';
       }).join('');
     } catch (e) {
       console.error(e);
@@ -739,6 +742,23 @@
     recargarRegistros(true);
   }
 
+  // KPIs de arriba del Dashboard: llevan a Registros (o a NICE) ya filtrados
+  // por estado, igual que las tarjetas de tipo (PX4, Benelli, etc.) llevan
+  // filtradas por tipo.
+  function irARegistrosPorEstado(estado) {
+    switchTab('registros');
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'registros'); });
+    document.getElementById('fRegTipo').value = '';
+    document.getElementById('fRegEstado').value = estado;
+    recargarRegistros(true);
+  }
+  function irANicePorEstado(estado) {
+    switchTab('nice');
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'nice'); });
+    document.getElementById('fNiceEstado').value = estado;
+    renderNiceTable();
+  }
+
   // ============================================================
   // NUEVA IDONEIDAD
   // ============================================================
@@ -752,6 +772,7 @@
   }
 
   var _personalDebounce = null;
+  var _personalResultados = [];
   function buscarPersonalIdoneidad() {
     var q = document.getElementById('nPersonalBusqueda').value.trim();
     var listEl = document.getElementById('nPersonalSuggest');
@@ -775,19 +796,25 @@
         .limit(10);
       if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
       var matches = res.data || [];
+      _personalResultados = matches;
       if (!matches.length) {
         listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias — se puede seguir cargando el registro con los datos que tengas a mano.</div>';
       } else {
-        listEl.innerHTML = matches.map(function(p) {
-          return '<div class="autocomplete-item" onmousedown="seleccionarPersonalIdoneidad('+esc(JSON.stringify(p).replace(/"/g,'&quot;'))+')">' +
+        // Se guarda cada resultado en _personalResultados y se pasa solo el
+        // índice al onmousedown (nada de JSON en el atributo HTML: eso rompía
+        // el handler por doble escapado de comillas y hacía que el click no
+        // hiciera nada).
+        listEl.innerHTML = matches.map(function(p, i) {
+          return '<div class="autocomplete-item" onmousedown="seleccionarPersonalIdoneidad('+i+')">' +
             '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b><small>LP '+esc(p.lp)+' — '+esc(p.grado)+' — '+esc(p.dependencia)+'</small></div>';
         }).join('');
       }
       listEl.classList.add('show');
     }, 400);
   }
-  function seleccionarPersonalIdoneidad(dataStr) {
-    var p = JSON.parse(String(dataStr).replace(/&quot;/g,'"'));
+  function seleccionarPersonalIdoneidad(idx) {
+    var p = _personalResultados[idx];
+    if (!p) return;
     personalSeleccionado = p;
     document.getElementById('nPersonalBusqueda').value = '';
     document.getElementById('nPersonalSuggest').classList.remove('show');
