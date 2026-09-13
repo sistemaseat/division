@@ -151,6 +151,31 @@
   .chart-wrap { position: relative; height: 320px; }
   .chart-wrap-corta { height: 220px; }
 
+  /* GENERAR TEXTO */
+  .subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .subnav-btn {
+    padding: 8px 16px; border-radius: 50px; border: 1.5px solid var(--border);
+    background: var(--card); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .subnav-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .subpane { display: none; }
+  .subpane.active { display: block; }
+  .row-2col { display: grid; grid-template-columns: minmax(0,5fr) minmax(0,7fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .row-2col { grid-template-columns: 1fr; } }
+  .output-box {
+    background: #f7f9ff; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 16px; min-height: 220px; font-size: 13px; line-height: 1.75; color: var(--text);
+    white-space: normal;
+  }
+  .output-box ul { margin: 6px 0; padding-left: 20px; }
+  .persona-chip {
+    display: flex; align-items: center; gap: 8px; background: #f0f2f5; border-radius: 8px;
+    padding: 6px 10px; margin-bottom: 6px; font-size: 12.5px;
+  }
+  .persona-chip .btn-clear-personal { margin-left: auto; }
+  .resultado-preview { font-size: 12px; color: var(--muted); }
+  .resultado-preview b { color: var(--text); }
+
   /* TABLE */
   .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
   .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
@@ -341,6 +366,7 @@
   <button class="tab-btn" data-tab="registros" onclick="switchTab('registros')">📋 Registros</button>
   <button class="tab-btn" data-tab="nice" onclick="switchTab('nice')">🔄 Reingreso NICE</button>
   <button class="tab-btn" data-tab="exportar" onclick="switchTab('exportar')">⬇️ Exportar</button>
+  <button class="tab-btn" data-tab="textos" onclick="switchTab('textos')">📝 Generar Texto</button>
 </nav>
 
 <div class="content">
@@ -645,6 +671,136 @@
       <button class="btn btn-success" onclick="exportarIdoneidadesExcel()">⬇️ Generar Excel</button>
     </div>
     <div class="field-hint">Con filtros muy amplios (por ejemplo "Todos" sin fechas) la exportación puede tardar unos segundos: hay más de 22.000 registros históricos.</div>
+  </div>
+
+  <!-- ==================== GENERAR TEXTO ==================== -->
+  <div class="tab-pane" id="pane-textos">
+    <div class="subnav">
+      <button class="subnav-btn active" data-sub="turno" onclick="mostrarTexto('turno')">📅 Aviso de turno</button>
+      <button class="subnav-btn" data-sub="doc" onclick="mostrarTexto('doc')">📄 Solicitud de Documentación</button>
+      <button class="subnav-btn" data-sub="beretta" onclick="mostrarTexto('beretta')">🔫 Resultado Beretta Px4</button>
+      <button class="subnav-btn" data-sub="benelli" onclick="mostrarTexto('benelli')">🔫 Resultado Benelli M3</button>
+    </div>
+
+    <!-- ---- AVISO DE TURNO ---- -->
+    <div class="subpane active" id="sub-turno">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">📅</span> Aviso de turno para idoneidad</div>
+
+          <div class="form-group full">
+            <label class="form-label">Personal</label>
+            <div style="position:relative;">
+              <input type="text" id="turnoBusqueda" autocomplete="off" placeholder="Buscar por legajo, apellido o nombre…" oninput="buscarPersonalTexto('turno')" onblur="ocultarSugerenciasConDelay('turnoSuggest')">
+              <div class="autocomplete-list" id="turnoSuggest"></div>
+            </div>
+            <div id="turnoLista" style="margin-top:8px;"></div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <input type="text" id="turnoManual" placeholder="¿No aparece? Escribilo a mano (Grado Apellido Nombre LP)…" style="flex:1;">
+              <button class="btn btn-ghost btn-sm" onclick="agregarPersonaManual('turno')">+ Agregar</button>
+            </div>
+          </div>
+
+          <div class="form-group full">
+            <label class="form-label">Tipo de idoneidad</label>
+            <select id="turnoTipo">
+              <option value="Idoneidad Px4">Pistola Pietro Beretta Px4 Storm</option>
+              <option value="Idoneidad Benelli">Escopeta Benelli M3 Super 90</option>
+              <option value="Idoneidad FN 303 - TIPPMAN">Lanzadora FN303 – Marcadora TIPPMAN</option>
+            </select>
+          </div>
+
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group full"><label class="form-label">Fecha</label><input type="date" id="turnoFecha"></div>
+            <div class="form-group full"><label class="form-label">Horario</label><input type="time" id="turnoHora"></div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoTurno()">Generar Texto</button>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoTurno')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoTurno"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- SOLICITUD DE DOCUMENTACIÓN ---- -->
+    <div class="subpane" id="sub-doc">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">📄</span> Solicitud de documentación</div>
+
+          <div class="form-group full">
+            <label class="form-label">Personal</label>
+            <div style="position:relative;">
+              <input type="text" id="docBusqueda" autocomplete="off" placeholder="Buscar por legajo, apellido o nombre…" oninput="buscarPersonalTexto('doc')" onblur="ocultarSugerenciasConDelay('docSuggest')">
+              <div class="autocomplete-list" id="docSuggest"></div>
+            </div>
+            <div id="docSeleccionado" style="margin-top:8px;"></div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoDoc()">Generar Texto</button>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoDoc')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoDoc"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- RESULTADO BERETTA PX4 ---- -->
+    <div class="subpane" id="sub-beretta">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">🔫</span> Resultado Idoneidad Beretta Px4 Storm</div>
+          <div class="form-group full">
+            <label class="form-label">Fecha de la idoneidad</label>
+            <input type="date" id="berettaFecha" onchange="cargarResultadoIdoneidad('beretta')">
+          </div>
+          <div id="berettaPreview" style="margin-top:10px;"></div>
+          <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoResultado('beretta')">Generar Texto</button>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoBeretta')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoBeretta"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- RESULTADO BENELLI M3 ---- -->
+    <div class="subpane" id="sub-benelli">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">🔫</span> Resultado Idoneidad Escopeta Benelli M3 Super 90</div>
+          <div class="form-group full">
+            <label class="form-label">Fecha de la idoneidad</label>
+            <input type="date" id="benelliFecha" onchange="cargarResultadoIdoneidad('benelli')">
+          </div>
+          <div id="benelliPreview" style="margin-top:10px;"></div>
+          <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoResultado('benelli')">Generar Texto</button>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoBenelli')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoBenelli"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -1536,6 +1692,243 @@
     } finally {
       hideLoading();
     }
+  }
+
+  // ============================================================
+  // GENERAR TEXTO — textos prearmados para elevar (aviso de turno,
+  // solicitud de documentación, resultado de idoneidad). Reemplaza la
+  // herramienta aparte "Formularios de Carga" (Apps Script). La diferencia
+  // clave con esa versión: acá el personal se busca en Nómina General en
+  // vez de tipearlo a mano, y los resultados de Beretta/Benelli se traen
+  // solos desde Registros (ya cargados en "Nueva Idoneidad") en vez de
+  // volver a tipearlos.
+  // ============================================================
+  var _turnoPersonal = [];              // { legajo, grado, apellido, nombre } o { manual:true, texto }
+  var _docPersonaSeleccionada = null;
+  var _textoResultados = { turno: [], doc: [] }; // resultados de búsqueda vigentes, por scope
+  var _resultadoData = { beretta: null, benelli: null }; // filas de idoneidades para la fecha elegida
+
+  function mostrarTexto(sub) {
+    document.querySelectorAll('.subnav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.sub === sub); });
+    document.querySelectorAll('.subpane').forEach(function(p){ p.classList.toggle('active', p.id === 'sub-'+sub); });
+  }
+
+  function formatPersona(p) {
+    if (p.manual) return p.texto;
+    var partes = [p.grado, (p.apellido||'')+(p.nombre?', '+p.nombre:'')].filter(function(s){ return str(s); });
+    var base = partes.join(' ').trim();
+    return base + (p.legajo ? ' (LP '+p.legajo+')' : '');
+  }
+
+  // Buscador de personal reutilizado para "Aviso de turno" (scope 'turno',
+  // multi-selección) y "Solicitud de Documentación" (scope 'doc', una sola
+  // persona) — busca en nomina_general, igual que el resto del sitio.
+  var _textoDebounce = null;
+  function buscarPersonalTexto(scope) {
+    var q = document.getElementById(scope+'Busqueda').value.trim();
+    var listEl = document.getElementById(scope+'Suggest');
+    clearTimeout(_textoDebounce);
+    if (q.length < 3) {
+      listEl.innerHTML = q.length ? '<div class="autocomplete-empty">Escribí al menos 3 caracteres</div>' : '';
+      listEl.classList.toggle('show', q.length > 0);
+      return;
+    }
+    listEl.innerHTML = '<div class="autocomplete-empty">Buscando…</div>';
+    listEl.classList.add('show');
+    _textoDebounce = setTimeout(async function() {
+      var qEsc = q.replace(/[%_,]/g, '');
+      var res = await supabaseClient.from('nomina_general')
+        .select('legajo,grado,apellido,nombre')
+        .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
+        .limit(10);
+      if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+      var matches = res.data || [];
+      _textoResultados[scope] = matches;
+      if (!matches.length) {
+        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias'+(scope==='turno' ? ' — se puede agregar a mano abajo.' : '.')+'</div>';
+      } else {
+        listEl.innerHTML = matches.map(function(p, i) {
+          return '<div class="autocomplete-item" onmousedown="seleccionarPersonaTexto(\''+scope+'\','+i+')">' +
+            '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b><small>LP '+esc(p.legajo)+' — '+esc(p.grado)+'</small></div>';
+        }).join('');
+      }
+      listEl.classList.add('show');
+    }, 400);
+  }
+
+  function seleccionarPersonaTexto(scope, idx) {
+    var p = _textoResultados[scope][idx];
+    if (!p) return;
+    document.getElementById(scope+'Busqueda').value = '';
+    document.getElementById(scope+'Suggest').classList.remove('show');
+    if (scope === 'turno') {
+      if (!_turnoPersonal.some(function(x){ return !x.manual && x.legajo === p.legajo; })) _turnoPersonal.push(p);
+      renderTurnoLista();
+    } else {
+      _docPersonaSeleccionada = p;
+      renderDocSeleccionado();
+    }
+  }
+
+  function agregarPersonaManual(scope) {
+    var input = document.getElementById(scope+'Manual');
+    var texto = input.value.trim();
+    if (!texto) return;
+    _turnoPersonal.push({ manual: true, texto: texto });
+    input.value = '';
+    renderTurnoLista();
+  }
+
+  function quitarPersonaTurno(idx) {
+    _turnoPersonal.splice(idx, 1);
+    renderTurnoLista();
+  }
+
+  function renderTurnoLista() {
+    document.getElementById('turnoLista').innerHTML = _turnoPersonal.map(function(p, i) {
+      return '<div class="persona-chip"><span>🎖️</span><span>'+esc(formatPersona(p))+'</span>' +
+        '<button type="button" class="btn-clear-personal" onclick="quitarPersonaTurno('+i+')" title="Quitar">✕</button></div>';
+    }).join('');
+  }
+
+  function limpiarPersonaDoc() {
+    _docPersonaSeleccionada = null;
+    renderDocSeleccionado();
+  }
+
+  function renderDocSeleccionado() {
+    var el = document.getElementById('docSeleccionado');
+    if (!_docPersonaSeleccionada) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="persona-chip"><span>🎖️</span><span>'+esc(formatPersona(_docPersonaSeleccionada))+'</span>' +
+      '<button type="button" class="btn-clear-personal" onclick="limpiarPersonaDoc()" title="Cambiar">✕</button></div>';
+  }
+
+  var VESTIMENTA_POR_TIPO = {
+    'Idoneidad Px4': 'vestido de civil con prendas acordes al establecimiento',
+    'Idoneidad Benelli': 'Vestido Correctamente Uniformado',
+    'Idoneidad FN 303 - TIPPMAN': 'Vestido Correctamente Uniformado'
+  };
+  var NOMBRE_BONITO_POR_TIPO = {
+    'Idoneidad Px4': 'Pistola Pietro Beretta Px4 Storm',
+    'Idoneidad Benelli': 'Escopeta Benelli M3 Super 90',
+    'Idoneidad FN 303 - TIPPMAN': 'Lanzadora FN303 – Marcadora TIPPMAN'
+  };
+
+  function generarTextoTurno() {
+    var tipo = document.getElementById('turnoTipo').value;
+    var fechaRaw = document.getElementById('turnoFecha').value;
+    var hora = document.getElementById('turnoHora').value;
+
+    if (!_turnoPersonal.length) { alertShow('topAlert', 'error', 'Agregá al menos una persona.'); return; }
+    if (!fechaRaw || !hora) { alertShow('topAlert', 'error', 'Completá fecha y horario.'); return; }
+
+    var fecha = fmtFecha(fechaRaw);
+    var idoneidadNombre = NOMBRE_BONITO_POR_TIPO[tipo];
+    var vestimenta = VESTIMENTA_POR_TIPO[tipo];
+
+    var personalTexto = (_turnoPersonal.length === 1)
+      ? 'al <b>'+esc(formatPersona(_turnoPersonal[0]))+'</b>'
+      : 'al siguiente personal:<br><br><ul>' + _turnoPersonal.map(function(p){ return '<li><b>'+esc(formatPersona(p))+'</b></li>'; }).join('') + '</ul>';
+
+    document.getElementById('resultadoTurno').innerHTML =
+      'Mediante el presente, se informa a esa instancia que se le asignó fecha ' + personalTexto + ' para realizar la idoneidad de la <b>"'+esc(idoneidadNombre)+'"</b>, siendo esta el día <b>'+fecha+'</b> del corriente año, debiendo asistir a las <b>'+esc(hora)+'</b> horas en las instalaciones del ISSP, sito en Av. Castañares N° 3879, de esta ciudad (Puesto 4), '+esc(vestimenta)+'.' +
+      '<br><br>Ante cualquier consulta, comunicarse al POC: 1172304250.' +
+      '<br><br>Se eleva para su cumplimiento.';
+  }
+
+  function generarTextoDoc() {
+    if (!_docPersonaSeleccionada) { alertShow('topAlert', 'error', 'Buscá y seleccioná a la persona.'); return; }
+    var persona = formatPersona(_docPersonaSeleccionada);
+
+    document.getElementById('resultadoDoc').innerHTML =
+      'Por medio del presente se informa que se tomó conocimiento del contenido de la nota que antecede, referente a la solicitud de Idoneidad del <b>'+esc(persona)+'</b>.' +
+      '<br><br>Atento a ello, se solicita tener a bien informar si se generó Exp a la División ARMAMENTO, MUNICIÓN Y EXPLOSIVOS, solicitando el rearme, o adjuntar como archivo de trabajo toda aquella documentación y/o certificado de alta del efectivo de mención; comunicación oficial recibida por parte de la GERENCIA OPERATIVA MEDICINA LABORAL (mayormente del usuario de la Sra. Graciela Barrionuevo - CML), en donde se establece que se encuentra APTO para la función con portación de armamento, a los fines de poder constatar y asignar una fecha.' +
+      '<br><br>Cumplido, torne para su prosecución administrativa.';
+  }
+
+  // ---- Resultado Beretta / Benelli: se auto-completa desde Registros ----
+  var TIPO_POR_SCOPE_RESULTADO = { beretta: 'Idoneidad Px4', benelli: 'Idoneidad Benelli' };
+  var NOMBRE_BONITO_RESULTADO = { beretta: 'Pistola Pietro Beretta Px4 Storm', benelli: 'Escopeta Benelli M3 Super 90' };
+
+  async function cargarResultadoIdoneidad(scope) {
+    var fecha = document.getElementById(scope+'Fecha').value;
+    var previewEl = document.getElementById(scope+'Preview');
+    _resultadoData[scope] = null;
+    if (!fecha) { previewEl.innerHTML = ''; return; }
+
+    previewEl.innerHTML = '<div class="resultado-preview">Buscando en Registros…</div>';
+    var res = await supabaseClient.from('idoneidades')
+      .select('grado,lp,apellido,nombre,estado')
+      .eq('tipo', TIPO_POR_SCOPE_RESULTADO[scope])
+      .eq('fecha', fecha)
+      .order('apellido');
+    if (res.error) { previewEl.innerHTML = '<div class="resultado-preview" style="color:var(--red);">Error al buscar: '+esc(res.error.message||'')+'</div>'; return; }
+
+    var filas = res.data || [];
+    _resultadoData[scope] = filas;
+    if (!filas.length) {
+      previewEl.innerHTML = '<div class="resultado-preview">No hay registros cargados en Registros para esa fecha. Cargalos primero en "Nueva Idoneidad", o revisá la fecha.</div>';
+      return;
+    }
+    var porEstado = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+    filas.forEach(function(r){ if (porEstado[r.estado] !== undefined) porEstado[r.estado]++; });
+    previewEl.innerHTML = '<div class="resultado-preview"><b>'+filas.length+'</b> registro'+(filas.length===1?'':'s')+' encontrados para esa fecha — ' +
+      'Aprobados: <b>'+porEstado.Aprobado+'</b>, Desaprobados: <b>'+porEstado.Desaprobado+'</b>, Ausentes: <b>'+porEstado.Ausente+'</b>, Pendientes: <b>'+porEstado.Pendiente+'</b>.</div>';
+  }
+
+  function generarTextoResultado(scope) {
+    var fechaRaw = document.getElementById(scope+'Fecha').value;
+    var filas = _resultadoData[scope];
+    if (!fechaRaw) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    if (!filas || !filas.length) { alertShow('topAlert', 'error', 'No hay registros cargados en Registros para esa fecha.'); return; }
+
+    var fecha = fmtFecha(fechaRaw);
+    var nombreArma = NOMBRE_BONITO_RESULTADO[scope];
+
+    function nombreCorto(r) { return (r.grado ? r.grado+' ' : '') + r.apellido + ', ' + r.nombre + ' (LP '+r.lp+')'; }
+    function bloque(titulo, arr) {
+      if (!arr.length) return '';
+      return '<b>'+titulo+':</b><ul>' + arr.map(function(r){ return '<li>'+esc(nombreCorto(r))+'</li>'; }).join('') + '</ul>';
+    }
+
+    var aprobados = filas.filter(function(r){ return r.estado === 'Aprobado'; });
+    var desaprobados = filas.filter(function(r){ return r.estado === 'Desaprobado'; });
+    var ausentes = filas.filter(function(r){ return r.estado === 'Ausente'; });
+    var pendientes = filas.filter(function(r){ return r.estado === 'Pendiente'; });
+    var todos = filas.slice().sort(function(a,b){ return (a.apellido||'').localeCompare(b.apellido||''); });
+
+    document.getElementById('resultado'+(scope==='beretta'?'Beretta':'Benelli')).innerHTML =
+      'Por medio de la presente, me dirijo a Ud. en relación a la Idoneidad de <b>'+esc(nombreArma)+'</b> llevada a cabo el día <b>'+fecha+'</b>, informando la resultancia del personal interviniente:' +
+      '<br><br>' +
+      bloque('Aprobados', aprobados) +
+      bloque('Desaprobados', desaprobados) +
+      bloque('Ausentes', ausentes) +
+      bloque('Pendientes', pendientes) +
+      '<br><b>Listado completo del personal:</b><ul>' + todos.map(function(r){ return '<li>'+esc(nombreCorto(r))+'</li>'; }).join('') + '</ul>' +
+      '<br>Se eleva la presente para conocimiento y prosecución administrativa.';
+  }
+
+  function copiarTexto(id) {
+    var el = document.getElementById(id);
+    var txt = el.innerText.trim();
+    if (!txt || txt.includes('El texto aparecerá')) {
+      alertShow('topAlert', 'error', 'No hay texto para copiar.');
+      return;
+    }
+    var tmp = document.createElement('textarea');
+    tmp.value = txt;
+    tmp.style.position = 'fixed';
+    tmp.style.opacity = '0';
+    document.body.appendChild(tmp);
+    tmp.focus();
+    tmp.select();
+    try {
+      document.execCommand('copy');
+      alertShow('topAlert', 'success', '✅ Texto copiado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al copiar.');
+    }
+    document.body.removeChild(tmp);
   }
 
   initAuth();
