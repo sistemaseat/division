@@ -1937,6 +1937,33 @@
   }
 
   // ---------- Parte Interno Tiro (Horarios + Actividades) ----------
+  // Título de cada hoja: celda combinada B:C con fondo azul oscuro y letra
+  // blanca (mismo estilo que el resto de las exportaciones de Presentismo).
+  function _tituloInterno(ws, fila, texto) {
+    ws.mergeCells(fila, 2, fila, 3);
+    var c = ws.getCell(fila, 2);
+    c.value = texto;
+    c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSC } };
+  }
+  // A pedido de Enzo: cada grupo (un horario o una actividad, con su gente
+  // debajo) queda pintado de celeste con un borde fino alrededor — incluida
+  // la fila de espacio que separa un grupo del siguiente, para que no quede
+  // un renglón blanco suelto entre uno y otro.
+  function _cajaGrupoInterno(ws, filaIni, filaFin) {
+    for (var r = filaIni; r <= filaFin; r++) {
+      [2, 3].forEach(function(col) {
+        var c = ws.getCell(r, col);
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_CLAR } };
+        c.border = {
+          top: r === filaIni ? { style: 'thin' } : undefined,
+          bottom: r === filaFin ? { style: 'thin' } : undefined,
+          left: col === 2 ? { style: 'thin' } : undefined,
+          right: col === 3 ? { style: 'thin' } : undefined,
+        };
+      });
+    }
+  }
   async function generarWorkbookInterno(fecha) {
     var registros = await cargarRegistroDeFecha(fecha);
     var res = await supabaseClient.from('presentismo_actividades_interno').select('*').eq('fecha', fecha).order('orden');
@@ -1947,35 +1974,47 @@
     });
 
     var wb = new ExcelJS.Workbook();
-    var titulo = _horarioLabelFecha(fecha).toUpperCase() + ' ' + fmtFecha(fecha);
+    var titulo = _horarioLabelFecha(fecha).toUpperCase();
 
     var shH = wb.addWorksheet('HORARIOS');
-    shH.getCell('B1').value = titulo; shH.getCell('B1').font = { bold: true };
-    shH.getCell('B2').value = 'PARTE DIARIO DE HORARIOS DIVISION TIRO'; shH.getCell('B2').font = { bold: true };
+    _tituloInterno(shH, 1, titulo);
+    _tituloInterno(shH, 2, 'PARTE DIARIO DE HORARIOS DIVISION TIRO');
     var calc = calcularHorariosDesdeRegistro(registros);
-    var todos = [];
-    Object.keys(calc.horarios).sort().forEach(function(h){ calc.horarios[h].filter(function(p){ return !_excluirGrado(p); }).forEach(function(p){ todos.push({horario:h, personal:p}); }); });
-    Object.keys(calc.especiales).forEach(function(tipo){ calc.especiales[tipo].filter(function(p){ return !_excluirGrado(p); }).forEach(function(p){ todos.push({horario:tipo, personal:p}); }); });
-    var row = 4, lastH = null;
-    todos.forEach(function(item, i) {
-      if (item.horario !== lastH && i > 0) row++;
-      if (item.horario !== lastH) { shH.getCell(row, 2).value = item.horario; shH.getCell(row,2).font = { bold: true }; lastH = item.horario; }
-      shH.getCell(row, 3).value = item.personal;
-      row++;
+    var gruposH = [];
+    Object.keys(calc.horarios).sort().forEach(function(h){
+      var personas = calc.horarios[h].filter(function(p){ return !_excluirGrado(p); });
+      if (personas.length) gruposH.push({ label: h, personas: personas });
+    });
+    Object.keys(calc.especiales).forEach(function(tipo){
+      var personas = calc.especiales[tipo].filter(function(p){ return !_excluirGrado(p); });
+      if (personas.length) gruposH.push({ label: tipo, personas: personas });
+    });
+    var row = 4;
+    gruposH.forEach(function(grupo, gi) {
+      var filaIni = row;
+      shH.getCell(row, 2).value = grupo.label; shH.getCell(row, 2).font = { bold: true };
+      grupo.personas.forEach(function(p, pi){ shH.getCell(row + pi, 3).value = p; });
+      var filaFinDatos = row + grupo.personas.length - 1;
+      var filaFinCaja = (gi < gruposH.length - 1) ? filaFinDatos + 1 : filaFinDatos;
+      _cajaGrupoInterno(shH, filaIni, filaFinCaja);
+      row = filaFinCaja + 1;
     });
     shH.columns = [{width:4},{width:20},{width:32}];
 
     var shA = wb.addWorksheet('ACTIVIDADES');
-    shA.getCell('B1').value = titulo; shA.getCell('B1').font = { bold: true };
-    shA.getCell('B2').value = 'PARTE DIARIO DE ACTIVIDADES DIVISION TIRO'; shA.getCell('B2').font = { bold: true };
+    _tituloInterno(shA, 1, titulo);
+    _tituloInterno(shA, 2, 'PARTE DIARIO DE ACTIVIDADES DIVISION TIRO');
     var rowA = 4;
     acts.forEach(function(a, i) {
-      if (i > 0) rowA++;
       var etiqueta = [a.descripcion, a.horario].filter(Boolean).join(' - ');
-      shA.getCell(rowA, 2).value = etiqueta; shA.getCell(rowA,2).font = { bold: true };
       var personas = str(a.personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+      var filaIni = rowA;
+      shA.getCell(rowA, 2).value = etiqueta; shA.getCell(rowA, 2).font = { bold: true };
       personas.forEach(function(p, pi){ shA.getCell(rowA + pi, 3).value = p; });
-      rowA += Math.max(personas.length, 1);
+      var filaFinDatos = rowA + Math.max(personas.length, 1) - 1;
+      var filaFinCaja = (i < acts.length - 1) ? filaFinDatos + 1 : filaFinDatos;
+      _cajaGrupoInterno(shA, filaIni, filaFinCaja);
+      rowA = filaFinCaja + 1;
     });
     shA.columns = [{width:4},{width:34},{width:32}];
 
@@ -2097,11 +2136,13 @@
       ws.columns = [{width:30},{width:16},{width:30},{width:18}];
     } else {
       var shH = wb.addWorksheet('HORARIOS');
-      shH.getCell('B1').value = '{{DIA_LETRA}}'; shH.getCell('B2').value = 'PARTE DIARIO DE HORARIOS DIVISION TIRO';
+      _tituloInterno(shH, 1, '{{DIA_LETRA}}');
+      _tituloInterno(shH, 2, 'PARTE DIARIO DE HORARIOS DIVISION TIRO');
       shH.getCell(4,2).value = '{{DATOS:INTERNO_HORARIOS}}';
       shH.columns = [{width:4},{width:20},{width:32}];
       var shA = wb.addWorksheet('ACTIVIDADES');
-      shA.getCell('B1').value = '{{DIA_LETRA}}'; shA.getCell('B2').value = 'PARTE DIARIO DE ACTIVIDADES DIVISION TIRO';
+      _tituloInterno(shA, 1, '{{DIA_LETRA}}');
+      _tituloInterno(shA, 2, 'PARTE DIARIO DE ACTIVIDADES DIVISION TIRO');
       shA.getCell(4,2).value = '{{DATOS:INTERNO_ACTIVIDADES_DESC}}';
       shA.columns = [{width:4},{width:34},{width:32}];
     }
