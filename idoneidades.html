@@ -147,6 +147,10 @@
   select:focus, input:focus, textarea:focus { border-color: var(--primary); }
   .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 
+  /* CHARTS (Estadísticas) */
+  .chart-wrap { position: relative; height: 320px; }
+  .chart-wrap-corta { height: 220px; }
+
   /* TABLE */
   .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
   .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
@@ -332,6 +336,7 @@
 
 <nav class="tabs">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="estadisticas" onclick="switchTab('estadisticas')">📈 Estadísticas</button>
   <button class="tab-btn" data-tab="nueva" onclick="switchTab('nueva')">➕ Nueva Idoneidad</button>
   <button class="tab-btn" data-tab="registros" onclick="switchTab('registros')">📋 Registros</button>
   <button class="tab-btn" data-tab="nice" onclick="switchTab('nice')">🔄 Reingreso NICE</button>
@@ -356,6 +361,113 @@
         <div class="no-data-icon">✅</div>
         <div class="no-data-text">Sin pendientes</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== ESTADÍSTICAS ==================== -->
+  <div class="tab-pane" id="pane-estadisticas">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Desde</label>
+        <input type="date" id="eDesde" onchange="renderEstadisticas(); renderRankingGrado();">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Hasta</label>
+        <input type="date" id="eHasta" onchange="renderEstadisticas(); renderRankingGrado();">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Agrupar por</label>
+        <select id="eGranularidad" onchange="renderEstadisticas()">
+          <option value="dia">Día</option>
+          <option value="semana" selected>Semana</option>
+          <option value="mes">Mes</option>
+          <option value="anio">Año</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Tipo (solo para la evolución)</label>
+        <select id="eTipo" onchange="renderEstadisticas()">
+          <option value="">Todos</option>
+          <option value="Idoneidad Px4">Idoneidad Px4</option>
+          <option value="Idoneidad Benelli">Idoneidad Benelli</option>
+          <option value="Idoneidad Armas Particulares">Idoneidad Armas Particulares</option>
+          <option value="Idoneidad Halcon">Idoneidad Halcon</option>
+          <option value="Idoneidad FMK3">Idoneidad FMK3</option>
+          <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost" onclick="limpiarFiltrosEstadisticas()">Limpiar filtros</button>
+      <span class="count-pill" id="eCountPill">0 registros</span>
+    </div>
+
+    <div class="kpi-grid" id="eKpiGrid"></div>
+
+    <div class="table-card">
+      <div class="section-title">
+        <span class="section-title-left"><span class="ico">🔁</span> Comparación interanual</span>
+        <button class="btn btn-ghost btn-sm" onclick="descargarGraficoPNG('chartInteranual','idoneidades_interanual')">🖼️ Descargar imagen</button>
+      </div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">Compara el rango de Desde/Hasta elegido arriba (si no elegiste ninguno, se usa el año en curso hasta hoy) contra el mismo rango de fechas, un año antes.</div>
+      <div class="chart-wrap"><canvas id="chartInteranual"></canvas></div>
+      <div id="interanualNota" style="font-size:12px; color:var(--muted); margin-top:8px; font-weight:700;"></div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">
+        <span class="section-title-left"><span class="ico">📈</span> Evolución en el tiempo (por estado)</span>
+        <button class="btn btn-ghost btn-sm" onclick="descargarGraficoPNG('chartEstadoTiempo','evolucion_idoneidades')">🖼️ Descargar imagen</button>
+      </div>
+      <div class="chart-wrap"><canvas id="chartEstadoTiempo"></canvas></div>
+      <div class="no-data" id="estadisticasNoData" style="display:none;">
+        <div class="no-data-icon">📭</div>
+        <div class="no-data-text">Sin registros en el rango elegido</div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">
+        <span class="section-title-left"><span class="ico">✅</span> Evolución de la tasa de aprobación y ausentismo (%)</span>
+        <button class="btn btn-ghost btn-sm" onclick="descargarGraficoPNG('chartTasas','tasas_idoneidades')">🖼️ Descargar imagen</button>
+      </div>
+      <div class="chart-wrap"><canvas id="chartTasas"></canvas></div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">
+        <span class="section-title-left"><span class="ico">🎯</span> Por tipo de idoneidad (todos los tipos, por estado)</span>
+        <button class="btn btn-ghost btn-sm" onclick="descargarGraficoPNG('chartTipoEstado','idoneidades_por_tipo')">🖼️ Descargar imagen</button>
+      </div>
+      <div class="chart-wrap"><canvas id="chartTipoEstado"></canvas></div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">
+        <span class="section-title-left"><span class="ico">🎖️</span> Ranking por Grado</span>
+        <span></span>
+      </div>
+      <div class="search-bar" style="margin-bottom:12px; box-shadow:none; padding:0;">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Ordenar por</label>
+          <select id="eOrdenGrado" onchange="renderRankingGrado()">
+            <option value="total">Total (mayor a menor)</option>
+            <option value="desaprobacion">% Desaprobación (mayor a menor)</option>
+            <option value="ausentismo">% Ausentismo (mayor a menor)</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Grado</th><th>Total</th><th>Aprobados</th><th>Desaprobados</th><th>Ausentes</th><th>% Desaprobación</th><th>% Ausentismo</th></tr></thead>
+        <tbody id="tbodyRankingGrado"></tbody>
+      </table>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">
+        <span class="section-title-left"><span class="ico">🧑‍🤝‍🧑</span> Por género (por estado)</span>
+        <button class="btn btn-ghost btn-sm" onclick="descargarGraficoPNG('chartGenero','idoneidades_genero')">🖼️ Descargar imagen</button>
+      </div>
+      <div class="chart-wrap"><canvas id="chartGenero"></canvas></div>
+      <div style="font-size:11px; color:var(--muted); margin-top:8px;">El género se cruza por legajo contra Nómina General — los registros que no matchean un legajo vigente se muestran como "Sin dato".</div>
     </div>
   </div>
 
@@ -540,6 +652,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <script>
 
@@ -609,6 +722,7 @@
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
     document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
     if (tab === 'registros' && !document.getElementById('tbodyRegistros').children.length) recargarRegistros(true);
+    if (tab === 'estadisticas' && !_serieData) cargarEstadisticas();
   }
 
   // ============================================================
@@ -757,6 +871,319 @@
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'nice'); });
     document.getElementById('fNiceEstado').value = estado;
     renderNiceTable();
+  }
+
+  // ============================================================
+  // ESTADÍSTICAS — usa idoneidades_stats_serie() (agregada en el
+  // servidor por fecha/tipo/estado/sexo) en vez de traer los 22.000
+  // registros al navegador. Se trae una sola vez por rango de fechas
+  // elegido y después Día/Semana/Mes/Año y el filtro de tipo se
+  // recalculan del lado del cliente sin volver a pedirle nada a Supabase.
+  // ============================================================
+  var _serieData = null; // filas { fecha, tipo, estado, sexo, total } del rango cargado
+  var _rankingGradoData = null; // filas { grado, estado, total }
+  var _chartEstadoTiempo = null, _chartTipoEstado = null, _chartGenero = null, _chartInteranual = null, _chartTasas = null;
+  var COLOR_ESTADO = { Pendiente: '#6a1b9a', Aprobado: '#2e7d32', Desaprobado: '#c62828', Ausente: '#e65100' };
+
+  function limpiarFiltrosEstadisticas() {
+    document.getElementById('eDesde').value = '';
+    document.getElementById('eHasta').value = '';
+    document.getElementById('eGranularidad').value = 'semana';
+    document.getElementById('eTipo').value = '';
+    if (_serieData) { renderEstadisticas(); renderRankingGrado(); } else { cargarEstadisticas(); }
+  }
+
+  async function cargarEstadisticas() {
+    showLoading('Cargando estadísticas…');
+    try {
+      // La serie se trae siempre completa (sin filtro de fecha en el servidor):
+      // son pocas filas (agregadas por día, no por registro individual), y así
+      // el filtro de Desde/Hasta y la Comparación interanual se recalculan del
+      // lado del cliente sin volver a pedirle nada a Supabase.
+      var [serieRes, gradoRes] = await Promise.all([
+        supabaseClient.rpc('idoneidades_stats_serie'),
+        supabaseClient.rpc('idoneidades_stats_grado')
+      ]);
+      if (serieRes.error) throw serieRes.error;
+      if (gradoRes.error) throw gradoRes.error;
+      _serieData = serieRes.data || [];
+      _rankingGradoData = gradoRes.data || [];
+      renderEstadisticas();
+      renderRankingGrado();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar estadísticas: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function mondayOf(d) {
+    var r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var day = r.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    r.setDate(r.getDate() + diff);
+    return r;
+  }
+  // Devuelve { key, label } para agrupar una fecha ISO (YYYY-MM-DD) según la granularidad elegida.
+  function bucketDeFecha(fechaIso, gran) {
+    var partes = fechaIso.split('-').map(Number);
+    var d = new Date(partes[0], partes[1] - 1, partes[2]);
+    if (gran === 'dia') {
+      return { key: fechaIso, label: String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2) };
+    }
+    if (gran === 'semana') {
+      var lunes = mondayOf(d);
+      var key = isoDate(lunes);
+      return { key: key, label: 'Sem. '+String(lunes.getDate()).padStart(2,'0')+'/'+String(lunes.getMonth()+1).padStart(2,'0') };
+    }
+    if (gran === 'anio') {
+      return { key: String(d.getFullYear()), label: String(d.getFullYear()) };
+    }
+    // mes (default)
+    var mesKey = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    var mesLabel = d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+    return { key: mesKey, label: mesLabel };
+  }
+
+  // Filtra filas de _serieData (o de _rankingGradoData, que tiene la misma
+  // forma de fecha) por el rango Desde/Hasta elegido arriba. Ambos límites
+  // son opcionales.
+  function enRango(fechaIso, desde, hasta) {
+    if (desde && fechaIso < desde) return false;
+    if (hasta && fechaIso > hasta) return false;
+    return true;
+  }
+
+  // Suma un año (o los que indique delta, puede ser negativo) a una fecha
+  // ISO, respetando años bisiestos (29 de febrero -> 28 si el año destino
+  // no es bisiesto).
+  function shiftYears(fechaIso, delta) {
+    var p = fechaIso.split('-').map(Number);
+    var y = p[0] + delta;
+    var d = new Date(y, p[1] - 1, p[2]);
+    if (d.getMonth() !== p[1] - 1) d = new Date(y, p[1], 0); // clamp (29/feb -> 28/feb)
+    return isoDate(d);
+  }
+
+  function renderEstadisticas() {
+    if (!_serieData) return;
+    var gran = document.getElementById('eGranularidad').value;
+    var tipoFiltro = document.getElementById('eTipo').value;
+    var desde = document.getElementById('eDesde').value || null;
+    var hasta = document.getElementById('eHasta').value || null;
+
+    var totalGeneral = 0;
+    var porEstadoGeneral = { Pendiente: 0, Aprobado: 0, Desaprobado: 0, Ausente: 0 };
+    var porTipoEstado = {};
+    TIPOS.forEach(function(t){ porTipoEstado[t] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 }; });
+    var porGeneroEstado = { M: {Pendiente:0,Aprobado:0,Desaprobado:0,Ausente:0}, F: {Pendiente:0,Aprobado:0,Desaprobado:0,Ausente:0}, 'Sin dato': {Pendiente:0,Aprobado:0,Desaprobado:0,Ausente:0} };
+    var buckets = {}; // key -> { label, Pendiente, Aprobado, Desaprobado, Ausente }
+
+    _serieData.forEach(function(row) {
+      if (!enRango(row.fecha, desde, hasta)) return;
+      var n = Number(row.total || 0);
+      totalGeneral += n;
+      if (porEstadoGeneral[row.estado] !== undefined) porEstadoGeneral[row.estado] += n;
+      if (porTipoEstado[row.tipo] && porTipoEstado[row.tipo][row.estado] !== undefined) porTipoEstado[row.tipo][row.estado] += n;
+      var sx = row.sexo === 'M' ? 'M' : (row.sexo === 'F' ? 'F' : 'Sin dato');
+      if (porGeneroEstado[sx][row.estado] !== undefined) porGeneroEstado[sx][row.estado] += n;
+
+      if (!tipoFiltro || row.tipo === tipoFiltro) {
+        var b = bucketDeFecha(row.fecha, gran);
+        if (!buckets[b.key]) buckets[b.key] = { label: b.label, Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+        if (buckets[b.key][row.estado] !== undefined) buckets[b.key][row.estado] += n;
+      }
+    });
+
+    document.getElementById('eCountPill').textContent = fmtNum(totalGeneral) + (totalGeneral === 1 ? ' registro' : ' registros');
+    document.getElementById('estadisticasNoData').style.display = totalGeneral ? 'none' : 'block';
+
+    var decididos = porEstadoGeneral.Aprobado + porEstadoGeneral.Desaprobado;
+    var tasaAprobacion = decididos ? Math.round(porEstadoGeneral.Aprobado / decididos * 1000) / 10 : 0;
+    var tasaAusentismo = totalGeneral ? Math.round(porEstadoGeneral.Ausente / totalGeneral * 1000) / 10 : 0;
+
+    var kpis = [
+      { label: 'Total en el rango', val: fmtNum(totalGeneral), c: 'blue' },
+      { label: 'Tasa de aprobación', val: tasaAprobacion + '%', sub: 'sobre Aprobados + Desaprobados', c: 'green' },
+      { label: 'Ausentismo', val: tasaAusentismo + '%', sub: 'sobre el total del rango', c: 'orange' },
+      { label: 'Pendientes', val: fmtNum(porEstadoGeneral.Pendiente), c: 'purple' }
+    ];
+    document.getElementById('eKpiGrid').innerHTML = kpis.map(function(k) {
+      return '<div class="kpi c-'+k.c+'" style="cursor:default;"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div>'+(k.sub ? '<div class="kpi-sub">'+esc(k.sub)+'</div>' : '')+'</div>';
+    }).join('');
+
+    // ---- Evolución en el tiempo (por estado) ----
+    var ordenBuckets = Object.keys(buckets).sort();
+    var labelsTiempo = ordenBuckets.map(function(k){ return buckets[k].label; });
+    var dsTiempo = ['Pendiente','Aprobado','Desaprobado','Ausente'].map(function(e) {
+      return { label: e, backgroundColor: COLOR_ESTADO[e], data: ordenBuckets.map(function(k){ return buckets[k][e]; }), stack: 'estado' };
+    });
+    var ctx1 = document.getElementById('chartEstadoTiempo').getContext('2d');
+    if (_chartEstadoTiempo) _chartEstadoTiempo.destroy();
+    _chartEstadoTiempo = new Chart(ctx1, {
+      type: 'bar',
+      data: { labels: labelsTiempo, datasets: dsTiempo },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+
+    // ---- Evolución de la tasa de aprobación / ausentismo (%) ----
+    var tasaAprobPorBucket = ordenBuckets.map(function(k) {
+      var b = buckets[k], dec = b.Aprobado + b.Desaprobado;
+      return dec ? Math.round(b.Aprobado / dec * 1000) / 10 : null;
+    });
+    var tasaAusentPorBucket = ordenBuckets.map(function(k) {
+      var b = buckets[k], tot = b.Pendiente + b.Aprobado + b.Desaprobado + b.Ausente;
+      return tot ? Math.round(b.Ausente / tot * 1000) / 10 : null;
+    });
+    var ctxT = document.getElementById('chartTasas').getContext('2d');
+    if (_chartTasas) _chartTasas.destroy();
+    _chartTasas = new Chart(ctxT, {
+      type: 'line',
+      data: {
+        labels: labelsTiempo,
+        datasets: [
+          { label: 'Tasa de aprobación', data: tasaAprobPorBucket, borderColor: COLOR_ESTADO.Aprobado, backgroundColor: 'rgba(46,125,50,.12)', spanGaps: true, tension: .25 },
+          { label: 'Tasa de ausentismo', data: tasaAusentPorBucket, borderColor: COLOR_ESTADO.Ausente, backgroundColor: 'rgba(230,81,0,.12)', spanGaps: true, tension: .25 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(c){ return c.dataset.label+': '+(c.raw==null?'sin datos':c.raw+'%'); } } } },
+        scales: { y: { beginAtZero: true, max: 100, ticks: { callback: function(v){ return v+'%'; } } } }
+      }
+    });
+
+    // ---- Por tipo de idoneidad (por estado) ----
+    var labelsTipo = TIPOS.map(function(t){ return t.replace('Idoneidad ',''); });
+    var dsTipo = ['Pendiente','Aprobado','Desaprobado','Ausente'].map(function(e) {
+      return { label: e, backgroundColor: COLOR_ESTADO[e], data: TIPOS.map(function(t){ return porTipoEstado[t][e]; }), stack: 'estado' };
+    });
+    var ctx2 = document.getElementById('chartTipoEstado').getContext('2d');
+    if (_chartTipoEstado) _chartTipoEstado.destroy();
+    _chartTipoEstado = new Chart(ctx2, {
+      type: 'bar',
+      data: { labels: labelsTipo, datasets: dsTipo },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+
+    // ---- Por género (por estado) ----
+    var labelsGenero = ['Masculino', 'Femenino', 'Sin dato'];
+    var generoKeys = ['M', 'F', 'Sin dato'];
+    var dsGenero = ['Pendiente','Aprobado','Desaprobado','Ausente'].map(function(e) {
+      return { label: e, backgroundColor: COLOR_ESTADO[e], data: generoKeys.map(function(g){ return porGeneroEstado[g][e]; }), stack: 'estado' };
+    });
+    var ctx3 = document.getElementById('chartGenero').getContext('2d');
+    if (_chartGenero) _chartGenero.destroy();
+    _chartGenero = new Chart(ctx3, {
+      type: 'bar',
+      data: { labels: labelsGenero, datasets: dsGenero },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+
+    // ---- Comparación interanual ----
+    var hoy = isoDate(new Date());
+    var actualDesde = desde || (new Date().getFullYear() + '-01-01');
+    var actualHasta = hasta || hoy;
+    var anteriorDesde = shiftYears(actualDesde, -1);
+    var anteriorHasta = shiftYears(actualHasta, -1);
+
+    function totalesEnRango(d1, d2) {
+      var t = { Total: 0, Pendiente: 0, Aprobado: 0, Desaprobado: 0, Ausente: 0 };
+      _serieData.forEach(function(row) {
+        if (!enRango(row.fecha, d1, d2)) return;
+        var n = Number(row.total || 0);
+        t.Total += n;
+        if (t[row.estado] !== undefined) t[row.estado] += n;
+      });
+      return t;
+    }
+    var totActual = totalesEnRango(actualDesde, actualHasta);
+    var totAnterior = totalesEnRango(anteriorDesde, anteriorHasta);
+    var labelsInter = ['Total','Pendiente','Aprobado','Desaprobado','Ausente'];
+    var ctx4 = document.getElementById('chartInteranual').getContext('2d');
+    if (_chartInteranual) _chartInteranual.destroy();
+    _chartInteranual = new Chart(ctx4, {
+      type: 'bar',
+      data: {
+        labels: labelsInter,
+        datasets: [
+          { label: actualDesde+' a '+actualHasta+' (actual)', backgroundColor: '#1a237e', data: labelsInter.map(function(k){ return totActual[k]; }) },
+          { label: anteriorDesde+' a '+anteriorHasta+' (año anterior)', backgroundColor: '#9e9e9e', data: labelsInter.map(function(k){ return totAnterior[k]; }) }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+    var notaInter;
+    if (!totAnterior.Total) {
+      notaInter = 'Sin datos del año anterior para ese rango — todavía no hay historial suficiente para comparar.';
+    } else {
+      var variacion = Math.round((totActual.Total - totAnterior.Total) / totAnterior.Total * 1000) / 10;
+      notaInter = (variacion >= 0 ? '▲ +' : '▼ ') + variacion + '% en el total, respecto al mismo período del año anterior.';
+    }
+    document.getElementById('interanualNota').textContent = notaInter;
+  }
+
+  function renderRankingGrado() {
+    if (!_rankingGradoData) return;
+    var desde = document.getElementById('eDesde').value || null;
+    var hasta = document.getElementById('eHasta').value || null;
+    var orden = document.getElementById('eOrdenGrado').value;
+
+    var porGrado = {};
+    _rankingGradoData.forEach(function(row) {
+      if (!enRango(row.fecha, desde, hasta)) return;
+      var g = row.grado || '(Sin grado)';
+      if (!porGrado[g]) porGrado[g] = { grado: g, Total:0, Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+      var n = Number(row.total || 0);
+      porGrado[g].Total += n;
+      if (porGrado[g][row.estado] !== undefined) porGrado[g][row.estado] += n;
+    });
+
+    var filas = Object.keys(porGrado).map(function(g) {
+      var r = porGrado[g];
+      var decididos = r.Aprobado + r.Desaprobado;
+      r.pctDesaprobacion = decididos ? Math.round(r.Desaprobado / decididos * 1000) / 10 : 0;
+      r.pctAusentismo = r.Total ? Math.round(r.Ausente / r.Total * 1000) / 10 : 0;
+      return r;
+    });
+
+    if (orden === 'desaprobacion') filas.sort(function(a,b){ return b.pctDesaprobacion - a.pctDesaprobacion; });
+    else if (orden === 'ausentismo') filas.sort(function(a,b){ return b.pctAusentismo - a.pctAusentismo; });
+    else filas.sort(function(a,b){ return b.Total - a.Total; });
+
+    document.getElementById('tbodyRankingGrado').innerHTML = filas.length ? filas.map(function(r) {
+      return '<tr><td>'+esc(r.grado)+'</td><td>'+fmtNum(r.Total)+'</td><td>'+fmtNum(r.Aprobado)+'</td><td>'+fmtNum(r.Desaprobado)+'</td><td>'+fmtNum(r.Ausente)+'</td>' +
+        '<td>'+r.pctDesaprobacion+'%</td><td>'+r.pctAusentismo+'%</td></tr>';
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">Sin registros en el rango elegido</td></tr>';
+  }
+
+  function descargarGraficoPNG(canvasId, nombreArchivo) {
+    var mapa = { chartEstadoTiempo: _chartEstadoTiempo, chartTasas: _chartTasas, chartTipoEstado: _chartTipoEstado, chartGenero: _chartGenero, chartInteranual: _chartInteranual };
+    var chart = mapa[canvasId];
+    if (!chart) return;
+    var a = document.createElement('a');
+    a.href = chart.toBase64Image();
+    a.download = nombreArchivo + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   // ============================================================
