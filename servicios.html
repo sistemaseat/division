@@ -392,7 +392,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">Servicio<span class="required-star">*</span></label>
-            <select id="servTipo"></select>
+            <select id="servTipo" onchange="onServTipoChange()"></select>
+          </div>
+          <div class="form-group" id="servTurnoGrupo" style="display:none;">
+            <label class="form-label">Turno<span class="required-star">*</span></label>
+            <select id="servTurno"></select>
           </div>
           <div class="form-group">
             <label class="form-label">Estado<span class="required-star">*</span></label>
@@ -550,6 +554,17 @@
         </div>
         <ul class="config-list" id="listaConfigMotivos"></ul>
       </div>
+      <div class="table-card">
+        <div class="section-title"><span class="ico">🕒</span> Horarios por tipo (para Presentismo)</div>
+        <div class="config-hint">Cuando una persona tiene uno de estos servicios asignado ese día, Presentismo la marca sola como PRESENTE en la Carga Diaria con este horario — no hace falta cargarla dos veces. Dejá el Turno vacío para un tipo con un solo horario fijo (ej. SATURACION); agregá una fila por turno para un tipo con más de un horario (ej. ESPACIOS PUBLICOS: MAÑANA/TARDE) — el formulario de Servicios pide el Turno solo, cuando el tipo elegido tiene alguno cargado acá.</div>
+        <div class="config-add-row">
+          <input type="text" id="nuevoHorTipo" placeholder="Tipo de servicio (igual a como está arriba)">
+          <input type="text" id="nuevoHorTurno" placeholder="Turno (opcional, ej. MAÑANA)" style="max-width:160px;">
+          <input type="text" id="nuevoHorHorario" placeholder="Horario (ej. 16:00 a 00:00)" style="max-width:180px;">
+          <button class="btn btn-primary btn-sm" onclick="agregarConfigHorario()">➕ Agregar</button>
+        </div>
+        <ul class="config-list" id="listaConfigHorarios"></ul>
+      </div>
     </div>
   </div>
 
@@ -575,6 +590,7 @@
   var horas = [];               // servicios_horas crudos
   var configTipos = [];         // [{nombre, cuenta_en_ranking}]
   var configMotivos = [];       // [{nombre, cuenta_si_agrega}]
+  var configHorarios = [];      // [{tipo, turno, horario}] — horario por tipo/turno, lo usa Presentismo
   var personalMapa = {};        // legajo -> {grado, apellido, nombre} (solo de los legajos usados acá)
   var _formSel = { serv: null, hora: null };   // persona elegida en cada formulario, antes de guardar
   var _personalDebounce = {};
@@ -698,10 +714,13 @@
   async function cargarConfig() {
     var r1 = await supabaseClient.from('servicios_config_tipos').select('nombre,cuenta_en_ranking').order('nombre');
     var r2 = await supabaseClient.from('servicios_config_motivos').select('nombre,cuenta_si_agrega').order('nombre');
+    var r3 = await supabaseClient.from('servicios_config_horarios').select('tipo,turno,horario').order('tipo').order('turno');
     if (r1.error) throw r1.error;
     if (r2.error) throw r2.error;
+    if (r3.error) throw r3.error;
     configTipos = r1.data || [];
     configMotivos = r2.data || [];
+    configHorarios = r3.data || [];
   }
 
   async function cargarServicios() {
@@ -740,6 +759,7 @@
     var tiposHtml = configTipos.map(function(t){ return '<option value="'+esc(t.nombre)+'">'+esc(t.nombre)+'</option>'; }).join('');
     document.getElementById('servTipo').innerHTML = tiposHtml;
     document.getElementById('servFiltroTipo').innerHTML = '<option value="">Todos</option>' + tiposHtml;
+    onServTipoChange();
 
     var motivosHtml = configMotivos.map(function(m){ return '<option value="'+esc(m.nombre)+'">'+esc(m.nombre)+'</option>'; }).join('');
     document.getElementById('horaMotivo').innerHTML = motivosHtml;
@@ -753,6 +773,32 @@
   function motivoCuentaSiAgrega(nombre) {
     var m = configMotivos.find(function(x){ return x.nombre === nombre; });
     return m ? !!m.cuenta_si_agrega : true;
+  }
+
+  // Los tipos con más de un horario posible (ej. ESPACIOS PUBLICOS: MAÑANA/
+  // TARDE, definidos en Configuración → Horarios por tipo) piden Turno en el
+  // formulario; los que tienen un solo horario fijo (ej. SATURACION) o
+  // ninguno no lo piden — el campo se arma solo a partir de
+  // servicios_config_horarios, no hay nada hardcodeado por nombre acá.
+  function turnosDeTipo(tipo) {
+    return configHorarios.filter(function(h){ return h.tipo === tipo && h.turno; }).map(function(h){ return h.turno; });
+  }
+  function onServTipoChange() {
+    var tipo = document.getElementById('servTipo').value;
+    var turnos = turnosDeTipo(tipo);
+    var grupo = document.getElementById('servTurnoGrupo');
+    var sel = document.getElementById('servTurno');
+    if (turnos.length) {
+      sel.innerHTML = turnos.map(function(t){ return '<option value="'+esc(t)+'">'+esc(t)+'</option>'; }).join('');
+      grupo.style.display = '';
+    } else {
+      sel.innerHTML = '';
+      grupo.style.display = 'none';
+    }
+  }
+  function horarioDeServicio(tipo, turno) {
+    var h = configHorarios.find(function(x){ return x.tipo === tipo && x.turno === (turno || ''); });
+    return h ? h.horario : '';
   }
 
   // ============================================================
@@ -981,7 +1027,7 @@
       if (fTipo && r.tipo !== fTipo) return false;
       if (!q) return true;
       var p = personaDe(r.legajo);
-      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.tipo, r.estado, r.observaciones].join(' ').toLowerCase();
+      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.tipo, r.turno, r.estado, r.observaciones].join(' ').toLowerCase();
       return hay.indexOf(q) !== -1;
     });
 
@@ -1002,7 +1048,7 @@
           '<td>'+esc(r.legajo)+'</td>' +
           '<td>'+esc(p.grado)+'</td>' +
           '<td class="clickable" onclick="verDetalleServicios(\''+esc(r.legajo)+'\')" style="color:var(--primary);font-weight:600;">'+esc(p.apellido)+', '+esc(p.nombre)+'</td>' +
-          '<td>'+esc(r.tipo)+'</td>' +
+          '<td>'+esc(r.tipo)+(r.turno ? ' <span style="color:var(--muted);font-size:11px;">('+esc(r.turno)+')</span>' : '')+'</td>' +
           '<td><select class="estado-inline '+cls+'" onchange="cambiarEstadoServicio(\''+r.id+'\',this.value,this)">' +
             ['EN PROCESO','CUMPLIDO','NO REALIZADO'].map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
@@ -1075,6 +1121,7 @@
     document.getElementById('servEditId').value = '';
     document.getElementById('servFecha').value = '';
     document.getElementById('servTipo').selectedIndex = 0;
+    onServTipoChange();
     document.getElementById('servEstado').value = 'EN PROCESO';
     document.getElementById('servObs').value = '';
     limpiarPersonaForm('serv');
@@ -1088,6 +1135,8 @@
     document.getElementById('servEditId').value = id;
     document.getElementById('servFecha').value = r.fecha;
     document.getElementById('servTipo').value = r.tipo;
+    onServTipoChange();
+    if (r.turno) document.getElementById('servTurno').value = r.turno;
     document.getElementById('servEstado').value = r.estado;
     document.getElementById('servObs').value = r.observaciones || '';
     var p = personaDe(r.legajo);
@@ -1102,6 +1151,8 @@
   async function guardarServicio() {
     var fecha = document.getElementById('servFecha').value;
     var tipo = document.getElementById('servTipo').value;
+    var necesitaTurno = turnosDeTipo(tipo).length > 0;
+    var turno = necesitaTurno ? document.getElementById('servTurno').value : '';
     var estado = document.getElementById('servEstado').value;
     var obs = document.getElementById('servObs').value.trim();
     var persona = _formSel.serv;
@@ -1109,7 +1160,11 @@
       alertShow('topAlert', 'error', 'Completá fecha, personal, servicio y estado.');
       return;
     }
-    var entry = { fecha: fecha, legajo: persona.legajo, tipo: tipo, estado: estado, observaciones: obs || null };
+    if (necesitaTurno && !turno) {
+      alertShow('topAlert', 'error', 'Elegí el turno.');
+      return;
+    }
+    var entry = { fecha: fecha, legajo: persona.legajo, tipo: tipo, turno: turno, estado: estado, observaciones: obs || null };
     showLoading('Guardando servicio…');
     try {
       var res = _editContext.serv
@@ -1156,7 +1211,7 @@
       if (fTipo && r.tipo !== fTipo) return false;
       if (!q) return true;
       var p = personaDe(r.legajo);
-      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.tipo, r.estado, r.observaciones].join(' ').toLowerCase();
+      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.tipo, r.turno, r.estado, r.observaciones].join(' ').toLowerCase();
       return hay.indexOf(q) !== -1;
     });
     if (!filtrados.length) { alertShow('topAlert', 'error', 'No hay filas para exportar con este filtro.'); return; }
@@ -1440,6 +1495,16 @@
         '<label class="config-check"><input type="checkbox" '+(m.cuenta_si_agrega?'checked':'')+' onchange="cambiarCuentaSiAgrega(\''+esc(m.nombre).replace(/'/g,"\\'")+'\',this.checked)"> Suma cuando es AGREGA</label>' +
         '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigMotivo(\''+esc(m.nombre).replace(/'/g,"\\'")+'\')">🗑️</button></li>';
     }).join('') || '<li style="color:var(--muted);">Sin motivos cargados</li>';
+
+    document.getElementById('listaConfigHorarios').innerHTML = configHorarios.map(function(h, idx) {
+      var tipoJs = esc(h.tipo).replace(/'/g,"\\'");
+      var turnoJs = esc(h.turno).replace(/'/g,"\\'");
+      var etiqueta = h.tipo + (h.turno ? ' — ' + h.turno : '');
+      return '<li><span class="nombre">'+esc(etiqueta)+'</span>' +
+        '<input type="text" class="hor-input" id="horIn'+idx+'" value="'+esc(h.horario)+'" style="max-width:180px;">' +
+        '<button class="btn btn-ghost btn-sm" onclick="guardarConfigHorario(\''+tipoJs+'\',\''+turnoJs+'\',document.getElementById(\'horIn'+idx+'\').value)">💾</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigHorario(\''+tipoJs+'\',\''+turnoJs+'\')">🗑️</button></li>';
+    }).join('') || '<li style="color:var(--muted);">Sin horarios cargados</li>';
   }
 
   async function agregarConfigTipo() {
@@ -1535,6 +1600,63 @@
       if (res.error) throw res.error;
       await cargarConfig();
       poblarSelectsDeConfig();
+      renderConfigLists();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function agregarConfigHorario() {
+    var tipo = str(document.getElementById('nuevoHorTipo').value).toUpperCase();
+    var turno = str(document.getElementById('nuevoHorTurno').value).toUpperCase();
+    var horario = str(document.getElementById('nuevoHorHorario').value);
+    if (!tipo || !horario) { alertShow('topAlert', 'error', 'Completá el tipo y el horario.'); return; }
+    showLoading('Agregando…');
+    try {
+      var res = await supabaseClient.from('servicios_config_horarios').upsert({ tipo: tipo, turno: turno, horario: horario });
+      if (res.error) throw res.error;
+      document.getElementById('nuevoHorTipo').value = '';
+      document.getElementById('nuevoHorTurno').value = '';
+      document.getElementById('nuevoHorHorario').value = '';
+      await cargarConfig();
+      onServTipoChange();
+      renderConfigLists();
+      alertShow('topAlert', 'success', '✅ Horario agregado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al agregar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function guardarConfigHorario(tipo, turno, horario) {
+    showLoading('Guardando…');
+    try {
+      var res = await supabaseClient.from('servicios_config_horarios').update({ horario: str(horario) }).eq('tipo', tipo).eq('turno', turno);
+      if (res.error) throw res.error;
+      var h = configHorarios.find(function(x){ return x.tipo === tipo && x.turno === turno; });
+      if (h) h.horario = str(horario);
+      alertShow('topAlert', 'success', '✅ Horario actualizado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarConfigHorario(tipo, turno) {
+    var etiqueta = tipo + (turno ? ' — ' + turno : '');
+    showConfirm('¿Sacar el horario de "'+etiqueta+'"? Si Presentismo depende de esta fila para autocompletar la Carga Diaria, deja de hacerlo para ese tipo/turno.', function(){ eliminarConfigHorario(tipo, turno); }, { peligroso: true, textoOk: 'Sacar', icon: '🗑️' });
+  }
+  async function eliminarConfigHorario(tipo, turno) {
+    showLoading('Quitando…');
+    try {
+      var res = await supabaseClient.from('servicios_config_horarios').delete().eq('tipo', tipo).eq('turno', turno);
+      if (res.error) throw res.error;
+      await cargarConfig();
+      onServTipoChange();
       renderConfigLists();
     } catch (e) {
       alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));

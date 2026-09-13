@@ -1,0 +1,2247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presentismo — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* HEADER */
+  .header { background: var(--primary); color: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,0.35); flex-wrap: wrap; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo { width: 44px; height: 44px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: var(--primary); }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 14px; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .subtabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+  .subtab-btn {
+    background: none; border: none; color: var(--muted); padding: 9px 16px; cursor: pointer;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+  }
+  .subtab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .subtab-pane { display: none; }
+  .subtab-pane.active { display: block; }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border-radius: 12px; padding: 18px 20px; border-left: 4px solid; box-shadow: var(--shadow); transition: transform .12s, box-shadow .12s; }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-red    { border-left-color: var(--red-light); }
+  .kpi.c-orange { border-left-color: var(--accent); }
+  .kpi.c-purple { border-left-color: var(--purple); }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-size: 30px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+  .kpi-sub   { font-size: 11px; color: var(--muted); }
+
+  /* SEARCH BAR / FORM CONTROLS */
+  .search-bar { background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow); }
+  .search-input-wrap { position: relative; flex: 1; min-width: 200px; }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; margin-bottom: 4px; display: block; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 2px; }
+  select, input[type="date"], input[type="text"], input[type="number"], input[type="file"], textarea {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* TABLE */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+  .section-title .ico { font-size: 16px; }
+  .section-title-left { display: flex; align-items: center; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { background: var(--primary); color: white; padding: 10px 13px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+  .action-col { white-space: nowrap; text-align: right; }
+  .action-col button { margin-left: 4px; }
+  .clickable { cursor: pointer; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+  .b-blue   { background: #e3f2fd; color: #0277bd; }
+  .b-gray   { background: #f5f5f5; color: #616161; }
+
+  /* AUTOCOMPLETE / DATALIST-STYLE */
+  .autocomplete-list {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+    max-height: 240px; overflow-y: auto; z-index: 9200; box-shadow: var(--shadow-lg); margin-top: 4px;
+  }
+  .autocomplete-list.show { display: block; }
+  .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: #f0f2f5; }
+
+  /* FORM */
+  .form-wrap { max-width: 1200px; margin: 0 auto 18px; }
+  .form-card { background: var(--card); border-radius: 16px; padding: 22px 26px; box-shadow: var(--shadow-lg); }
+  .form-card h2 { font-size: 17px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .form-card p  { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; }
+  .required-star { color: var(--red); margin-left: 2px; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-xs { padding: 3px 8px; font-size: 10px; border-radius: 6px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  /* ALERT */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .alert-info    { background: #e3f2fd; color: #0277bd; border-left: 4px solid #0277bd; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* NO DATA */
+  .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+  .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 640px; width: 96vw; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* GRÁFICOS */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .chart-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .chart-card canvas { max-height: 260px; }
+
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .persona-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .persona-row:last-child { border-bottom: none; }
+
+  /* CONFIGURACIÓN — listas editables */
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .config-add-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .config-add-row input { flex: 1; }
+  .config-list { list-style: none; max-height: 440px; overflow-y: auto; }
+  .config-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .config-list li:last-child { border-bottom: none; }
+  .config-list li:hover { background: #f5f7fa; }
+  .config-list li .nombre { flex: 1; }
+  .config-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .config-hint { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+
+  /* ============================================================
+     CARGA DIARIA — tabla de personal con estado PRESENTE/AUSENTE
+     ============================================================ */
+  #tabla-carga { min-width: 1080px; }
+  #tabla-carga td { vertical-align: top; padding: 6px 8px; }
+  #tabla-carga .persona-cell { min-width: 190px; }
+  #tabla-carga .nombre-fw { font-size: .82rem; font-weight: 600; }
+  #tabla-carga .lp-muted { font-size: .73rem; color: var(--muted); }
+  .estado-btns { display: flex; gap: 4px; }
+  .btn-estado { flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1.5px solid; background: white; }
+  .btn-pres { border-color: var(--green); color: var(--green); }
+  .btn-pres.on { background: var(--green); color: white; }
+  .btn-aus { border-color: var(--red); color: var(--red); }
+  .btn-aus.on { background: var(--red); color: white; }
+  .campo-oculto { display: none; }
+  tr.fila-ausente td { background: #fff5f5; }
+  tr.fila-especial td { background: #fffde7; }
+  tr.fila-desde-servicio td { background: #eef6ff; }
+  tr.fila-desde-servicio td.persona-cell { border-left: 3px solid var(--blue); }
+  .badge-servicio { font-size: .68rem; font-weight: 700; color: var(--blue); margin-top: 2px; }
+  tr#tr-separador-carga td { background: linear-gradient(to right,#dceefb,#f0f7ff); border-top: 2px solid var(--blue); border-bottom: 1px solid #aad4ee; font-size: 12px; font-weight: 700; color: var(--primary); padding: 6px 13px; }
+  #tabla-carga input, #tabla-carga select { font-size: 12px; padding: 5px 7px; width: 100%; min-width: 110px; }
+
+  /* ACTIVIDADES */
+  .act-row { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; background: #fafbfc; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .act-row .act-field { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
+  .act-row .act-field label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+  .act-row .act-actions { display: flex; gap: 4px; align-self: center; }
+  .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; min-height: 22px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--primary); color: white; border-radius: 20px; padding: 4px 6px 4px 12px; font-size: 12px; font-weight: 600; }
+  .chip button { background: rgba(255,255,255,.25); border: none; color: white; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; font-size: 11px; line-height: 1; }
+  .chip-empty { font-size: 12px; color: var(--muted); font-style: italic; }
+  .sp-item { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .sp-item:hover { background: #f5f7fa; }
+  .sp-item input { width: auto; }
+
+  /* CONTROL MENSUAL */
+  #wrap-tabla-mensual { overflow: auto; max-height: 70vh; }
+  #tabla-mensual { min-width: 1400px; font-size: 11.5px; }
+  #tabla-mensual th, #tabla-mensual td { text-align: center; padding: 5px 4px; border: 1px solid var(--border); white-space: nowrap; }
+  #tabla-mensual thead th { position: sticky; top: 0; z-index: 5; }
+  #tabla-mensual tbody th { position: sticky; left: 0; background: #eef1fa; text-align: left; z-index: 4; min-width: 190px; color: var(--text); font-weight: 700; }
+  .cell-finde     { background: #e8eaf6; }
+  .cell-franco    { background: #AED6F1; }
+  .cell-lic       { background: #A9DFBF; }
+  .cell-esp       { background: #F9E79F; }
+  .cell-satur     { background: #F0B27A; }
+  .cell-curso     { background: #D6EAF8; }
+  .cell-otro      { background: #D5D8DC; }
+  .cell-comis     { background: #D7BDE2; }
+  .cell-presente  { background: #D5F5E3; }
+
+  /* EXPORTAR */
+  .export-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .export-card h3 { font-size: 14px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .export-card p  { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .tmpl-box { background: #f5f7fa; border: 1px dashed var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 12px; }
+  .tmpl-estado { font-weight: 700; }
+  .tmpl-estado.activa { color: var(--green); }
+  .tmpl-estado.auto   { color: var(--muted); }
+
+  @media (max-width: 1000px) { .dash-grid, .chart-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .config-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .header { padding: 12px 16px; }
+    .content { padding: 16px; }
+    .tabs { padding: 0 10px; }
+    .tab-btn { padding: 11px 14px; font-size: 12px; }
+    .form-card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<!-- MODAL: selector de personal (para asignar gente a una actividad) -->
+<div class="modal-overlay" id="selectorPersonalModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Asignar personal</div>
+      <button class="modal-close" onclick="cerrarSelectorPersonal()">✕</button>
+    </div>
+    <input type="text" id="spBuscar" placeholder="🔎 Buscar por apellido, nombre o LP…" oninput="filtrarSelectorPersonal()" style="margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span class="badge b-blue" id="spCount">0 seleccionados</span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-xs" onclick="toggleSeleccionTodosPersonal(true)">Marcar todos</button>
+        <button class="btn btn-ghost btn-xs" onclick="toggleSeleccionTodosPersonal(false)">Desmarcar</button>
+      </div>
+    </div>
+    <div id="spLista" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="confirmarSelectorPersonal()">✓ Confirmar</button>
+      <button class="btn btn-ghost" onclick="cerrarSelectorPersonal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">📋</div>
+    <div>
+      <div class="brand-title">PRESENTISMO</div>
+      <div class="brand-sub">Carga diaria, actividades y partes — División Tiro</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="carga" onclick="switchTab('carga')">✍️ Carga Diaria</button>
+  <button class="tab-btn" data-tab="actividades" onclick="switchTab('actividades')">🎯 Actividades</button>
+  <button class="tab-btn" data-tab="mensual" onclick="switchTab('mensual')">🗓️ Control Mensual</button>
+  <button class="tab-btn" data-tab="exportar" onclick="switchTab('exportar')">📤 Exportar</button>
+  <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Configuración</button>
+</nav>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Fecha</label>
+        <input type="date" id="dashFecha" onchange="cargarDashboard()">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="cargarDashboard()">↺ Actualizar</button>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="dash-grid">
+      <div class="table-card">
+        <div class="section-title"><span class="ico">✅</span> Presentes</div>
+        <div id="dashPresentes"></div>
+      </div>
+      <div class="table-card">
+        <div class="section-title"><span class="ico">⛔</span> Ausentes</div>
+        <div id="dashAusentes"></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="section-title"><span class="ico">📈</span> Presentes / Ausentes — últimos 14 días</div>
+        <canvas id="chartAsistencia"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="section-title"><span class="ico">📊</span> Presentes de hoy por tipo de presencia</div>
+        <canvas id="chartTipos"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CARGA DIARIA ==================== -->
+  <div class="tab-pane" id="pane-carga">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Fecha</label>
+        <input type="date" id="cargaFecha" onchange="cargarExistente()">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="cargarExistente()">↺ Cargar del día</button>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Filtrar</label>
+        <select id="cargaFiltro" onchange="filtrarEstadoCarga()">
+          <option value="">Todos</option>
+          <option value="SIN_CARGAR">Sin cargar</option>
+          <option value="PRESENTE">Presentes</option>
+          <option value="AUSENTE">Ausentes</option>
+        </select>
+      </div>
+      <span class="count-pill" id="cargaCount">0 cargados</span>
+      <button class="btn btn-primary" onclick="guardarCarga()">💾 Guardar carga del día</button>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">✍️</span> Personal — División Tiro</div>
+      <table id="tabla-carga">
+        <thead>
+          <tr>
+            <th>Personal</th>
+            <th style="width:110px">Estado</th>
+            <th style="width:110px">Horario</th>
+            <th style="width:170px">Tipo / Motivo</th>
+            <th style="width:130px">Función</th>
+            <th style="width:150px">Sector / QTH</th>
+            <th style="width:120px">Dispuesto por</th>
+            <th style="width:80px">Justif.</th>
+            <th>Observaciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyCarga"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== ACTIVIDADES ==================== -->
+  <div class="tab-pane" id="pane-actividades">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Fecha</label>
+        <input type="date" id="actFecha" onchange="cargarActividades()">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="cargarActividades()">↺ Cargar del día</button>
+      <button class="btn btn-ghost btn-sm" onclick="generarActividadesDesdeRegistro()">✨ Generar desde Carga Diaria</button>
+    </div>
+
+    <div class="subtabs">
+      <button class="subtab-btn active" data-subtab="interno" onclick="switchSubtab('interno')">🏠 Interno Tiro <span class="badge b-blue" id="badgeInterno">0</span></button>
+      <button class="subtab-btn" data-subtab="edt" onclick="switchSubtab('edt')">📄 Parte EDT (elevado) <span class="badge b-gray" id="badgeEdt">0</span></button>
+    </div>
+
+    <!-- ---------- INTERNO TIRO ---------- -->
+    <div class="subtab-pane active" id="subtab-interno">
+      <div class="table-card">
+        <div class="section-title">
+          <span class="section-title-left"><span class="ico">🕐</span> Horarios del día — generado automáticamente desde la Carga Diaria</span>
+        </div>
+        <div id="previewHorarios" class="no-data"><div class="no-data-text">Elegí una fecha con carga diaria para ver los horarios.</div></div>
+      </div>
+
+      <div class="table-card">
+        <div class="section-title">
+          <span class="section-title-left"><span class="ico">🎯</span> Actividades del día</span>
+          <button class="btn btn-primary btn-sm" onclick="agregarActividadInterno()">+ Agregar actividad</button>
+        </div>
+        <div id="listaActInterno"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="guardarActInterno()">💾 Guardar actividades (genera el Parte EDT solo)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- EDT (solo lectura, generado) ---------- -->
+    <div class="subtab-pane" id="subtab-edt">
+      <div class="table-card">
+        <div class="section-title">
+          <span class="section-title-left"><span class="ico">📄</span> Parte Actividades EDT — se genera solo desde "Interno Tiro"</span>
+          <button class="btn btn-ghost btn-sm" onclick="regenerarEDT()">↺ Regenerar EDT</button>
+        </div>
+        <p class="config-hint">Este parte se eleva a otro sector. Se arma automáticamente a partir de las actividades cargadas en "Interno Tiro" (queda como registro propio, con su propia exportación) — no hace falta cargarlo dos veces.</p>
+        <div id="listaActEdt"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CONTROL MENSUAL ==================== -->
+  <div class="tab-pane" id="pane-mensual">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Mes</label>
+        <select id="mensMes"></select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Año</label>
+        <select id="mensAnio"></select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="cargarMensual()">📅 Ver</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportarCtrlRecargos()">📥 Exportar Excel</button>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🗓️</span> Control mensual de horarios / recargos</div>
+      <div id="wrap-tabla-mensual">
+        <table id="tabla-mensual">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== EXPORTAR ==================== -->
+  <div class="tab-pane" id="pane-exportar">
+
+    <div class="export-card">
+      <h3>📘 Presentismo completo (Carátula / Presentes / Ausentes / Recargos)</h3>
+      <p>Genera el parte diario completo, en el mismo formato que se presenta en papel.</p>
+      <div class="search-bar" style="box-shadow:none;padding:0;margin-bottom:0;">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Fecha</label>
+          <input type="date" id="expPresFecha">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportarPresentismo()">📥 Generar Excel</button>
+      </div>
+      <div id="tmplBox-presentismo"></div>
+    </div>
+
+    <div class="export-card">
+      <h3>📄 Parte Actividades EDT</h3>
+      <p>El que se eleva a otro sector — se arma con lo cargado en Actividades → Interno Tiro.</p>
+      <div class="search-bar" style="box-shadow:none;padding:0;margin-bottom:0;">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Fecha</label>
+          <input type="date" id="expEdtFecha">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportarActEDT()">📥 Generar Excel</button>
+      </div>
+      <div id="tmplBox-edt"></div>
+    </div>
+
+    <div class="export-card">
+      <h3>🏠 Parte Interno Tiro (Horarios + Actividades)</h3>
+      <p>Horarios siempre tomados en vivo de la Carga Diaria de esa fecha.</p>
+      <div class="search-bar" style="box-shadow:none;padding:0;margin-bottom:0;">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Fecha</label>
+          <input type="date" id="expIntFecha">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportarActInterno()">📥 Generar Excel</button>
+      </div>
+      <div id="tmplBox-interno"></div>
+    </div>
+
+    <div class="export-card">
+      <h3>📆 Control de Recargos Mensual</h3>
+      <p>La misma grilla de Control Mensual, lista para exportar.</p>
+      <div class="search-bar" style="box-shadow:none;padding:0;margin-bottom:0;">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Mes</label>
+          <select id="expCtrlMes"></select>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">Año</label>
+          <select id="expCtrlAnio"></select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportarCtrlRecargos()">📥 Generar Excel</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== CONFIGURACIÓN ==================== -->
+  <div class="tab-pane" id="pane-config">
+    <div class="config-grid">
+      <div class="table-card">
+        <div class="section-title"><span class="ico">✅</span> Tipos de presencia</div>
+        <p class="config-hint">Aparecen en el desplegable de la Carga Diaria cuando alguien está PRESENTE. Desmarcar "Activo" lo saca del desplegable sin borrar el histórico ya cargado con ese tipo.</p>
+        <div class="config-add-row">
+          <input type="text" id="nuevoTipoPresente" placeholder="Nuevo tipo de presencia…">
+          <button class="btn btn-primary btn-sm" onclick="agregarConfigTipo()">+ Agregar</button>
+        </div>
+        <ul class="config-list" id="listaConfigTipos"></ul>
+      </div>
+      <div class="table-card">
+        <div class="section-title"><span class="ico">⛔</span> Motivos de ausencia</div>
+        <p class="config-hint">Aparecen en el desplegable de la Carga Diaria cuando alguien está AUSENTE.</p>
+        <div class="config-add-row">
+          <input type="text" id="nuevoMotivoAusente" placeholder="Nuevo motivo de ausencia…">
+          <button class="btn btn-primary btn-sm" onclick="agregarConfigMotivo()">+ Agregar</button>
+        </div>
+        <ul class="config-list" id="listaConfigMotivos"></ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<datalist id="listHorarios"></datalist>
+<datalist id="listFunciones"></datalist>
+<datalist id="listActividades"></datalist>
+<datalist id="listSectores"></datalist>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const STORAGE_BUCKET = 'adjuntos';
+  const TMPL_PREFIX = 'presentismo-templates';
+
+  // Tipos especiales: personal PRESENTE con uno de estos "Tipo de presencia"
+  // no tiene horario de guardia normal — se agrupan aparte en Horarios/Control
+  // Mensual, igual que hacía el sistema viejo.
+  const TIPOS_SIN_HORARIO = ['SATURACION', 'ESPACIOS PUBLICOS', 'CURSO'];
+  // Grados que no entran en el Parte Interno Tiro (ni en la nómina del Interno).
+  const GRADOS_EXCLUIR_INTERNO = ['Comisario', 'Subcomisario'];
+  // Tipos de presencia que se muestran con el horario tal cual en el Control
+  // Mensual (el resto se abrevia con el propio tipo/motivo).
+  const TIPOS_HORARIO_MENSUAL = ['TAREAS INTERNAS', 'CONSIGNA JUDICIAL', 'SERVICIO FUERA DE JURISDICCION', 'PARADAS Y VIGILANCIA'];
+
+  // Servicios y Horarios → Carga Diaria: a pedido de Enzo, si una persona
+  // tiene uno de estos tipos de servicio asignado ese día (y no quedó "NO
+  // REALIZADO"), la Carga Diaria la marca sola PRESENTE con Tipo de
+  // presencia "SERVICIO FUERA DE JURISDICCION" y el horario configurado en
+  // Servicios y Horarios (pestaña Configuración → Horarios por tipo) — esto
+  // SIEMPRE pisa lo que hubiera cargado antes para esa persona/fecha, cada
+  // vez que se abre la Carga Diaria de ese día (ver aplicarServiciosDelDia).
+  const SERVICIOS_AUTOCOMPLETAN = ['SERVICIO SATURACION', 'ESPACIOS PUBLICOS'];
+  const SERVICIOS_TIPO_PRESENCIA = 'SERVICIO FUERA DE JURISDICCION';
+
+  var personal = [];        // [{lp,grado,apellido,nombres,dependencia}] — activos de personal_tiro
+  var personalMapa = {};    // lp -> persona
+  var configTipos = [];     // [{nombre,activo,orden}]
+  var configMotivos = [];   // [{nombre,activo,orden}]
+  var configHorariosServicios = []; // [{tipo,turno,horario}] de servicios_config_horarios (Servicios y Horarios)
+  var configTemplates = {}; // tipo -> {storage_path, nombre_archivo}
+  var registroFechaActual = {};   // {fecha, porLp: {lp: registro}}
+  var actInternoItems = []; // [{id?,descripcion,horario,personal,orden}]
+  var actEDTItems = [];     // [{actividad,horario,responsable,cantidad}] — solo lectura
+  var _selectorInternoIdx = null;
+  var _chartAsistencia = null, _chartTipos = null;
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // ---------- helpers ----------
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function up(v) { return str(v).toUpperCase(); }
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function hoyISO() { return isoDate(new Date()); }
+  function nombrePersona(p) { return (p.grado || '') + ' LP ' + p.lp + ' ' + (p.apellido || '') + ' ' + (p.nombres || ''); }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo !== 'error') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+  }
+  function switchSubtab(sub) {
+    document.querySelectorAll('.subtab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.subtab === sub); });
+    document.querySelectorAll('.subtab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'subtab-'+sub); });
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que el resto del sitio: el login se
+  // hace en la portada (index.html); acá solo se verifica la sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarTodo();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // CARGA INICIAL
+  // ============================================================
+  async function cargarTodo() {
+    showLoading('Cargando datos…');
+    try {
+      var hoy = hoyISO();
+      document.getElementById('dashFecha').value = hoy;
+      document.getElementById('cargaFecha').value = hoy;
+      document.getElementById('actFecha').value = hoy;
+      document.getElementById('expPresFecha').value = hoy;
+      document.getElementById('expEdtFecha').value = hoy;
+      document.getElementById('expIntFecha').value = hoy;
+      poblarSelectsMesAnio();
+
+      await Promise.all([cargarPersonal(), cargarConfig(), cargarConfigTemplates(), cargarConfigHorariosServicios()]);
+      renderTablaCarga();
+      renderConfigLists();
+      renderTemplateBoxes();
+      await cargarExistente();
+      await cargarDashboard();
+      await cargarActividades();
+      await cargarMensual();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function poblarSelectsMesAnio() {
+    var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    var hoy = new Date();
+    ['mensMes','expCtrlMes'].forEach(function(id){
+      var sel = document.getElementById(id);
+      sel.innerHTML = MESES.map(function(m,i){ return '<option value="'+(i+1)+'">'+m+'</option>'; }).join('');
+      sel.value = hoy.getMonth() + 1;
+    });
+    ['mensAnio','expCtrlAnio'].forEach(function(id){
+      var sel = document.getElementById(id);
+      var anios = [];
+      for (var a = hoy.getFullYear() - 2; a <= hoy.getFullYear() + 1; a++) anios.push(a);
+      sel.innerHTML = anios.map(function(a){ return '<option value="'+a+'">'+a+'</option>'; }).join('');
+      sel.value = hoy.getFullYear();
+    });
+  }
+
+  async function cargarPersonal() {
+    var res = await supabaseClient.from('personal_tiro')
+      .select('lp,grado,apellido,nombres,dependencia')
+      .eq('activo', true)
+      .order('apellido', { ascending: true }).order('nombres', { ascending: true });
+    if (res.error) throw res.error;
+    personal = res.data || [];
+    personalMapa = {};
+    personal.forEach(function(p){ personalMapa[String(p.lp)] = p; });
+  }
+
+  async function cargarConfig() {
+    var r1 = await supabaseClient.from('presentismo_config_tipos_presente').select('nombre,activo,orden').order('orden');
+    var r2 = await supabaseClient.from('presentismo_config_motivos_ausente').select('nombre,activo,orden').order('orden');
+    if (r1.error) throw r1.error;
+    if (r2.error) throw r2.error;
+    configTipos = r1.data || [];
+    configMotivos = r2.data || [];
+    // Datalist de funciones: no hay tabla propia (queda como texto libre +
+    // sugerencias), arranco con una base razonable y se enriquece con lo
+    // que ya se haya cargado (ver refrescarDatalists).
+    var dl = document.getElementById('listFunciones');
+    var base = ['JEFE DE DEPENDENCIA','JEFE DE SECCION','JEFE DE SERVICIO','ARMERO','INSTRUCTOR','ADMINISTRACION','CHOFER','GUARDIA'];
+    dl.innerHTML = base.map(function(f){ return '<option value="'+esc(f)+'">'; }).join('');
+  }
+
+  async function cargarConfigTemplates() {
+    var res = await supabaseClient.from('presentismo_config_templates').select('*');
+    configTemplates = {};
+    if (!res.error) (res.data || []).forEach(function(r){ configTemplates[r.tipo] = r; });
+  }
+
+  // Horarios por tipo/turno de servicio, definidos en Servicios y Horarios
+  // (pestaña Configuración) — los usa aplicarServiciosDelDia() más abajo.
+  async function cargarConfigHorariosServicios() {
+    var res = await supabaseClient.from('servicios_config_horarios').select('tipo,turno,horario');
+    if (res.error) { console.error('Error al traer horarios de Servicios y Horarios:', res.error); configHorariosServicios = []; return; }
+    configHorariosServicios = res.data || [];
+  }
+  function horarioServicioDe(tipo, turno) {
+    var h = configHorariosServicios.find(function(x){ return x.tipo === tipo && x.turno === (turno || ''); });
+    return h ? h.horario : '';
+  }
+
+  // ============================================================
+  // DASHBOARD
+  // ============================================================
+  async function cargarRegistroDeFecha(fecha) {
+    var res = await supabaseClient.from('presentismo_registro_diario').select('*').eq('fecha', fecha);
+    if (res.error) throw res.error;
+    return res.data || [];
+  }
+
+  async function cargarDashboard() {
+    var fecha = document.getElementById('dashFecha').value;
+    if (!fecha) return;
+    showLoading('Cargando dashboard…');
+    try {
+      var data = await cargarRegistroDeFecha(fecha);
+      var presentes = data.filter(function(r){ return r.estado === 'PRESENTE'; });
+      var ausentes  = data.filter(function(r){ return r.estado === 'AUSENTE'; });
+      var francos   = ausentes.filter(function(r){ return r.motivo === 'FRANCO DE SERVICIO' || (r.motivo||'').indexOf('LICENCIA') === 0; });
+
+      var kpis = [
+        { label: 'Presentes', val: presentes.length, sub: 'de ' + personal.length + ' del padrón', c: 'green' },
+        { label: 'Ausentes',  val: ausentes.length,  sub: 'francos, licencias, etc.', c: 'red' },
+        { label: 'Francos / Licencias', val: francos.length, sub: 'dentro de los ausentes', c: 'blue' },
+        { label: 'Sin cargar', val: Math.max(0, personal.length - data.length), sub: 'todavía sin marcar hoy', c: 'orange' },
+      ];
+      document.getElementById('kpiGrid').innerHTML = kpis.map(function(k){
+        return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div><div class="kpi-sub">'+esc(k.sub)+'</div></div>';
+      }).join('');
+
+      var contP = document.getElementById('dashPresentes');
+      if (presentes.length) {
+        contP.innerHTML = presentes.map(function(p){
+          var p_ = personalMapa[String(p.lp)];
+          var badge = (p.tipo_presencia && p.tipo_presencia !== 'TAREAS INTERNAS') ? ' <span class="badge b-blue">'+esc(p.tipo_presencia)+'</span>' : '';
+          return '<div class="persona-row"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombre||(p_?p_.nombres:''))+badge+'</span><span class="text-muted" style="color:var(--muted);font-size:12px">'+esc(p.horario||'')+'</span></div>';
+        }).join('');
+      } else {
+        contP.innerHTML = '<div class="no-data"><div class="no-data-text">Sin datos para esta fecha</div></div>';
+      }
+
+      var contA = document.getElementById('dashAusentes');
+      if (ausentes.length) {
+        contA.innerHTML = ausentes.map(function(p){
+          return '<div class="persona-row"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombre||'')+'</span><span class="badge b-red">'+esc(p.motivo||'AUSENTE')+'</span></div>';
+        }).join('');
+      } else {
+        contA.innerHTML = '<div class="no-data"><div class="no-data-text">Sin datos para esta fecha</div></div>';
+      }
+
+      await renderChartTipos(presentes);
+      await renderChartAsistencia(fecha);
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cargar el dashboard: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function renderChartTipos(presentes) {
+    var conteo = {};
+    presentes.forEach(function(p){ var k = p.tipo_presencia || 'TAREAS INTERNAS'; conteo[k] = (conteo[k]||0) + 1; });
+    var labels = Object.keys(conteo);
+    var valores = labels.map(function(l){ return conteo[l]; });
+    var ctx = document.getElementById('chartTipos');
+    if (_chartTipos) _chartTipos.destroy();
+    _chartTipos = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data: valores, backgroundColor: ['#1a237e','#0277bd','#2e7d32','#e65100','#6a1b9a','#00695c','#c62828','#ffd600'] }] },
+      options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+    });
+  }
+
+  async function renderChartAsistencia(fechaRef) {
+    var fin = new Date(fechaRef + 'T00:00:00');
+    var inicio = new Date(fin); inicio.setDate(inicio.getDate() - 13);
+    var res = await supabaseClient.from('presentismo_registro_diario').select('fecha,estado')
+      .gte('fecha', isoDate(inicio)).lte('fecha', isoDate(fin));
+    var data = res.error ? [] : (res.data || []);
+    var dias = [];
+    for (var i = 0; i < 14; i++) { var d = new Date(inicio); d.setDate(d.getDate() + i); dias.push(isoDate(d)); }
+    var pres = dias.map(function(f){ return data.filter(function(r){ return r.fecha === f && r.estado === 'PRESENTE'; }).length; });
+    var aus  = dias.map(function(f){ return data.filter(function(r){ return r.fecha === f && r.estado === 'AUSENTE'; }).length; });
+    var ctx = document.getElementById('chartAsistencia');
+    if (_chartAsistencia) _chartAsistencia.destroy();
+    _chartAsistencia = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dias.map(function(f){ return fmtFecha(f).slice(0,5); }),
+        datasets: [
+          { label: 'Presentes', data: pres, borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,.15)', tension: .25, fill: true },
+          { label: 'Ausentes',  data: aus,  borderColor: '#c62828', backgroundColor: 'rgba(198,40,40,.12)', tension: .25, fill: true },
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+
+  // ============================================================
+  // CARGA DIARIA
+  // ============================================================
+  function renderTablaCarga() {
+    var tbody = document.getElementById('tbodyCarga');
+    tbody.innerHTML = '';
+    personal.forEach(function(p, idx) {
+      var tr = document.createElement('tr');
+      tr.dataset.lp = p.lp;
+      tr.dataset.idx = idx;
+      tr.dataset.estado = '';
+      tr.innerHTML =
+        '<td class="persona-cell"><div class="nombre-fw">'+esc(p.grado)+'</div><div class="lp-muted">LP '+esc(p.lp)+' — '+esc(p.apellido)+' '+esc(p.nombres)+'</div></td>' +
+        '<td><div class="estado-btns"><button type="button" class="btn-estado btn-pres" onclick="setEstadoCarga(this,\'PRESENTE\')">PRES.</button><button type="button" class="btn-estado btn-aus" onclick="setEstadoCarga(this,\'AUSENTE\')">AUS.</button></div></td>' +
+        '<td><input list="listHorarios" class="inp-horario" placeholder="07 A 15"></td>' +
+        '<td>' +
+          '<select class="sel-tipo campo-pres campo-oculto" onchange="onTipoChangeCarga(this)">' + configTipos.filter(function(t){return t.activo;}).map(function(t){ return '<option value="'+esc(t.nombre)+'">'+esc(t.nombre)+'</option>'; }).join('') + '</select>' +
+          '<select class="sel-motivo campo-aus campo-oculto">' + configMotivos.filter(function(m){return m.activo;}).map(function(m){ return '<option value="'+esc(m.nombre)+'">'+esc(m.nombre)+'</option>'; }).join('') + '</select>' +
+        '</td>' +
+        '<td><input list="listFunciones" class="inp-funcion campo-pres campo-oculto" placeholder="Función"></td>' +
+        '<td><input list="listSectores" class="inp-sector campo-pres campo-oculto" placeholder="Sector / QTH"></td>' +
+        '<td><input type="text" class="inp-dispuesto campo-pres campo-oculto" placeholder="DACISSP"></td>' +
+        '<td><select class="sel-justif campo-aus campo-oculto"><option value="">—</option><option value="SI">SI</option><option value="NO">NO</option></select></td>' +
+        '<td><input type="text" class="inp-obs" placeholder="Observaciones…"></td>';
+      tbody.appendChild(tr);
+    });
+
+    var sep = document.createElement('tr');
+    sep.id = 'tr-separador-carga';
+    sep.style.display = 'none';
+    sep.innerHTML = '<td colspan="9">✅ Personal ya cargado</td>';
+    tbody.appendChild(sep);
+  }
+
+  function _moverCargado(tr) {
+    var tbody = document.getElementById('tbodyCarga');
+    var sep = document.getElementById('tr-separador-carga');
+    if (!sep) return;
+    sep.style.display = '';
+    var myIdx = parseInt(tr.dataset.idx);
+    var insertBefore = null;
+    var nodo = sep.nextSibling;
+    while (nodo) {
+      if (nodo.nodeType === 1 && nodo !== tr && nodo.dataset && nodo.dataset.idx !== undefined) {
+        if (parseInt(nodo.dataset.idx) > myIdx) { insertBefore = nodo; break; }
+      }
+      nodo = nodo.nextSibling;
+    }
+    if (insertBefore) tbody.insertBefore(tr, insertBefore); else tbody.appendChild(tr);
+    actualizarCargaCount();
+  }
+
+  function setEstadoCarga(btn, estado) {
+    var tr = btn.closest('tr');
+    tr.dataset.estado = estado;
+    tr.querySelector('.btn-pres').classList.toggle('on', estado === 'PRESENTE');
+    tr.querySelector('.btn-aus').classList.toggle('on', estado === 'AUSENTE');
+    var showPres = estado === 'PRESENTE', showAus = estado === 'AUSENTE';
+    tr.querySelectorAll('.campo-pres').forEach(function(el){ el.classList.toggle('campo-oculto', !showPres); });
+    tr.querySelectorAll('.campo-aus').forEach(function(el){ el.classList.toggle('campo-oculto', !showAus); });
+    tr.classList.toggle('fila-ausente', showAus);
+    if (showPres) _aplicarDefaultsCarga(tr, tr.querySelector('.sel-tipo').value);
+    if (!tr.dataset.blurBound) {
+      tr.dataset.blurBound = '1';
+      tr.addEventListener('focusout', function(e){
+        if (tr.contains(e.relatedTarget)) return;
+        if (!tr.dataset.estado) return;
+        _moverCargado(tr);
+      });
+    }
+    actualizarCargaCount();
+  }
+
+  function onTipoChangeCarga(sel) {
+    var tr = sel.closest('tr');
+    _aplicarDefaultsCarga(tr, sel.value);
+    tr.classList.toggle('fila-especial', TIPOS_SIN_HORARIO.indexOf(sel.value) !== -1);
+  }
+
+  function _aplicarDefaultsCarga(tr, tipo) {
+    var secField = tr.querySelector('.inp-sector');
+    var dispField = tr.querySelector('.inp-dispuesto');
+    if (secField && (!secField.value || secField.dataset.auto === '1')) {
+      secField.value = (tipo === 'TAREAS INTERNAS') ? 'DIVISION TIRO' : '';
+      secField.dataset.auto = '1';
+    }
+    if (dispField && (!dispField.value || dispField.dataset.auto === '1')) {
+      dispField.value = 'DACISSP';
+      dispField.dataset.auto = '1';
+    }
+    if (secField) secField.addEventListener('input', function(){ delete secField.dataset.auto; }, { once: true });
+    if (dispField) dispField.addEventListener('input', function(){ delete dispField.dataset.auto; }, { once: true });
+  }
+
+  function filtrarEstadoCarga() {
+    var f = document.getElementById('cargaFiltro').value;
+    document.querySelectorAll('#tbodyCarga tr').forEach(function(tr){
+      if (tr.id === 'tr-separador-carga') return;
+      if (!f) { tr.style.display = ''; return; }
+      if (f === 'SIN_CARGAR') { tr.style.display = (!tr.dataset.estado) ? '' : 'none'; return; }
+      tr.style.display = tr.dataset.estado === f ? '' : 'none';
+    });
+  }
+
+  function actualizarCargaCount() {
+    var n = 0;
+    document.querySelectorAll('#tbodyCarga tr').forEach(function(tr){ if (tr.dataset.estado) n++; });
+    document.getElementById('cargaCount').textContent = n + ' cargados';
+  }
+
+  function _resetTablaCarga() {
+    var sep = document.getElementById('tr-separador-carga');
+    if (sep) sep.style.display = 'none';
+    document.querySelectorAll('#tbodyCarga tr').forEach(function(tr){
+      if (tr.id === 'tr-separador-carga') return;
+      tr.dataset.estado = '';
+      tr.classList.remove('fila-ausente', 'fila-especial', 'fila-desde-servicio');
+      delete tr.dataset.desdeServicio;
+      var badge = tr.querySelector('.badge-servicio'); if (badge) badge.remove();
+      var bp = tr.querySelector('.btn-pres'); if (bp) bp.classList.remove('on');
+      var ba = tr.querySelector('.btn-aus');  if (ba) ba.classList.remove('on');
+      tr.querySelectorAll('.campo-pres,.campo-aus').forEach(function(el){ el.classList.add('campo-oculto'); });
+      ['.inp-horario','.inp-funcion','.inp-sector','.inp-dispuesto','.inp-obs'].forEach(function(sel){
+        var el = tr.querySelector(sel); if (el) el.value = '';
+      });
+      var st = tr.querySelector('.sel-tipo'); if (st) st.selectedIndex = 0;
+      var sm = tr.querySelector('.sel-motivo'); if (sm) sm.selectedIndex = 0;
+      var sj = tr.querySelector('.sel-justif'); if (sj) sj.selectedIndex = 0;
+      var tbody = document.getElementById('tbodyCarga');
+      if (sep && (tr.compareDocumentPosition(sep) & Node.DOCUMENT_POSITION_PRECEDING)) tbody.insertBefore(tr, sep);
+    });
+    actualizarCargaCount();
+  }
+
+  async function cargarExistente() {
+    var fecha = document.getElementById('cargaFecha').value;
+    if (!fecha) return;
+    showLoading('Cargando carga del día…');
+    try {
+      _resetTablaCarga();
+      var data = await cargarRegistroDeFecha(fecha);
+      registroFechaActual = { fecha: fecha, porLp: {} };
+      data.forEach(function(r){ registroFechaActual.porLp[String(r.lp)] = r; });
+      data.forEach(function(r){
+        var tr = document.querySelector('#tbodyCarga tr[data-lp="'+r.lp+'"]');
+        if (!tr) return;
+        var btn = tr.querySelector(r.estado === 'PRESENTE' ? '.btn-pres' : '.btn-aus');
+        setEstadoCarga(btn, r.estado);
+        var setv = function(sel, val){ var el = tr.querySelector(sel); if (el) { el.value = val || ''; if (val) delete el.dataset.auto; } };
+        setv('.inp-horario', r.horario);
+        setv('.sel-tipo', r.tipo_presencia);
+        setv('.sel-motivo', r.motivo);
+        setv('.inp-funcion', r.funcion);
+        setv('.inp-sector', r.sector);
+        setv('.inp-dispuesto', r.dispuesto_por);
+        setv('.sel-justif', r.justificado);
+        setv('.inp-obs', r.observaciones);
+        if (TIPOS_SIN_HORARIO.indexOf(r.tipo_presencia) !== -1) tr.classList.add('fila-especial');
+      });
+      await aplicarServiciosDelDia(fecha);
+      refrescarDatalists();
+      if (data.length === 0 && !document.querySelector('#tbodyCarga .badge-servicio')) {
+        alertShow('topAlert', 'info', 'Sin carga guardada para el ' + fmtFecha(fecha) + ' — es una fecha nueva.');
+      }
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cargar el día: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // Servicios y Horarios → Carga Diaria (ver SERVICIOS_AUTOCOMPLETAN más
+  // arriba): si alguien tiene SATURACION o ESPACIOS PUBLICOS asignado ese
+  // día en Servicios y Horarios (y no quedó "NO REALIZADO"), esto la marca
+  // PRESENTE con Tipo de presencia "SERVICIO FUERA DE JURISDICCION" y el
+  // horario configurado allá — SIEMPRE pisa lo que se acaba de cargar
+  // arriba desde presentismo_registro_diario (a pedido de Enzo). No se
+  // guarda nada solo por esto: recién queda en firme cuando se aprieta
+  // "Guardar carga del día".
+  async function aplicarServiciosDelDia(fecha) {
+    var res = await supabaseClient.from('servicios_registros')
+      .select('legajo,tipo,turno,estado')
+      .eq('fecha', fecha)
+      .in('tipo', SERVICIOS_AUTOCOMPLETAN)
+      .neq('estado', 'NO REALIZADO');
+    if (res.error) { console.error('Error al traer servicios del día:', res.error); return; }
+    (res.data || []).forEach(function(s) {
+      var tr = document.querySelector('#tbodyCarga tr[data-lp="'+s.legajo+'"]');
+      if (!tr) return; // no está en la nómina activa de la División Tiro
+      var horario = horarioServicioDe(s.tipo, s.turno);
+      var funcion = s.tipo === 'ESPACIOS PUBLICOS'
+        ? ('ESPACIOS PUBLICOS' + (s.turno ? ' — TURNO ' + s.turno : ''))
+        : 'SATURACION';
+      var selTipo = tr.querySelector('.sel-tipo');
+      if (selTipo) selTipo.value = SERVICIOS_TIPO_PRESENCIA;
+      setEstadoCarga(tr.querySelector('.btn-pres'), 'PRESENTE');
+      var inpHorario = tr.querySelector('.inp-horario'); if (inpHorario) { inpHorario.value = horario; delete inpHorario.dataset.auto; }
+      var inpFuncion = tr.querySelector('.inp-funcion'); if (inpFuncion) { inpFuncion.value = funcion; delete inpFuncion.dataset.auto; }
+      tr.classList.remove('fila-especial');
+      tr.classList.add('fila-desde-servicio');
+      tr.dataset.desdeServicio = '1';
+      var celda = tr.querySelector('.persona-cell');
+      if (celda && !celda.querySelector('.badge-servicio')) {
+        celda.insertAdjacentHTML('beforeend', '<div class="badge-servicio" title="Autocompletado desde Servicios y Horarios — se vuelve a completar así cada vez que se abre este día">🚓 Servicio asignado</div>');
+      }
+    });
+  }
+
+  async function guardarCarga() {
+    var fecha = document.getElementById('cargaFecha').value;
+    if (!fecha) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    var rows = [];
+    document.querySelectorAll('#tbodyCarga tr').forEach(function(tr){
+      if (tr.id === 'tr-separador-carga' || !tr.dataset.estado) return;
+      var lp = tr.dataset.lp;
+      var estado = tr.dataset.estado;
+      rows.push({
+        fecha: fecha, lp: lp, estado: estado,
+        horario: up(tr.querySelector('.inp-horario').value),
+        funcion: up(tr.querySelector('.inp-funcion').value),
+        sector: str(tr.querySelector('.inp-sector').value),
+        dispuesto_por: str(tr.querySelector('.inp-dispuesto').value),
+        motivo: estado === 'AUSENTE' ? up(tr.querySelector('.sel-motivo').value) : '',
+        justificado: estado === 'AUSENTE' ? str(tr.querySelector('.sel-justif').value) : '',
+        tipo_presencia: estado === 'PRESENTE' ? up(tr.querySelector('.sel-tipo').value) : '',
+        observaciones: str(tr.querySelector('.inp-obs').value),
+      });
+    });
+    showLoading('Guardando carga del día…');
+    try {
+      var del = await supabaseClient.from('presentismo_registro_diario').delete().eq('fecha', fecha);
+      if (del.error) throw del.error;
+      if (rows.length > 0) {
+        var ins = await supabaseClient.from('presentismo_registro_diario').insert(rows);
+        if (ins.error) throw ins.error;
+      }
+      alertShow('topAlert', 'success', 'Carga del ' + fmtFecha(fecha) + ' guardada — ' + rows.length + ' personas.');
+      refrescarDatalists();
+      if (document.getElementById('dashFecha').value === fecha) await cargarDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // Refresca los datalist de horarios / sectores con lo ya cargado hoy en pantalla
+  function refrescarDatalists() {
+    var horarios = new Set(), sectores = new Set();
+    document.querySelectorAll('#tbodyCarga .inp-horario').forEach(function(el){ if (el.value) horarios.add(el.value); });
+    document.querySelectorAll('#tbodyCarga .inp-sector').forEach(function(el){ if (el.value) sectores.add(el.value); });
+    document.getElementById('listHorarios').innerHTML = Array.from(horarios).map(function(h){ return '<option value="'+esc(h)+'">'; }).join('');
+    document.getElementById('listSectores').innerHTML = Array.from(sectores).map(function(s){ return '<option value="'+esc(s)+'">'; }).join('');
+  }
+
+  // ============================================================
+  // ACTIVIDADES — Interno Tiro (edición) + EDT (generado, solo lectura)
+  // ============================================================
+  function _horarioLabelFecha(fecha) {
+    var d = new Date(fecha + 'T00:00:00');
+    var dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    return dias[d.getDay()] + ' ' + d.getDate() + ' de ' + meses[d.getMonth()];
+  }
+
+  // Igual que getHorariosFromRegistro del sistema viejo: agrupa PRESENTES por
+  // horario (los tipos especiales van aparte, agrupados por tipo) y AUSENTES
+  // por motivo. No excluye grados acá (la vista previa muestra todo) — la
+  // exclusión de Comisario/Subcomisario se aplica al exportar el parte.
+  function calcularHorariosDesdeRegistro(rows) {
+    var horarios = {}, especiales = {};
+    rows.forEach(function(r) {
+      var persona = (r.grado || (personalMapa[String(r.lp)]||{}).grado || '') + ' LP ' + r.lp + ' ' + r.apellido + ' ' + (r.nombre || (personalMapa[String(r.lp)]||{}).nombres || '');
+      if (r.estado === 'PRESENTE') {
+        if (TIPOS_SIN_HORARIO.indexOf(r.tipo_presencia) !== -1) {
+          (especiales[r.tipo_presencia] = especiales[r.tipo_presencia] || []).push(persona);
+        } else {
+          var h = r.horario || 'SIN HORARIO';
+          (horarios[h] = horarios[h] || []).push(persona);
+        }
+      } else {
+        var m = r.motivo || 'AUSENTE';
+        (especiales[m] = especiales[m] || []).push(persona);
+      }
+    });
+    return { horarios: horarios, especiales: especiales };
+  }
+
+  function _excluirGrado(personaTxt) {
+    return GRADOS_EXCLUIR_INTERNO.some(function(g){ return String(personaTxt || '').indexOf(g) === 0; });
+  }
+
+  async function cargarActividades() {
+    var fecha = document.getElementById('actFecha').value;
+    if (!fecha) return;
+    showLoading('Cargando actividades…');
+    try {
+      var rInt = await supabaseClient.from('presentismo_actividades_interno').select('*').eq('fecha', fecha).order('orden');
+      if (rInt.error) throw rInt.error;
+      actInternoItems = rInt.data || [];
+
+      var rEdt = await supabaseClient.from('presentismo_actividades_edt').select('*').eq('fecha', fecha).order('orden');
+      if (rEdt.error) throw rEdt.error;
+      actEDTItems = rEdt.data || [];
+
+      var rowsReg = await cargarRegistroDeFecha(fecha);
+      renderPreviewHorarios(calcularHorariosDesdeRegistro(rowsReg), fecha, rowsReg.length > 0);
+
+      renderListaInterno();
+      renderListaEdt();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cargar actividades: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderPreviewHorarios(result, fecha, hayCarga) {
+    var div = document.getElementById('previewHorarios');
+    var hKeys = Object.keys(result.horarios || {}).sort();
+    var eKeys = Object.keys(result.especiales || {});
+    if (!hayCarga || (!hKeys.length && !eKeys.length)) {
+      div.innerHTML = '<div class="no-data"><div class="no-data-text">No hay carga diaria para el ' + fmtFecha(fecha) + ' todavía. Completá la Carga Diaria primero.</div></div>';
+      return;
+    }
+    var html = '<p style="font-size:12px;color:var(--muted);margin-bottom:8px;">'+esc(_horarioLabelFecha(fecha))+'</p>';
+    html += '<table><thead><tr><th style="width:140px">Horario / grupo</th><th>Personal</th></tr></thead><tbody>';
+    hKeys.forEach(function(h){
+      html += '<tr><td><strong>'+esc(h)+'</strong></td><td>'+result.horarios[h].map(esc).join('<br>')+'</td></tr>';
+    });
+    eKeys.forEach(function(k){
+      html += '<tr><td><span class="badge b-yellow">'+esc(k)+'</span></td><td>'+result.especiales[k].map(esc).join('<br>')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+    div.innerHTML = html;
+  }
+
+  function renderListaInterno() {
+    var cont = document.getElementById('listaActInterno');
+    if (!actInternoItems.length) {
+      cont.innerHTML = '<div class="no-data"><div class="no-data-text">Sin actividades — usá "Agregar actividad" o "Generar desde Carga Diaria".</div></div>';
+      document.getElementById('badgeInterno').textContent = '0';
+      return;
+    }
+    document.getElementById('badgeInterno').textContent = actInternoItems.length;
+    var html = '';
+    actInternoItems.forEach(function(item, idx) {
+      var personas = str(item.personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+      html += '<div class="act-row">' +
+        '<div class="act-field" style="max-width:60px;flex:0 0 60px;">' +
+          '<label>&nbsp;</label>' +
+          '<div style="display:flex;flex-direction:column;gap:2px;">' +
+            '<button class="btn btn-ghost btn-xs" '+(idx===0?'disabled':'')+' onclick="moverActInterno('+idx+',-1)">▲</button>' +
+            '<button class="btn btn-ghost btn-xs" '+(idx===actInternoItems.length-1?'disabled':'')+' onclick="moverActInterno('+idx+',1)">▼</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="act-field" style="flex:2;min-width:220px;"><label>Actividad</label><input type="text" list="listActividades" value="'+esc(item.descripcion||'')+'" onchange="actInternoItems['+idx+'].descripcion=this.value.trim().toUpperCase();this.value=actInternoItems['+idx+'].descripcion;"></div>' +
+        '<div class="act-field" style="flex:0 0 120px;"><label>Horario</label><input type="text" list="listHorarios" value="'+esc(item.horario||'')+'" onchange="actInternoItems['+idx+'].horario=this.value.trim().toUpperCase();this.value=actInternoItems['+idx+'].horario;"></div>' +
+        '<div class="act-field" style="flex:2;min-width:220px;"><label>Personal asignado</label>' +
+          '<div class="chip-list">' + (personas.length ? personas.map(function(p,pi){ return '<span class="chip">'+esc(p)+'<button onclick="quitarPersonaDeActInterno('+idx+','+pi+')">✕</button></span>'; }).join('') : '<span class="chip-empty">Sin personal asignado</span>') + '</div>' +
+          '<button class="btn btn-ghost btn-xs" onclick="abrirSelectorPersonal('+idx+')">👤 '+(personas.length?'Editar':'Asignar')+' personal</button>' +
+        '</div>' +
+        '<div class="act-actions"><button class="btn btn-danger btn-xs" onclick="eliminarActInterno('+idx+')">🗑</button></div>' +
+      '</div>';
+    });
+    cont.innerHTML = html;
+  }
+
+  function renderListaEdt() {
+    var cont = document.getElementById('listaActEdt');
+    document.getElementById('badgeEdt').textContent = actEDTItems.length;
+    if (!actEDTItems.length) {
+      cont.innerHTML = '<div class="no-data"><div class="no-data-text">Sin actividades EDT para esta fecha — se generan al guardar en "Interno Tiro".</div></div>';
+      return;
+    }
+    var html = '<table><thead><tr><th>Actividad</th><th style="width:120px">Horario</th><th>Responsable (1°)</th></tr></thead><tbody>';
+    actEDTItems.forEach(function(a){
+      html += '<tr><td>'+esc(a.actividad)+'</td><td>'+esc(a.horario)+'</td><td>'+esc(a.responsable)+'</td></tr>';
+    });
+    html += '</tbody></table>';
+    cont.innerHTML = html;
+  }
+
+  function agregarActividadInterno() {
+    actInternoItems.push({ descripcion: '', horario: '', personal: '', orden: actInternoItems.length });
+    renderListaInterno();
+  }
+  function eliminarActInterno(idx) { actInternoItems.splice(idx, 1); renderListaInterno(); }
+  function moverActInterno(idx, dir) {
+    var t = idx + dir;
+    if (t < 0 || t >= actInternoItems.length) return;
+    var tmp = actInternoItems[idx]; actInternoItems[idx] = actInternoItems[t]; actInternoItems[t] = tmp;
+    renderListaInterno();
+  }
+  function quitarPersonaDeActInterno(idx, pi) {
+    var personas = str(actInternoItems[idx].personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+    personas.splice(pi, 1);
+    actInternoItems[idx].personal = personas.join(' | ');
+    renderListaInterno();
+  }
+
+  // ---- selector de personal (modal con checkboxes, reutilizado) ----
+  function abrirSelectorPersonal(idx) {
+    _selectorInternoIdx = idx;
+    var preseleccion = str(actInternoItems[idx].personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+    var cont = document.getElementById('spLista');
+    cont.innerHTML = personal.map(function(p) {
+      var texto = nombrePersona(p);
+      var checked = preseleccion.indexOf(texto) !== -1;
+      return '<div class="sp-item" data-texto="'+esc(texto.toLowerCase())+'">' +
+        '<input type="checkbox" class="sp-check" value="'+esc(texto)+'" id="sp-'+esc(p.lp)+'" '+(checked?'checked':'')+' onchange="actualizarCountSelectorPersonal()">' +
+        '<label for="sp-'+esc(p.lp)+'" style="flex:1;display:flex;justify-content:space-between;cursor:pointer;"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombres)+'</span><span style="color:var(--muted);font-size:12px">LP '+esc(p.lp)+'</span></label>' +
+      '</div>';
+    }).join('');
+    document.getElementById('spBuscar').value = '';
+    actualizarCountSelectorPersonal();
+    document.getElementById('selectorPersonalModal').classList.add('show');
+  }
+  function cerrarSelectorPersonal() { document.getElementById('selectorPersonalModal').classList.remove('show'); _selectorInternoIdx = null; }
+  function filtrarSelectorPersonal() {
+    var q = document.getElementById('spBuscar').value.toLowerCase();
+    document.querySelectorAll('#spLista .sp-item').forEach(function(el){ el.style.display = el.dataset.texto.indexOf(q) !== -1 ? '' : 'none'; });
+  }
+  function toggleSeleccionTodosPersonal(sel) {
+    document.querySelectorAll('#spLista .sp-item').forEach(function(el){
+      if (el.style.display === 'none') return;
+      el.querySelector('.sp-check').checked = sel;
+    });
+    actualizarCountSelectorPersonal();
+  }
+  function actualizarCountSelectorPersonal() {
+    var n = document.querySelectorAll('#spLista .sp-check:checked').length;
+    document.getElementById('spCount').textContent = n + ' seleccionado' + (n !== 1 ? 's' : '');
+  }
+  function confirmarSelectorPersonal() {
+    if (_selectorInternoIdx === null) { cerrarSelectorPersonal(); return; }
+    var seleccionados = [];
+    document.querySelectorAll('#spLista .sp-check:checked').forEach(function(ch){ seleccionados.push(ch.value); });
+    actInternoItems[_selectorInternoIdx].personal = seleccionados.join(' | ');
+    cerrarSelectorPersonal();
+    renderListaInterno();
+  }
+
+  // Deriva el Parte EDT a partir de las actividades de Interno Tiro — igual
+  // que _generarEDTdesdeInterno del sistema viejo: el 1° nombre de cada
+  // actividad queda como "responsable".
+  function _derivarEDTDesdeInterno() {
+    return actInternoItems
+      .filter(function(i){ return i.descripcion; })
+      .map(function(i, idx){
+        var personas = str(i.personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+        return { fecha: document.getElementById('actFecha').value, actividad: i.descripcion, horario: i.horario || '', responsable: personas[0] || '', cantidad: '', orden: idx };
+      });
+  }
+
+  async function guardarActInterno() {
+    var fecha = document.getElementById('actFecha').value;
+    if (!fecha) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    showLoading('Guardando actividades…');
+    try {
+      var delI = await supabaseClient.from('presentismo_actividades_interno').delete().eq('fecha', fecha);
+      if (delI.error) throw delI.error;
+      var rowsI = actInternoItems.map(function(it, idx){
+        return { fecha: fecha, descripcion: it.descripcion || '', horario: it.horario || '', personal: it.personal || '', orden: idx };
+      });
+      if (rowsI.length > 0) {
+        var insI = await supabaseClient.from('presentismo_actividades_interno').insert(rowsI);
+        if (insI.error) throw insI.error;
+      }
+
+      var edtRows = _derivarEDTDesdeInterno();
+      var delE = await supabaseClient.from('presentismo_actividades_edt').delete().eq('fecha', fecha);
+      if (delE.error) throw delE.error;
+      if (edtRows.length > 0) {
+        var insE = await supabaseClient.from('presentismo_actividades_edt').insert(edtRows);
+        if (insE.error) throw insE.error;
+      }
+
+      alertShow('topAlert', 'success', 'Actividades guardadas — Parte EDT generado (' + edtRows.length + ' actividades).');
+      await cargarActividades();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar actividades: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function regenerarEDT() {
+    var fecha = document.getElementById('actFecha').value;
+    if (!fecha) return;
+    if (!actInternoItems.filter(function(i){ return i.descripcion; }).length) {
+      alertShow('topAlert', 'info', 'No hay actividades cargadas en "Interno Tiro".');
+      return;
+    }
+    showLoading('Regenerando Parte EDT…');
+    try {
+      var edtRows = _derivarEDTDesdeInterno();
+      var del = await supabaseClient.from('presentismo_actividades_edt').delete().eq('fecha', fecha);
+      if (del.error) throw del.error;
+      if (edtRows.length > 0) {
+        var ins = await supabaseClient.from('presentismo_actividades_edt').insert(edtRows);
+        if (ins.error) throw ins.error;
+      }
+      actEDTItems = edtRows;
+      renderListaEdt();
+      alertShow('topAlert', 'success', 'Parte EDT regenerado — ' + edtRows.length + ' actividades.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al regenerar EDT: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // Igual que getActividadesFromRegistro del sistema viejo: agrupa personal
+  // PRESENTE (sin Comisario/Subcomisario) por Función, más los tipos
+  // especiales (SATURACION/ESPACIOS PUBLICOS/CURSO) como actividad aparte.
+  async function generarActividadesDesdeRegistro() {
+    var fecha = document.getElementById('actFecha').value;
+    if (!fecha) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    showLoading('Generando actividades desde la Carga Diaria…');
+    try {
+      var rows = await cargarRegistroDeFecha(fecha);
+      var grupos = {};
+      rows.forEach(function(r) {
+        if (r.estado !== 'PRESENTE') return;
+        var grado = str(r.grado);
+        if (GRADOS_EXCLUIR_INTERNO.indexOf(grado) !== -1) return;
+        var persona = grado + ' LP ' + r.lp + ' ' + r.apellido + ' ' + (r.nombre || '');
+        var funcion = up(r.funcion);
+        var tipo = up(r.tipo_presencia);
+        var horario = str(r.horario);
+        if (TIPOS_SIN_HORARIO.indexOf(tipo) !== -1) {
+          if (!grupos[tipo]) grupos[tipo] = { descripcion: tipo, personas: [], horario: '' };
+          grupos[tipo].personas.push(persona);
+          return;
+        }
+        if (funcion && funcion !== 'TAREAS INTERNAS') {
+          if (!grupos[funcion]) grupos[funcion] = { descripcion: funcion, personas: [], horario: horario };
+          grupos[funcion].personas.push(persona);
+        }
+      });
+      var nuevas = Object.values(grupos).map(function(g){ return { descripcion: g.descripcion, horario: g.horario, personal: g.personas.join(' | ') }; });
+      if (!nuevas.length) { alertShow('topAlert', 'info', 'Sin funciones cargadas en la Carga Diaria de esta fecha.'); return; }
+      var existentes = new Set(actInternoItems.map(function(a){ return up(a.descripcion); }));
+      var agregadas = 0;
+      nuevas.forEach(function(n){ if (!existentes.has(up(n.descripcion))) { actInternoItems.push(n); agregadas++; } });
+      renderListaInterno();
+      alertShow('topAlert', agregadas ? 'success' : 'info', agregadas ? (agregadas + ' actividad(es) generada(s) desde la Carga Diaria.') : 'Las actividades ya estaban cargadas.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al generar actividades: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // CONTROL MENSUAL
+  // ============================================================
+  function abrevEstado(val) {
+    var m = {
+      'FRANCO DE SERVICIO': 'FRANCO', 'LICENCIA ANUAL': 'LIC.ANUAL', 'LICENCIA POR ENFERMEDAD': 'LIC.ENF.',
+      'LICENCIA ESPECIAL': 'LIC.ESP.', 'DISPONIBILIDAD': 'DISPON.', 'COMISION': 'COMIS.',
+      'SATURACION': 'SATUR.', 'ESPACIOS PUBLICOS': 'ESP.PUB.', 'CURSO': 'CURSO',
+    };
+    return m[val] || val;
+  }
+
+  function cellClassMensual(val, dow) {
+    if (!val) return (dow === 0 || dow === 6) ? 'cell-finde' : '';
+    var v = up(val);
+    if (v.indexOf('FRANCO') !== -1)   return 'cell-franco';
+    if (v.indexOf('LIC') !== -1)      return 'cell-lic';
+    if (v.indexOf('ESP.PUB') !== -1)  return 'cell-esp';
+    if (v.indexOf('SATUR') !== -1)    return 'cell-satur';
+    if (v === 'CURSO')                return 'cell-curso';
+    if (v.indexOf('DISPON') !== -1)   return 'cell-otro';
+    if (v.indexOf('COMIS') !== -1)    return 'cell-comis';
+    if (dow === 0 || dow === 6)       return 'cell-finde';
+    return 'cell-presente';
+  }
+
+  async function obtenerControlMensual(anio, mes) {
+    var desde = anio + '-' + String(mes).padStart(2,'0') + '-01';
+    var ultimoDia = new Date(anio, mes, 0).getDate();
+    var hasta = anio + '-' + String(mes).padStart(2,'0') + '-' + String(ultimoDia).padStart(2,'0');
+    var res = await supabaseClient.from('presentismo_registro_diario').select('*').gte('fecha', desde).lte('fecha', hasta);
+    if (res.error) throw res.error;
+    var mapa = {};
+    (res.data || []).forEach(function(r) {
+      var d = new Date(r.fecha + 'T00:00:00');
+      var dia = d.getDate();
+      if (!mapa[r.lp]) mapa[r.lp] = {};
+      if (r.estado === 'PRESENTE') {
+        if (r.tipo_presencia && TIPOS_HORARIO_MENSUAL.indexOf(r.tipo_presencia) === -1) {
+          mapa[r.lp][dia] = abrevEstado(r.tipo_presencia);
+        } else {
+          mapa[r.lp][dia] = r.horario || 'PRES.';
+        }
+      } else {
+        mapa[r.lp][dia] = abrevEstado(r.motivo || r.estado);
+      }
+    });
+    var dias = [];
+    for (var d2 = 1; d2 <= ultimoDia; d2++) dias.push({ dia: d2, dow: new Date(anio, mes - 1, d2).getDay() });
+    return { dias: dias, mapa: mapa };
+  }
+
+  async function cargarMensual() {
+    var mes = parseInt(document.getElementById('mensMes').value);
+    var anio = parseInt(document.getElementById('mensAnio').value);
+    if (!mes || !anio) return;
+    showLoading('Cargando control mensual…');
+    try {
+      var r = await obtenerControlMensual(anio, mes);
+      renderMensual(r.dias, r.mapa);
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cargar el control mensual: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderMensual(dias, mapa) {
+    var thead = document.querySelector('#tabla-mensual thead');
+    var tbody = document.querySelector('#tabla-mensual tbody');
+    var hRow = '<tr><th>Nombre</th>';
+    dias.forEach(function(d){ hRow += '<th' + ((d.dow===0||d.dow===6) ? ' class="cell-finde"' : '') + '>' + d.dia + '</th>'; });
+    hRow += '</tr>';
+    thead.innerHTML = hRow;
+
+    var body = '';
+    personal.forEach(function(p) {
+      body += '<tr><th>' + esc(p.grado) + ' LP ' + esc(p.lp) + ' ' + esc(p.apellido) + '</th>';
+      dias.forEach(function(d) {
+        var val = (mapa[p.lp] || {})[d.dia] || '';
+        body += '<td class="' + cellClassMensual(val, d.dow) + '" title="' + esc(val) + '">' + esc(val.substring(0,7)) + '</td>';
+      });
+      body += '</tr>';
+    });
+    tbody.innerHTML = body;
+  }
+
+  // ============================================================
+  // CONFIGURACIÓN — tipos de presencia / motivos de ausencia
+  // ============================================================
+  function renderConfigLists() {
+    var lt = document.getElementById('listaConfigTipos');
+    lt.innerHTML = configTipos.map(function(t){
+      return '<li><span class="nombre">' + esc(t.nombre) + '</span>' +
+        '<span class="config-check"><input type="checkbox" ' + (t.activo?'checked':'') + ' onchange="toggleConfigTipo(\'' + esc(t.nombre).replace(/'/g,"\\'") + '\', this.checked)"> Activo</span>' +
+        '<button class="btn btn-ghost btn-xs" onclick="eliminarConfigTipo(\'' + esc(t.nombre).replace(/'/g,"\\'") + '\')">🗑</button></li>';
+    }).join('') || '<li class="config-hint" style="padding:10px 0;">Sin tipos cargados.</li>';
+
+    var lm = document.getElementById('listaConfigMotivos');
+    lm.innerHTML = configMotivos.map(function(m){
+      return '<li><span class="nombre">' + esc(m.nombre) + '</span>' +
+        '<span class="config-check"><input type="checkbox" ' + (m.activo?'checked':'') + ' onchange="toggleConfigMotivo(\'' + esc(m.nombre).replace(/'/g,"\\'") + '\', this.checked)"> Activo</span>' +
+        '<button class="btn btn-ghost btn-xs" onclick="eliminarConfigMotivo(\'' + esc(m.nombre).replace(/'/g,"\\'") + '\')">🗑</button></li>';
+    }).join('') || '<li class="config-hint" style="padding:10px 0;">Sin motivos cargados.</li>';
+  }
+
+  async function agregarConfigTipo() {
+    var input = document.getElementById('nuevoTipoPresente');
+    var val = up(input.value);
+    if (!val) return;
+    if (configTipos.some(function(t){ return t.nombre === val; })) { alertShow('topAlert', 'info', 'Ese tipo ya existe.'); return; }
+    var orden = configTipos.length;
+    var res = await supabaseClient.from('presentismo_config_tipos_presente').insert({ nombre: val, activo: true, orden: orden });
+    if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+    configTipos.push({ nombre: val, activo: true, orden: orden });
+    input.value = '';
+    renderConfigLists();
+    renderTablaCarga();
+    alertShow('topAlert', 'success', 'Tipo agregado.');
+  }
+  async function toggleConfigTipo(nombre, activo) {
+    var res = await supabaseClient.from('presentismo_config_tipos_presente').update({ activo: activo }).eq('nombre', nombre);
+    if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+    configTipos.forEach(function(t){ if (t.nombre === nombre) t.activo = activo; });
+    renderTablaCarga();
+  }
+  async function eliminarConfigTipo(nombre) {
+    showConfirm('¿Eliminar el tipo "' + nombre + '"? El histórico ya cargado con ese tipo no se modifica.', async function(){
+      var res = await supabaseClient.from('presentismo_config_tipos_presente').delete().eq('nombre', nombre);
+      if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+      configTipos = configTipos.filter(function(t){ return t.nombre !== nombre; });
+      renderConfigLists();
+      renderTablaCarga();
+    }, { peligroso: true, icon: '🗑️', textoOk: 'Eliminar' });
+  }
+
+  async function agregarConfigMotivo() {
+    var input = document.getElementById('nuevoMotivoAusente');
+    var val = up(input.value);
+    if (!val) return;
+    if (configMotivos.some(function(m){ return m.nombre === val; })) { alertShow('topAlert', 'info', 'Ese motivo ya existe.'); return; }
+    var orden = configMotivos.length;
+    var res = await supabaseClient.from('presentismo_config_motivos_ausente').insert({ nombre: val, activo: true, orden: orden });
+    if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+    configMotivos.push({ nombre: val, activo: true, orden: orden });
+    input.value = '';
+    renderConfigLists();
+    renderTablaCarga();
+    alertShow('topAlert', 'success', 'Motivo agregado.');
+  }
+  async function toggleConfigMotivo(nombre, activo) {
+    var res = await supabaseClient.from('presentismo_config_motivos_ausente').update({ activo: activo }).eq('nombre', nombre);
+    if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+    configMotivos.forEach(function(m){ if (m.nombre === nombre) m.activo = activo; });
+    renderTablaCarga();
+  }
+  async function eliminarConfigMotivo(nombre) {
+    showConfirm('¿Eliminar el motivo "' + nombre + '"? El histórico ya cargado con ese motivo no se modifica.', async function(){
+      var res = await supabaseClient.from('presentismo_config_motivos_ausente').delete().eq('nombre', nombre);
+      if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+      configMotivos = configMotivos.filter(function(m){ return m.nombre !== nombre; });
+      renderConfigLists();
+      renderTablaCarga();
+    }, { peligroso: true, icon: '🗑️', textoOk: 'Eliminar' });
+  }
+
+  // ============================================================
+  // EXPORTAR — genera .xlsx en el navegador (ExcelJS). Si hay una
+  // plantilla personalizada subida para ese tipo, la usa (ver
+  // rellenarConMarcadores); si no, arma el diseño de fábrica.
+  // ============================================================
+  const COLOR_NARANJA = 'FFFCD5B5', COLOR_AZUL_OSC = 'FF1F497D', COLOR_AZUL_MED = 'FF4472C4', COLOR_AZUL_CLAR = 'FFDCE6F1', COLOR_BLANCO = 'FFFFFFFF';
+
+  function numLetras(n) {
+    var u = ['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISÉIS','DIECISIETE','DIECIOCHO','DIECINUEVE','VEINTE','VEINTIUNO','VEINTIDÓS','VEINTITRÉS','VEINTICUATRO','VEINTICINCO','VEINTISÉIS','VEINTISIETE','VEINTIOCHO','VEINTINUEVE','TREINTA'];
+    if (n >= 0 && n <= 30) return u[n];
+    return String(n);
+  }
+
+  function descargarWorkbook(workbook, nombreArchivo) {
+    return workbook.xlsx.writeBuffer().then(function(buffer) {
+      var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    });
+  }
+
+  function celdaHeader(ws, fila, col1, nCols, texto, color) {
+    var r1 = ws.getRow(fila);
+    if (nCols > 1) ws.mergeCells(fila, col1, fila, col1 + nCols - 1);
+    var cell = ws.getCell(fila, col1);
+    cell.value = texto;
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+    cell.alignment = { vertical: 'middle', wrapText: true };
+  }
+
+  // ---------- Presentismo completo (Carátula / Presentes / Ausentes / Recargos) ----------
+  function _jefeDe(personalArr) {
+    return personalArr.find(function(p){ var g = (p.grado||'').toLowerCase(); return g.indexOf('comisario') !== -1 && g.indexOf('sub') === -1; });
+  }
+
+  function buildCaratula(ws, personalArr, fechaTxt) {
+    celdaHeader(ws, 1, 1, 9, 'ESTADO DE FUERZA', COLOR_AZUL_OSC);
+    celdaHeader(ws, 2, 1, 9, 'DEPENDENCIA: DIVISION TIRO', COLOR_AZUL_OSC);
+    ws.getCell(3, 2).value = fechaTxt; ws.getCell(3, 2).font = { bold: true };
+    ws.mergeCells(4, 5, 4, 9);
+    ws.getCell(4, 5).value = 'Horario: 24hs (de 06.00 a 06.00 hs, de L a V)'; ws.getCell(4, 5).font = { bold: true };
+
+    var headRow = ['Sección','N°','Grado','LP','Apellido/s','Nombre/s','Observaciones'];
+    headRow.forEach(function(h, i){ var c = ws.getCell(6, i+1); c.value = h; c.font = { bold: true, color: {argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; });
+
+    var jefe = _jefeDe(personalArr);
+    var sinJefe = personalArr.filter(function(p){ return !jefe || String(p.lp) !== String(jefe.lp); });
+    sinJefe.forEach(function(p, i) {
+      var row = 7 + i;
+      var vals = [p.dependencia, i+1, p.grado, p.lp, p.apellido, p.nombres, ''];
+      vals.forEach(function(v, ci){ ws.getCell(row, ci+1).value = v; });
+      if (i % 2 === 0) { for (var c=1;c<=7;c++) ws.getCell(row,c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_CLAR} }; }
+    });
+    ws.columns = [{width:26},{width:6},{width:16},{width:9},{width:20},{width:18},{width:26}];
+  }
+
+  function buildPresentes(ws, presentes, fechaTxt) {
+    var totalStr = numLetras(presentes.length) + ' (' + presentes.length + ')';
+    celdaHeader(ws, 1, 1, 11, 'PRESENTES', COLOR_AZUL_OSC);
+    celdaHeader(ws, 2, 1, 11, 'DEPENDENCIA: DIVISION TIRO', COLOR_AZUL_OSC);
+    ws.getCell(3,1).value = fechaTxt; ws.getCell(3,1).font = { bold: true };
+    ws.getCell(4,1).value = 'Tercio: GUARDIA 1'; ws.getCell(4,1).font = { bold: true };
+    ws.mergeCells(4,7,4,11); ws.getCell(4,7).value = 'Horario: 24hs (de 06.00 a 06.00 hs, de L a V)'; ws.getCell(4,7).font = { bold: true };
+    ws.mergeCells(5,1,5,11); var tCell = ws.getCell(5,1); tCell.value = 'TOTAL PRESENTES: ' + totalStr;
+    tCell.font = { bold: true }; tCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_NARANJA} };
+
+    var KEYS_FUERA = ['SERVICIO FUERA DE JURISDICCION','SATURACION','ESPACIOS PUBLICOS'];
+    var tipos = [
+      { keys: ['CONSIGNA JUDICIAL'], label: 'Consignas Judiciales', cols: ['Nº','Grado','LP','Apellido/s','Nombre/s','Lugar (QTH)','Ordenado por / Mag interviniente','Misión','Turno horario','Observaciones'] },
+      { keys: KEYS_FUERA, label: 'Servicio Fuera de Jurisdicción', cols: ['Nº','Grado','LP','Apellido/s','Nombre/s','Lugar (QTH)','Ordenado por / Mag interviniente','Misión','Turno horario','Observaciones'] },
+      { keys: ['PARADAS Y VIGILANCIA'], label: 'Paradas y Vigilancia', cols: ['Nº','Grado','LP','Apellido/s','Nombre/s','Lugar (QTH)','Ordenado por / Mag interviniente','Misión','Turno horario','Observaciones'] },
+      { keys: ['RECARGO'], label: 'Recargos (Serv. prevencionales)', cols: ['Nº','Grado','LP','Apellido/s','Nombre/s','Lugar (QTH)','Ordenado por / Mag interviniente','Misión','Turno horario','Observaciones'] },
+      { keys: ['TAREAS INTERNAS','CURSO'], label: 'Tareas Internas', cols: ['Nº','Grado','L.P.','Apellido/s','Nombre/s','Sector / Oficina','Dispuesto por','Función','Turno horario','Observaciones'] },
+    ];
+    var row = 8;
+    tipos.forEach(function(tipo) {
+      var grupo = presentes.filter(function(p){ return tipo.keys.indexOf(p.tipo_presencia) !== -1; });
+      if (tipo.keys.indexOf('TAREAS INTERNAS') === -1 && grupo.length === 0) return;
+      var lblCell = ws.getCell(row, 1); lblCell.value = tipo.label; lblCell.font = { bold:true, color:{argb:'FFFFFFFF'} }; lblCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; lblCell.alignment = { wrapText:true, vertical:'middle' };
+      tipo.cols.forEach(function(h, i){ var c = ws.getCell(row, 2+i); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; c.alignment = { wrapText:true }; });
+      row++;
+      if (grupo.length === 0) { ws.getCell(row, 2).value = 1; row++; }
+      else {
+        grupo.forEach(function(p, i) {
+          var vals = [i+1, p.grado, p.lp, p.apellido, p.nombre, p.sector||'', p.dispuesto_por||'', p.funcion||'', p.horario||'', p.observaciones||''];
+          vals.forEach(function(v, ci){ ws.getCell(row, 2+ci).value = v; });
+          if (i % 2 === 0) { for (var c=1;c<=11;c++) ws.getCell(row,c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_CLAR} }; }
+          row++;
+        });
+      }
+    });
+    ws.columns = [{width:20},{width:5},{width:15},{width:8},{width:18},{width:16},{width:18},{width:18},{width:14},{width:14},{width:20}];
+  }
+
+  function buildAusentes(ws, ausentes, fechaTxt) {
+    var totalStr = numLetras(ausentes.length) + ' (' + String(ausentes.length).padStart(2,'0') + ')';
+    celdaHeader(ws, 1, 1, 8, 'AUSENTES ' + totalStr, COLOR_AZUL_OSC);
+    celdaHeader(ws, 2, 1, 8, 'DEPENDENCIA: DIVISION TIRO', COLOR_AZUL_OSC);
+    ws.getCell(3,1).value = fechaTxt; ws.getCell(3,1).font = { bold: true };
+    ws.getCell(4,1).value = 'Tercio: GUARDIA 1'; ws.getCell(4,1).font = { bold: true };
+    ws.mergeCells(4,6,4,8); ws.getCell(4,6).value = 'Horario: 24hs (de 06.00 a 06.00 hs, de L a V)'; ws.getCell(4,6).font = { bold: true };
+    ws.mergeCells(5,1,5,8); var tCell = ws.getCell(5,1); tCell.value = 'TOTAL AUSENTES AL SERVICIO: ' + totalStr; tCell.font = { bold:true }; tCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_NARANJA} };
+    var headRow = ['Nº','Grado','L.P.','Apellido/s','Nombre/s','Motivo','Justificado','Turno de ausencia'];
+    headRow.forEach(function(h,i){ var c = ws.getCell(8, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; });
+    ausentes.forEach(function(p, i) {
+      var row = 9 + i;
+      var vals = [i+1, p.grado, p.lp, p.apellido, p.nombre, p.motivo||'', p.justificado||'SI', p.horario||''];
+      vals.forEach(function(v, ci){ ws.getCell(row, ci+1).value = v; });
+      if (i % 2 === 0) { for (var c=1;c<=8;c++) ws.getCell(row,c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_CLAR} }; }
+    });
+    ws.columns = [{width:5},{width:15},{width:8},{width:18},{width:16},{width:30},{width:11},{width:16}];
+  }
+
+  function buildRecargos(ws, recargos, fechaTxt) {
+    var totalStr = recargos.length + ' (' + numLetras(recargos.length) + ')';
+    celdaHeader(ws, 1, 1, 11, 'RECARGOS', COLOR_AZUL_OSC);
+    celdaHeader(ws, 2, 1, 11, 'DEPENDENCIA: DIVISION TIRO', COLOR_AZUL_OSC);
+    ws.getCell(3,1).value = fechaTxt; ws.getCell(3,1).font = { bold: true };
+    ws.mergeCells(3,7,3,11); ws.getCell(3,7).value = 'Horario: 24hs (de 06.00 a 06.00 hs, de L a V)'; ws.getCell(3,7).font = { bold: true };
+    ws.getCell(4,1).value = 'Tercio: GUARDIA 1'; ws.getCell(4,1).font = { bold: true };
+    ws.mergeCells(5,1,5,11); var tCell = ws.getCell(5,1); tCell.value = 'TOTAL ASIGNADOS RECARGADOS: ' + totalStr; tCell.font = { bold:true }; tCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_NARANJA} };
+    var headRow = ['Recargos (Servicios prevencionales)','Nº','Grado','LP','Apellido/s','Nombre/s','Lugar (QTH)','Ordenado por / Mag interviniente','Misión','Turno horario','Observaciones'];
+    headRow.forEach(function(h,i){ var c = ws.getCell(7, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; c.alignment = { wrapText:true }; });
+    var row = 8;
+    if (recargos.length === 0) { ws.getCell(row, 2).value = 1; ws.getCell(row, 3).value = 'SIN RECARGOS'; row++; }
+    else {
+      recargos.forEach(function(p, i) {
+        var vals = ['', i+1, p.grado, p.lp, p.apellido, p.nombre, p.sector||'', p.dispuesto_por||'', p.funcion||'', p.horario||'', p.observaciones||''];
+        vals.forEach(function(v, ci){ ws.getCell(row, ci+1).value = v; });
+        row++;
+      });
+    }
+    ws.columns = [{width:20},{width:5},{width:15},{width:8},{width:18},{width:16},{width:16},{width:18},{width:14},{width:14},{width:20}];
+  }
+
+  async function generarWorkbookPresentismo(fecha) {
+    var registros = await cargarRegistroDeFecha(fecha);
+    var presentes = registros.filter(function(r){ return r.estado === 'PRESENTE'; });
+    var ausentes  = registros.filter(function(r){ return r.estado !== 'PRESENTE'; });
+    var recargos  = presentes.filter(function(r){ return r.tipo_presencia === 'RECARGO'; });
+    var wb = new ExcelJS.Workbook();
+    buildCaratula(wb.addWorksheet('CARATULA'), personal, fmtFecha(fecha));
+    buildPresentes(wb.addWorksheet('PRESENTES'), presentes, fmtFecha(fecha));
+    buildAusentes(wb.addWorksheet('AUSENTES'), ausentes, fmtFecha(fecha));
+    buildRecargos(wb.addWorksheet('RECARGOS'), recargos, fmtFecha(fecha));
+    return wb;
+  }
+
+  async function exportarPresentismo() {
+    var fecha = document.getElementById('expPresFecha').value;
+    if (!fecha) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    showLoading('Generando Presentismo…');
+    try {
+      var wb = await obtenerWorkbookConPlantilla('presentismo', fecha, generarWorkbookPresentismo);
+      await descargarWorkbook(wb, 'Presentismo ' + fecha + '.xlsx');
+      alertShow('topAlert', 'success', 'Presentismo generado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---------- Parte Actividades EDT ----------
+  async function generarWorkbookEDT(fecha) {
+    var res = await supabaseClient.from('presentismo_actividades_edt').select('*').eq('fecha', fecha).order('orden');
+    if (res.error) throw res.error;
+    var acts = res.data || [];
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('ACTIVIDADES EDT');
+    ws.getCell('A1').value = 'DIVISION TIRO'; ws.getCell('A1').font = { bold: true, size: 13 };
+    ws.getCell('A2').value = 'Fecha:'; ws.getCell('A2').font = { bold: true };
+    ws.getCell('B2').value = fmtFecha(fecha); ws.getCell('B2').font = { bold: true };
+    var headRow = ['TIPO Y DETALLE ACTIVIDAD','HORARIO','PERSONAL RESPONSABLE A CARGO','CANTIDAD DE CADETES/CURSANTES'];
+    headRow.forEach(function(h,i){ var c = ws.getCell(3, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_OSC} }; });
+    var row = 4;
+    acts.forEach(function(a) {
+      ws.getCell(row,1).value = a.actividad; ws.getCell(row,2).value = a.horario; ws.getCell(row,3).value = a.responsable; ws.getCell(row,4).value = a.cantidad || '';
+      row++;
+    });
+    ws.columns = [{width:30},{width:16},{width:30},{width:18}];
+    return wb;
+  }
+
+  async function exportarActEDT() {
+    var fecha = document.getElementById('expEdtFecha').value;
+    if (!fecha) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    showLoading('Generando Parte EDT…');
+    try {
+      var wb = await obtenerWorkbookConPlantilla('edt', fecha, generarWorkbookEDT);
+      await descargarWorkbook(wb, 'Parte Act EDT ' + fecha + '.xlsx');
+      alertShow('topAlert', 'success', 'Parte EDT generado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---------- Parte Interno Tiro (Horarios + Actividades) ----------
+  async function generarWorkbookInterno(fecha) {
+    var registros = await cargarRegistroDeFecha(fecha);
+    var res = await supabaseClient.from('presentismo_actividades_interno').select('*').eq('fecha', fecha).order('orden');
+    if (res.error) throw res.error;
+    var acts = (res.data || []).map(function(a) {
+      var personas = str(a.personal).split('|').map(function(s){ return s.trim(); }).filter(function(p){ return p && !_excluirGrado(p); });
+      return { descripcion: a.descripcion, horario: a.horario, personal: personas.join(' | ') };
+    });
+
+    var wb = new ExcelJS.Workbook();
+    var titulo = _horarioLabelFecha(fecha).toUpperCase() + ' ' + fmtFecha(fecha);
+
+    var shH = wb.addWorksheet('HORARIOS');
+    shH.getCell('B1').value = titulo; shH.getCell('B1').font = { bold: true };
+    shH.getCell('B2').value = 'PARTE DIARIO DE HORARIOS DIVISION TIRO'; shH.getCell('B2').font = { bold: true };
+    var calc = calcularHorariosDesdeRegistro(registros);
+    var todos = [];
+    Object.keys(calc.horarios).sort().forEach(function(h){ calc.horarios[h].filter(function(p){ return !_excluirGrado(p); }).forEach(function(p){ todos.push({horario:h, personal:p}); }); });
+    Object.keys(calc.especiales).forEach(function(tipo){ calc.especiales[tipo].filter(function(p){ return !_excluirGrado(p); }).forEach(function(p){ todos.push({horario:tipo, personal:p}); }); });
+    var row = 4, lastH = null;
+    todos.forEach(function(item, i) {
+      if (item.horario !== lastH && i > 0) row++;
+      if (item.horario !== lastH) { shH.getCell(row, 2).value = item.horario; shH.getCell(row,2).font = { bold: true }; lastH = item.horario; }
+      shH.getCell(row, 3).value = item.personal;
+      row++;
+    });
+    shH.columns = [{width:4},{width:20},{width:32}];
+
+    var shA = wb.addWorksheet('ACTIVIDADES');
+    shA.getCell('B1').value = titulo; shA.getCell('B1').font = { bold: true };
+    shA.getCell('B2').value = 'PARTE DIARIO DE ACTIVIDADES DIVISION TIRO'; shA.getCell('B2').font = { bold: true };
+    var rowA = 4;
+    acts.forEach(function(a, i) {
+      if (i > 0) rowA++;
+      var etiqueta = [a.descripcion, a.horario].filter(Boolean).join(' - ');
+      shA.getCell(rowA, 2).value = etiqueta; shA.getCell(rowA,2).font = { bold: true };
+      var personas = str(a.personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+      personas.forEach(function(p, pi){ shA.getCell(rowA + pi, 3).value = p; });
+      rowA += Math.max(personas.length, 1);
+    });
+    shA.columns = [{width:4},{width:34},{width:32}];
+
+    return wb;
+  }
+
+  async function exportarActInterno() {
+    var fecha = document.getElementById('expIntFecha').value;
+    if (!fecha) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    showLoading('Generando Parte Interno Tiro…');
+    try {
+      var wb = await obtenerWorkbookConPlantilla('interno', fecha, generarWorkbookInterno);
+      await descargarWorkbook(wb, 'Parte Act Interno ' + fecha + '.xlsx');
+      alertShow('topAlert', 'success', 'Parte Interno Tiro generado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---------- Control de Recargos Mensual ----------
+  async function exportarCtrlRecargos() {
+    var mes = parseInt(document.getElementById('expCtrlMes').value);
+    var anio = parseInt(document.getElementById('expCtrlAnio').value);
+    if (!mes || !anio) return;
+    showLoading('Generando Control de Recargos…');
+    try {
+      var r = await obtenerControlMensual(anio, mes);
+      var MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('CONTROL DE HORARIOS');
+      var headRow = ['NOMBRE'].concat(r.dias.map(function(d){ return d.dia; }));
+      headRow.forEach(function(h,i){ var c = ws.getCell(1, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_OSC} }; });
+      personal.forEach(function(p, idx) {
+        var row = idx + 2;
+        var nombre = (p.grado + ' LP ' + p.lp + ' ' + p.apellido + ' ' + p.nombres).toUpperCase();
+        ws.getCell(row, 1).value = nombre;
+        r.dias.forEach(function(d, i) {
+          var val = (r.mapa[p.lp] || {})[d.dia] || '';
+          var cell = ws.getCell(row, i+2);
+          cell.value = val;
+          var argb = null;
+          var cls = cellClassMensual(val, d.dow);
+          var map = { 'cell-franco':'FFAED6F1', 'cell-lic':'FFA9DFBF', 'cell-esp':'FFF9E79F', 'cell-satur':'FFF0B27A', 'cell-otro':'FFD5D8DC', 'cell-comis':'FFD7BDE2', 'cell-finde':'FFE8EAF6', 'cell-presente':'FFD5F5E3' };
+          argb = map[cls];
+          if (argb) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:argb} };
+        });
+      });
+      ws.columns = [{width:34}].concat(r.dias.map(function(){ return {width:6}; }));
+      await descargarWorkbook(wb, 'Control Recargos ' + MESES[mes] + ' ' + anio + '.xlsx');
+      alertShow('topAlert', 'success', 'Control de Recargos generado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // PLANTILLAS PERSONALIZADAS — descargar base con marcadores / subir
+  // la propia / aplicar marcadores al exportar. Ver nota (g) del
+  // encabezado de presentismo_schema.sql.
+  // ============================================================
+  const TMPL_DEFS = {
+    presentismo: { label: 'Presentismo completo', archivo: 'plantilla-presentismo.xlsx' },
+    edt:         { label: 'Parte Actividades EDT', archivo: 'plantilla-edt.xlsx' },
+    interno:     { label: 'Parte Interno Tiro',     archivo: 'plantilla-interno.xlsx' },
+  };
+
+  function renderTemplateBoxes() {
+    Object.keys(TMPL_DEFS).forEach(function(tipo) {
+      var def = TMPL_DEFS[tipo];
+      var cfg = configTemplates[tipo];
+      var activa = cfg && cfg.storage_path;
+      var box = document.getElementById('tmplBox-' + tipo);
+      box.innerHTML =
+        '<div class="tmpl-box">' +
+          '<div class="tmpl-estado ' + (activa ? 'activa' : 'auto') + '">' + (activa ? ('✓ Usando tu plantilla' + (cfg.nombre_archivo ? ' ("'+esc(cfg.nombre_archivo)+'")' : '')) : 'Sin plantilla — generación automática') + '</div>' +
+          '<div class="btn-row" style="margin-top:8px;">' +
+            '<button class="btn btn-ghost btn-xs" onclick="descargarPlantillaBase(\'' + tipo + '\')">⬇ Descargar plantilla base</button>' +
+            '<label class="btn btn-ghost btn-xs" style="cursor:pointer;">⬆ Subir mi plantilla<input type="file" accept=".xlsx" style="display:none" onchange="subirPlantilla(\'' + tipo + '\', this)"></label>' +
+            (activa ? '<button class="btn btn-danger btn-xs" onclick="quitarPlantilla(\'' + tipo + '\')">✕ Quitar plantilla</button>' : '') +
+          '</div>' +
+        '</div>';
+    });
+  }
+
+  // Arma el mismo layout que la versión automática, pero con los textos
+  // {{FECHA}}, {{DATOS:CLAVE}}, etc. en vez de datos reales — para que
+  // Enzo lo abra en Excel, lo personalice (colores, logo, texto) sin
+  // tocar los marcadores, y lo vuelva a subir.
+  async function descargarPlantillaBase(tipo) {
+    var wb = new ExcelJS.Workbook();
+    if (tipo === 'presentismo') {
+      buildCaratula(wb.addWorksheet('CARATULA'), personal, '{{FECHA}}');
+      var wsP = wb.addWorksheet('PRESENTES');
+      buildPresentes(wsP, [], '{{FECHA}}');
+      wsP.getCell(5,1).value = 'TOTAL PRESENTES: {{TOTAL_PRESENTES}}';
+      var wsA = wb.addWorksheet('AUSENTES');
+      buildAusentes(wsA, [], '{{FECHA}}');
+      wsA.getCell(1,1).value = 'AUSENTES {{TOTAL_AUSENTES}}';
+      wsA.getCell(5,1).value = 'TOTAL AUSENTES AL SERVICIO: {{TOTAL_AUSENTES}}';
+      var wsR = wb.addWorksheet('RECARGOS');
+      buildRecargos(wsR, [], '{{FECHA}}');
+      wsR.getCell(5,1).value = 'TOTAL ASIGNADOS RECARGADOS: {{TOTAL_RECARGOS}}';
+      // Marcadores {{DATOS:CLAVE}} en la primera fila de datos de cada sección
+      wsP.getCell(9,2).value = '{{DATOS:PRESENTES_CONSIGNAS}}';
+      wsA.getCell(9,1).value = '{{DATOS:AUSENTES}}';
+      wsR.getCell(8,2).value = '{{DATOS:RECARGOS_PREV}}';
+    } else if (tipo === 'edt') {
+      var ws = wb.addWorksheet('ACTIVIDADES EDT');
+      ws.getCell('A1').value = 'DIVISION TIRO'; ws.getCell('A1').font = { bold:true };
+      ws.getCell('A2').value = 'Fecha:'; ws.getCell('B2').value = '{{FECHA}}';
+      ['TIPO Y DETALLE ACTIVIDAD','HORARIO','PERSONAL RESPONSABLE A CARGO','CANTIDAD DE CADETES/CURSANTES'].forEach(function(h,i){
+        var c = ws.getCell(3, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_OSC} };
+      });
+      ws.getCell(4,1).value = '{{DATOS:EDT_ACTIVIDADES}}';
+      ws.columns = [{width:30},{width:16},{width:30},{width:18}];
+    } else {
+      var shH = wb.addWorksheet('HORARIOS');
+      shH.getCell('B1').value = '{{DIA_LETRA}}'; shH.getCell('B2').value = 'PARTE DIARIO DE HORARIOS DIVISION TIRO';
+      shH.getCell(4,2).value = '{{DATOS:INTERNO_HORARIOS}}';
+      shH.columns = [{width:4},{width:20},{width:32}];
+      var shA = wb.addWorksheet('ACTIVIDADES');
+      shA.getCell('B1').value = '{{DIA_LETRA}}'; shA.getCell('B2').value = 'PARTE DIARIO DE ACTIVIDADES DIVISION TIRO';
+      shA.getCell(4,2).value = '{{DATOS:INTERNO_ACTIVIDADES_DESC}}';
+      shA.columns = [{width:4},{width:34},{width:32}];
+    }
+    await descargarWorkbook(wb, 'plantilla-base-' + tipo + '.xlsx');
+  }
+
+  async function subirPlantilla(tipo, input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    showLoading('Subiendo plantilla…');
+    try {
+      var ruta = TMPL_PREFIX + '/' + tipo + '.xlsx';
+      var up = await supabaseClient.storage.from(STORAGE_BUCKET).upload(ruta, file, { upsert: true, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (up.error) throw up.error;
+      var res = await supabaseClient.from('presentismo_config_templates').upsert({ tipo: tipo, storage_path: ruta, nombre_archivo: file.name }, { onConflict: 'tipo' });
+      if (res.error) throw res.error;
+      configTemplates[tipo] = { tipo: tipo, storage_path: ruta, nombre_archivo: file.name };
+      renderTemplateBoxes();
+      alertShow('topAlert', 'success', 'Plantilla de "' + TMPL_DEFS[tipo].label + '" guardada.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al subir la plantilla: ' + (e.message || e));
+    } finally {
+      hideLoading();
+      input.value = '';
+    }
+  }
+
+  async function quitarPlantilla(tipo) {
+    showConfirm('¿Volver a la generación automática para "' + TMPL_DEFS[tipo].label + '"?', async function(){
+      showLoading('Quitando plantilla…');
+      try {
+        var res = await supabaseClient.from('presentismo_config_templates').update({ storage_path: '', nombre_archivo: '' }).eq('tipo', tipo);
+        if (res.error) throw res.error;
+        delete configTemplates[tipo];
+        renderTemplateBoxes();
+        alertShow('topAlert', 'success', 'Vuelve a generarse automáticamente.');
+      } catch (e) {
+        alertShow('topAlert', 'error', e.message || e);
+      } finally {
+        hideLoading();
+      }
+    });
+  }
+
+  // Si hay plantilla configurada para ese tipo, la descarga de Storage, la
+  // rellena con los marcadores (rellenarConMarcadores) y devuelve ese
+  // workbook; si no, usa el generador automático de fábrica.
+  async function obtenerWorkbookConPlantilla(tipo, fecha, generadorAutomatico) {
+    var cfg = configTemplates[tipo];
+    if (!cfg || !cfg.storage_path) return generadorAutomatico(fecha);
+
+    var dl = await supabaseClient.storage.from(STORAGE_BUCKET).download(cfg.storage_path);
+    if (dl.error) { console.error(dl.error); return generadorAutomatico(fecha); }
+    var buffer = await dl.data.arrayBuffer();
+    var wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+
+    var textos, datos;
+    if (tipo === 'presentismo') {
+      var registros = await cargarRegistroDeFecha(fecha);
+      var presentes = registros.filter(function(r){ return r.estado === 'PRESENTE'; });
+      var ausentes  = registros.filter(function(r){ return r.estado !== 'PRESENTE'; });
+      var recargos  = presentes.filter(function(r){ return r.tipo_presencia === 'RECARGO'; });
+      var jefe = _jefeDe(personal);
+      var KEYS_FUERA = ['SERVICIO FUERA DE JURISDICCION','SATURACION','ESPACIOS PUBLICOS'];
+      var colsPres = function(grupo){ return grupo.map(function(p,i){ return [i+1, p.grado, p.lp, p.apellido, p.nombre, p.sector||'', p.dispuesto_por||'', p.funcion||'', p.horario||'', p.observaciones||'']; }); };
+      textos = {
+        '{{FECHA}}': fmtFecha(fecha),
+        '{{TOTAL_PRESENTES}}': numLetras(presentes.length) + ' (' + presentes.length + ')',
+        '{{TOTAL_AUSENTES}}': numLetras(ausentes.length) + ' (' + String(ausentes.length).padStart(2,'0') + ')',
+        '{{TOTAL_RECARGOS}}': recargos.length + ' (' + numLetras(recargos.length) + ')',
+        '{{GRADO_JEFE}}': jefe ? jefe.grado : '', '{{LP_JEFE}}': jefe ? String(jefe.lp) : '',
+        '{{APELLIDO_JEFE}}': jefe ? jefe.apellido : '', '{{NOMBRE_JEFE}}': jefe ? jefe.nombres : '',
+        '{{APELLIDO_NOMBRE_JEFE}}': jefe ? (jefe.apellido + ' ' + jefe.nombres) : '',
+        '{{TOTAL_DIVISION_TIRO}}': String(personal.filter(function(p){ return p.dependencia === 'DIVISION TIRO'; }).length),
+        '{{TOTAL_SECCION_FORMACION}}': String(personal.filter(function(p){ return p.dependencia === 'SECCION TIRO DE FORMACION INICIAL'; }).length),
+        '{{TOTAL_PERSONAL}}': String(personal.length),
+      };
+      datos = {
+        PRESENTES_CONSIGNAS: colsPres(presentes.filter(function(p){ return p.tipo_presencia === 'CONSIGNA JUDICIAL'; })),
+        PRESENTES_FUERA: colsPres(presentes.filter(function(p){ return KEYS_FUERA.indexOf(p.tipo_presencia) !== -1; })),
+        PRESENTES_PARADAS: colsPres(presentes.filter(function(p){ return p.tipo_presencia === 'PARADAS Y VIGILANCIA'; })),
+        PRESENTES_RECARGOS: colsPres(presentes.filter(function(p){ return p.tipo_presencia === 'RECARGO'; })),
+        PRESENTES_TAREAS: colsPres(presentes.filter(function(p){ return p.tipo_presencia === 'TAREAS INTERNAS' || p.tipo_presencia === 'CURSO'; })),
+        AUSENTES: ausentes.map(function(p,i){ return [i+1,p.grado,p.lp,p.apellido,p.nombre,p.motivo||'',p.justificado||'SI',p.horario||'',p.observaciones||'']; }),
+        CARATULA_PERSONAL: personal.filter(function(p){ var g=(p.grado||'').toLowerCase(); return g.indexOf('comisario')===-1 || g.indexOf('sub')!==-1; }).map(function(p,i){ return [i+1,p.grado,p.lp,p.apellido,p.nombres,p.dependencia]; }),
+        RECARGOS_PREV: colsPres(recargos),
+      };
+    } else if (tipo === 'edt') {
+      var res = await supabaseClient.from('presentismo_actividades_edt').select('*').eq('fecha', fecha).order('orden');
+      var acts = res.error ? [] : (res.data || []);
+      textos = { '{{FECHA}}': fmtFecha(fecha) };
+      datos = { EDT_ACTIVIDADES: acts.map(function(a){ return [a.actividad||'', a.horario||'', a.responsable||'', a.cantidad||'']; }) };
+    } else {
+      var registrosI = await cargarRegistroDeFecha(fecha);
+      var resI = await supabaseClient.from('presentismo_actividades_interno').select('*').eq('fecha', fecha).order('orden');
+      var actsI = (resI.error ? [] : (resI.data||[])).map(function(a){
+        var personas = str(a.personal).split('|').map(function(s){return s.trim();}).filter(function(p){return p && !_excluirGrado(p);});
+        return { descripcion: a.descripcion, horario: a.horario, personal: personas.join(' | ') };
+      });
+      var calc = calcularHorariosDesdeRegistro(registrosI);
+      var filasHor = [];
+      Object.keys(calc.horarios).sort().forEach(function(h, gi){
+        var ps = calc.horarios[h].filter(function(p){ return !_excluirGrado(p); });
+        if (!ps.length) return;
+        if (filasHor.length) filasHor.push(['','']);
+        ps.forEach(function(p, pi){ filasHor.push([pi===0?h:'', p]); });
+      });
+      Object.keys(calc.especiales).forEach(function(tipoE){
+        var ps = calc.especiales[tipoE].filter(function(p){ return !_excluirGrado(p); });
+        if (!ps.length) return;
+        if (filasHor.length) filasHor.push(['','']);
+        ps.forEach(function(p, pi){ filasHor.push([pi===0?tipoE:'', p]); });
+      });
+      var filasAct = [];
+      actsI.forEach(function(a, i) {
+        if (i > 0) filasAct.push(['','']);
+        var desc = [a.descripcion, a.horario].filter(Boolean).join(' - ');
+        var personas = str(a.personal).split('|').map(function(s){return s.trim();}).filter(Boolean);
+        filasAct.push([desc, personas[0] || '']);
+        personas.slice(1).forEach(function(p){ filasAct.push(['', p]); });
+      });
+      var d = new Date(fecha + 'T00:00:00');
+      textos = { '{{DIA_LETRA}}': _horarioLabelFecha(fecha).toUpperCase(), '{{FECHA}}': fmtFecha(fecha) };
+      datos = { INTERNO_HORARIOS: filasHor, INTERNO_ACTIVIDADES_DESC: filasAct };
+    }
+
+    wb.eachSheet(function(ws){ rellenarConMarcadores(ws, textos, datos); });
+    return wb;
+  }
+
+  // Igual que _rellenarSheet del sistema viejo: reemplaza texto {{...}} en
+  // cualquier celda, y para cada celda {{DATOS:CLAVE}} inserta tantas filas
+  // como haga falta (copiando el formato de la fila del marcador) y vuelca
+  // ahí los datos.
+  function rellenarConMarcadores(ws, textos, datos) {
+    var nRows = ws.rowCount, nCols = ws.columnCount;
+    if (!nRows || !nCols) return;
+
+    for (var r = 1; r <= nRows; r++) {
+      for (var c = 1; c <= nCols; c++) {
+        var cell = ws.getCell(r, c);
+        var v = cell.value;
+        if (typeof v !== 'string' || v.indexOf('{{') === -1) continue;
+        var nuevo = v;
+        Object.keys(textos).forEach(function(k){ nuevo = nuevo.split(k).join(textos[k]); });
+        if (nuevo !== v) cell.value = nuevo;
+      }
+    }
+
+    var marcadores = [];
+    for (var r2 = 1; r2 <= nRows; r2++) {
+      for (var c2 = 1; c2 <= nCols; c2++) {
+        var cell2 = ws.getCell(r2, c2);
+        var v2 = cell2.value;
+        if (typeof v2 !== 'string') continue;
+        var m = v2.match(/\{\{DATOS:([^:}]+)(?::(\d+))?\}\}/);
+        if (m) marcadores.push({ row: r2, markerCol: c2, startCol: m[2] ? parseInt(m[2]) : c2, key: m[1] });
+      }
+    }
+    marcadores.sort(function(a,b){ return b.row - a.row; });
+
+    marcadores.forEach(function(mk) {
+      var filas = datos[mk.key] || [];
+      if (filas.length === 0) {
+        for (var c3 = 1; c3 <= nCols; c3++) ws.getCell(mk.row, c3).value = null;
+        return;
+      }
+      // Guarda el estilo de la fila-marcador para copiarlo a las filas nuevas
+      var estilos = [];
+      for (var c4 = 1; c4 <= nCols; c4++) estilos.push(JSON.parse(JSON.stringify(ws.getCell(mk.row, c4).style || {})));
+
+      if (filas.length > 1) ws.spliceRows(mk.row, 0, ...Array(filas.length - 1).fill([]));
+
+      filas.forEach(function(fila, i) {
+        var targetRow = mk.row + i;
+        for (var c5 = 1; c5 <= nCols; c5++) { try { ws.getCell(targetRow, c5).style = estilos[c5-1]; } catch(e) {} }
+        fila.forEach(function(val, fi) { ws.getCell(targetRow, mk.startCol + fi).value = val; });
+        var markerCell = ws.getCell(targetRow, mk.markerCol);
+        if (typeof markerCell.value === 'string' && markerCell.value.indexOf('{{DATOS:') !== -1) markerCell.value = null;
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initAuth();
+  });
+
+</script>
+
+</body>
+</html>
