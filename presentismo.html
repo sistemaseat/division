@@ -869,10 +869,23 @@
   // ============================================================
   // DASHBOARD
   // ============================================================
+  // presentismo_registro_diario solo guarda "lp" — el grado/apellido/nombre
+  // de cada persona sale de personalMapa (cargarPersonal), no de la tabla.
+  // Se completa acá, en el único lugar por el que pasan todas las lecturas
+  // de esta tabla, para que el resto del código (vistas, Excel) pueda usar
+  // r.grado/r.apellido/r.nombre directo sin repetir el cruce en cada lugar.
+  function conDatosPersona(r) {
+    var per = personalMapa[String(r.lp)] || {};
+    return Object.assign({}, r, {
+      grado: r.grado || per.grado || '',
+      apellido: r.apellido || per.apellido || '',
+      nombre: r.nombre || per.nombres || '',
+    });
+  }
   async function cargarRegistroDeFecha(fecha) {
     var res = await supabaseClient.from('presentismo_registro_diario').select('*').eq('fecha', fecha);
     if (res.error) throw res.error;
-    return res.data || [];
+    return (res.data || []).map(conDatosPersona);
   }
 
   async function cargarDashboard() {
@@ -898,9 +911,9 @@
       var contP = document.getElementById('dashPresentes');
       if (presentes.length) {
         contP.innerHTML = presentes.map(function(p){
-          var p_ = personalMapa[String(p.lp)];
+          var per = personalMapa[String(p.lp)] || {};
           var badge = (p.tipo_presencia && p.tipo_presencia !== 'TAREAS INTERNAS') ? ' <span class="badge b-blue">'+esc(p.tipo_presencia)+'</span>' : '';
-          return '<div class="persona-row"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombre||(p_?p_.nombres:''))+badge+'</span><span class="text-muted" style="color:var(--muted);font-size:12px">'+esc(p.horario||'')+'</span></div>';
+          return '<div class="persona-row"><span><strong>'+esc(per.grado)+'</strong> '+esc(per.apellido)+' '+esc(per.nombres)+badge+'</span><span class="text-muted" style="color:var(--muted);font-size:12px">'+esc(p.horario||'')+'</span></div>';
         }).join('');
       } else {
         contP.innerHTML = '<div class="no-data"><div class="no-data-text">Sin datos para esta fecha</div></div>';
@@ -909,7 +922,8 @@
       var contA = document.getElementById('dashAusentes');
       if (ausentes.length) {
         contA.innerHTML = ausentes.map(function(p){
-          return '<div class="persona-row"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombre||'')+'</span><span class="badge b-red">'+esc(p.motivo||'AUSENTE')+'</span></div>';
+          var per = personalMapa[String(p.lp)] || {};
+          return '<div class="persona-row"><span><strong>'+esc(per.grado)+'</strong> '+esc(per.apellido)+' '+esc(per.nombres)+'</span><span class="badge b-red">'+esc(p.motivo||'AUSENTE')+'</span></div>';
         }).join('');
       } else {
         contA.innerHTML = '<div class="no-data"><div class="no-data-text">Sin datos para esta fecha</div></div>';
@@ -1235,7 +1249,8 @@
   function calcularHorariosDesdeRegistro(rows) {
     var horarios = {}, especiales = {};
     rows.forEach(function(r) {
-      var persona = (r.grado || (personalMapa[String(r.lp)]||{}).grado || '') + ' LP ' + r.lp + ' ' + r.apellido + ' ' + (r.nombre || (personalMapa[String(r.lp)]||{}).nombres || '');
+      var per = personalMapa[String(r.lp)] || {};
+      var persona = (r.grado || per.grado || '') + ' LP ' + r.lp + ' ' + (r.apellido || per.apellido || '') + ' ' + (r.nombre || per.nombres || '');
       if (r.estado === 'PRESENTE') {
         if (TIPOS_SIN_HORARIO.indexOf(r.tipo_presencia) !== -1) {
           (especiales[r.tipo_presencia] = especiales[r.tipo_presencia] || []).push(persona);
