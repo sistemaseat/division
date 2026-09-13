@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Servicios y Horarios — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* HEADER */
+  .header { background: var(--primary); color: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,0.35); flex-wrap: wrap; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo { width: 44px; height: 44px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: var(--primary); }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 14px; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border-radius: 12px; padding: 18px 20px; border-left: 4px solid; box-shadow: var(--shadow); transition: transform .12s, box-shadow .12s; }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-orange { border-left-color: var(--accent); }
+  .kpi.c-purple { border-left-color: var(--purple); }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-size: 30px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+  .kpi-sub   { font-size: 11px; color: var(--muted); }
+
+  /* SEARCH BAR / FORM CONTROLS */
+  .search-bar { background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow); }
+  .search-input-wrap { position: relative; flex: 1; min-width: 200px; }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; margin-bottom: 4px; display: block; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 2px; }
+  select, input[type="date"], input[type="text"], input[type="number"], textarea {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* TABLE */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+  .section-title .ico { font-size: 16px; }
+  .section-title-left { display: flex; align-items: center; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { background: var(--primary); color: white; padding: 10px 13px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.today-row td { background: #fff9c4; }
+  .action-col { white-space: nowrap; text-align: right; }
+  .action-col button { margin-left: 4px; }
+  .clickable { cursor: pointer; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+  .b-blue   { background: #e3f2fd; color: #0277bd; }
+  .b-gray   { background: #f5f5f5; color: #616161; }
+
+  /* SELECT INLINE (estado / agrega-resta editable directo desde la tabla) */
+  select.estado-inline {
+    border: 1.5px solid transparent; border-radius: 20px; padding: 3px 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer; appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 6px center; padding-right: 20px;
+  }
+  select.est-cumplido    { border-color: var(--green); background-color: #e8f5e9; color: var(--green); }
+  select.est-enproceso   { border-color: var(--blue);  background-color: #e3f2fd; color: var(--blue); }
+  select.est-norealizado { border-color: var(--red);   background-color: #ffebee; color: var(--red); }
+  select.est-agrega      { border-color: var(--green); background-color: #e8f5e9; color: var(--green); }
+  select.est-resta       { border-color: var(--red);   background-color: #ffebee; color: var(--red); }
+  select.est-vista       { border-color: #9e9e9e;      background-color: #f5f5f5; color: #616161; }
+  select.estado-inline:disabled { opacity: .6; cursor: wait; }
+
+  /* AUTOCOMPLETE */
+  .autocomplete-list {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+    max-height: 240px; overflow-y: auto; z-index: 9200; box-shadow: var(--shadow-lg); margin-top: 4px;
+  }
+  .autocomplete-list.show { display: block; }
+  .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: #f0f2f5; }
+  .autocomplete-item b { color: var(--primary); }
+  .autocomplete-item small { display: block; color: var(--muted); font-size: 11px; }
+  .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+
+  /* FORM */
+  .form-wrap { max-width: 980px; margin: 0 auto 18px; }
+  .form-card { background: var(--card); border-radius: 16px; padding: 26px; box-shadow: var(--shadow-lg); }
+  .form-card h2 { font-size: 17px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .form-card p  { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; }
+  .form-group textarea { resize: vertical; min-height: 56px; }
+  .required-star { color: var(--red); margin-left: 2px; }
+
+  /* PERSONAL SELECCIONADO */
+  .personal-preview {
+    grid-column: 1 / -1; display: none; background: #e8eaf6; border: 1.5px solid var(--primary);
+    border-radius: 10px; padding: 10px 16px; font-size: 13px; align-items: center; gap: 10px; justify-content: space-between;
+  }
+  .personal-preview.show { display: flex; }
+  .personal-preview b { color: var(--primary); }
+  .personal-preview .pp-quitar { background: none; border: none; color: var(--red); font-weight: 700; cursor: pointer; font-size: 12px; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  /* ALERT */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* NO DATA */
+  .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+  .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* MODAL (confirmación y detalle de persona) */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 640px; width: 96vw; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  .rank-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-pos { width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: white; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rank-name { flex: 1; font-size: 13px; }
+  .rank-name small { color: var(--muted); display: block; font-size: 11px; }
+  .rank-count { font-weight: 800; color: var(--primary); font-size: 14px; }
+
+  /* GRÁFICOS */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .chart-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .chart-card canvas { max-height: 280px; }
+
+  /* DASHBOARD GRID */
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  /* CONFIGURACIÓN — listas editables */
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .config-add-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .config-add-row input { flex: 1; }
+  .config-list { list-style: none; max-height: 440px; overflow-y: auto; }
+  .config-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .config-list li:last-child { border-bottom: none; }
+  .config-list li:hover { background: #f5f7fa; }
+  .config-list li .nombre { flex: 1; }
+  .config-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .config-hint { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+
+  @media (max-width: 1000px) { .dash-grid, .chart-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .config-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .header { padding: 12px 16px; }
+    .content { padding: 16px; }
+    .tabs { padding: 0 10px; }
+    .tab-btn { padding: 11px 14px; font-size: 12px; }
+    .form-card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<!-- MODAL: detalle de una persona (servicios u horas) -->
+<div class="modal-overlay" id="detalleModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="detalleModalTitulo">Detalle</div>
+      <button class="modal-close" onclick="document.getElementById('detalleModal').classList.remove('show')">✕</button>
+    </div>
+    <div id="detalleModalBody"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">🗓️</div>
+    <div>
+      <div class="brand-title">SERVICIOS Y HORARIOS</div>
+      <div class="brand-sub">Gestión de servicios y horas del personal</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="servicios" onclick="switchTab('servicios')">🚓 Servicios</button>
+  <button class="tab-btn" data-tab="horas" onclick="switchTab('horas')">⏱️ Horas</button>
+  <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Configuración</button>
+</nav>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">📅</span> Servicio(s) de hoy</div>
+      <div id="tablaHoyWrap"></div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="table-card">
+        <div class="section-title"><span class="ico">⏭️</span> Servicios más próximos</div>
+        <div id="tablaProximosWrap"></div>
+      </div>
+      <div class="table-card">
+        <div class="section-title"><span class="ico">🏆</span> Personal con más servicios cumplidos</div>
+        <div id="rankingWrap"></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="section-title"><span class="ico">📊</span> Servicios cumplidos por tipo</div>
+        <canvas id="chartTipos"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="section-title"><span class="ico">📈</span> Horas cargadas por semana</div>
+        <canvas id="chartSemanal"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">⚖️</span> Balance de horas por personal (Agrega − Resta)</div>
+      <div id="balanceWrap"></div>
+    </div>
+  </div>
+
+  <!-- ==================== SERVICIOS ==================== -->
+  <div class="tab-pane" id="pane-servicios">
+    <div class="form-wrap">
+      <div class="form-card">
+        <h2 id="servFormTitle">Nuevo servicio</h2>
+        <p>Buscá a la persona por LP, apellido o nombre — se busca en Nómina General, el padrón de toda la fuerza.</p>
+        <div class="form-grid">
+          <input type="hidden" id="servEditId">
+          <div class="form-group">
+            <label class="form-label">Fecha<span class="required-star">*</span></label>
+            <input type="date" id="servFecha">
+          </div>
+          <div class="form-group full" style="position:relative;">
+            <label class="form-label">Personal<span class="required-star">*</span></label>
+            <input type="text" id="servPersonalBusqueda" autocomplete="off" placeholder="Escribí LP, apellido o nombre (mínimo 3 caracteres)…"
+                   oninput="buscarPersonalForm('serv')" onblur="ocultarSugerenciasConDelay('servPersonalSuggest')">
+            <div class="autocomplete-list" id="servPersonalSuggest"></div>
+          </div>
+          <div class="personal-preview" id="servPersonalPreview">
+            <div id="servPersonalTexto"></div>
+            <button type="button" class="pp-quitar" onclick="limpiarPersonaForm('serv')">✕ Quitar</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Servicio<span class="required-star">*</span></label>
+            <select id="servTipo"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estado<span class="required-star">*</span></label>
+            <select id="servEstado">
+              <option value="EN PROCESO">EN PROCESO</option>
+              <option value="CUMPLIDO">CUMPLIDO</option>
+              <option value="NO REALIZADO">NO REALIZADO</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Observaciones</label>
+            <textarea id="servObs" placeholder="Opcional — horario, partido, aclaraciones…"></textarea>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="guardarServicio()">💾 Guardar</button>
+          <button class="btn btn-ghost" onclick="limpiarFormServicio()">↺ Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <div class="search-input-wrap">
+        <label class="ctrl-label">Buscar</label>
+        <input type="text" id="servBuscar" placeholder="🔎 LP, apellido, servicio, observaciones…" oninput="renderServicios()">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Estado</label>
+        <select id="servFiltroEstado" onchange="renderServicios()">
+          <option value="">Todos</option>
+          <option value="CUMPLIDO">CUMPLIDO</option>
+          <option value="EN PROCESO">EN PROCESO</option>
+          <option value="NO REALIZADO">NO REALIZADO</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Servicio</label>
+        <select id="servFiltroTipo" onchange="renderServicios()"><option value="">Todos</option></select>
+      </div>
+      <span class="count-pill" id="servCount">0</span>
+      <button class="btn btn-ghost btn-sm" onclick="exportarServiciosExcel()">📥 Exportar Excel</button>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🏆</span> Resumen por personal — servicios cumplidos (tocá una fila para ver el detalle)</div>
+      <div id="resumenServiciosWrap"></div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🚓</span> Todos los servicios</div>
+      <div id="tablaServiciosWrap"></div>
+    </div>
+  </div>
+
+  <!-- ==================== HORAS ==================== -->
+  <div class="tab-pane" id="pane-horas">
+    <div class="form-wrap">
+      <div class="form-card">
+        <h2 id="horaFormTitle">Nuevo registro de horas</h2>
+        <p>Buscá a la persona por LP, apellido o nombre — se busca en Nómina General, el padrón de toda la fuerza.</p>
+        <div class="form-grid">
+          <input type="hidden" id="horaEditId">
+          <div class="form-group">
+            <label class="form-label">Fecha<span class="required-star">*</span></label>
+            <input type="date" id="horaFecha">
+          </div>
+          <div class="form-group full" style="position:relative;">
+            <label class="form-label">Personal<span class="required-star">*</span></label>
+            <input type="text" id="horaPersonalBusqueda" autocomplete="off" placeholder="Escribí LP, apellido o nombre (mínimo 3 caracteres)…"
+                   oninput="buscarPersonalForm('hora')" onblur="ocultarSugerenciasConDelay('horaPersonalSuggest')">
+            <div class="autocomplete-list" id="horaPersonalSuggest"></div>
+          </div>
+          <div class="personal-preview" id="horaPersonalPreview">
+            <div id="horaPersonalTexto"></div>
+            <button type="button" class="pp-quitar" onclick="limpiarPersonaForm('hora')">✕ Quitar</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Motivo<span class="required-star">*</span></label>
+            <select id="horaMotivo"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Agrega / Resta</label>
+            <select id="horaTipo">
+              <option value="AGREGA">AGREGA</option>
+              <option value="RESTA">RESTA</option>
+              <option value="">— Solo a modo de vista —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cantidad (horas)<span class="required-star">*</span></label>
+            <input type="number" id="horaCantidad" min="0" step="1">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Observaciones</label>
+            <textarea id="horaObs" placeholder="Opcional"></textarea>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="guardarHora()">💾 Guardar</button>
+          <button class="btn btn-ghost" onclick="limpiarFormHora()">↺ Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <div class="search-input-wrap">
+        <label class="ctrl-label">Buscar</label>
+        <input type="text" id="horaBuscar" placeholder="🔎 LP, apellido, motivo, observaciones…" oninput="renderHoras()">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Tipo</label>
+        <select id="horaFiltroTipo" onchange="renderHoras()">
+          <option value="">Todos</option>
+          <option value="AGREGA">AGREGA</option>
+          <option value="RESTA">RESTA</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Motivo</label>
+        <select id="horaFiltroMotivo" onchange="renderHoras()"><option value="">Todos</option></select>
+      </div>
+      <span class="count-pill" id="horaCount">0</span>
+      <button class="btn btn-ghost btn-sm" onclick="exportarHorasExcel()">📥 Exportar Excel</button>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🏆</span> Resumen por personal — balance de horas, de mayor a menor (tocá una fila para ver el detalle)</div>
+      <div id="resumenHorasWrap"></div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">⏱️</span> Todos los registros de horas</div>
+      <div id="tablaHorasWrap"></div>
+    </div>
+  </div>
+
+  <!-- ==================== CONFIGURACIÓN ==================== -->
+  <div class="tab-pane" id="pane-config">
+    <div class="config-grid">
+      <div class="table-card">
+        <div class="section-title"><span class="ico">🚓</span> Tipos de servicio</div>
+        <div class="config-hint">El check "Cuenta en el ranking" decide si ese tipo suma en el resumen de "servicios cumplidos" por persona del Dashboard y de la pestaña Servicios — por ejemplo COMPLEMENTARIA no cuenta, porque es un servicio aparte pago por el club, no un servicio ordinario de la fuerza.</div>
+        <div class="config-add-row">
+          <input type="text" id="nuevoTipo" placeholder="Nombre del tipo de servicio">
+          <button class="btn btn-primary btn-sm" onclick="agregarConfigTipo()">➕ Agregar</button>
+        </div>
+        <ul class="config-list" id="listaConfigTipos"></ul>
+      </div>
+      <div class="table-card">
+        <div class="section-title"><span class="ico">⏱️</span> Motivos de horas</div>
+        <div class="config-hint">El check "Suma cuando es AGREGA" decide si una carga AGREGA de ese motivo suma al balance de horas de la persona. Destildalo para un motivo que se registra solo para llevar la cuenta (por ejemplo CANCHA COMPLEMENTARIA) — una carga RESTA de ese mismo motivo siempre resta, tenga o no tildado este check.</div>
+        <div class="config-add-row">
+          <input type="text" id="nuevoMotivo" placeholder="Nombre del motivo">
+          <button class="btn btn-primary btn-sm" onclick="agregarConfigMotivo()">➕ Agregar</button>
+        </div>
+        <ul class="config-list" id="listaConfigMotivos"></ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- /appRoot -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var registros = [];          // servicios_registros crudos
+  var horas = [];               // servicios_horas crudos
+  var configTipos = [];         // [{nombre, cuenta_en_ranking}]
+  var configMotivos = [];       // [{nombre, cuenta_si_agrega}]
+  var personalMapa = {};        // legajo -> {grado, apellido, nombre} (solo de los legajos usados acá)
+  var _formSel = { serv: null, hora: null };   // persona elegida en cada formulario, antes de guardar
+  var _personalDebounce = {};
+  var _personalResultados = { serv: [], hora: [] };
+  var _editContext = { serv: null, hora: null }; // id del registro en edición, o null si es alta nueva
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo !== 'error') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+  }
+
+  function ocultarSugerenciasConDelay(listId) {
+    setTimeout(function() { var el = document.getElementById(listId); if (el) el.classList.remove('show'); }, 150);
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que el resto del sitio: el login se
+  // hace en la portada (index.html); acá solo se verifica la sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarTodo();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarTodo() {
+    showLoading('Cargando datos…');
+    try {
+      await Promise.all([cargarConfig(), cargarServicios(), cargarHoras()]);
+      await cargarPersonalUsado();
+      poblarSelectsDeConfig();
+      renderDashboard();
+      renderServicios();
+      renderHoras();
+      renderConfigLists();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function cargarConfig() {
+    var r1 = await supabaseClient.from('servicios_config_tipos').select('nombre,cuenta_en_ranking').order('nombre');
+    var r2 = await supabaseClient.from('servicios_config_motivos').select('nombre,cuenta_si_agrega').order('nombre');
+    if (r1.error) throw r1.error;
+    if (r2.error) throw r2.error;
+    configTipos = r1.data || [];
+    configMotivos = r2.data || [];
+  }
+
+  async function cargarServicios() {
+    var res = await supabaseClient.from('servicios_registros').select('*').order('fecha', { ascending: false });
+    if (res.error) throw res.error;
+    registros = res.data || [];
+  }
+
+  async function cargarHoras() {
+    var res = await supabaseClient.from('servicios_horas').select('*').order('fecha', { ascending: false });
+    if (res.error) throw res.error;
+    horas = res.data || [];
+  }
+
+  // Trae de Nómina General SOLO los legajos que efectivamente aparecen acá
+  // (en vez de precargar el padrón entero, que tiene más de 46.000 filas).
+  async function cargarPersonalUsado() {
+    var set = {};
+    registros.forEach(function(r){ if (r.legajo) set[r.legajo] = true; });
+    horas.forEach(function(r){ if (r.legajo) set[r.legajo] = true; });
+    var legajos = Object.keys(set);
+    personalMapa = {};
+    if (!legajos.length) return;
+    // Se pide de a tandas de 200 por si el padrón usado creciera mucho.
+    for (var i = 0; i < legajos.length; i += 200) {
+      var tanda = legajos.slice(i, i + 200);
+      var res = await supabaseClient.from('nomina_general').select('legajo,grado,apellido,nombre').in('legajo', tanda);
+      if (res.error) { console.error('Error al traer personal: ', res.error); continue; }
+      (res.data || []).forEach(function(p) { personalMapa[p.legajo] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombre || '' }; });
+    }
+  }
+
+  function personaDe(legajo) { return personalMapa[legajo] || { grado: '', apellido: '(no encontrado en Nómina General)', nombre: '' }; }
+
+  function poblarSelectsDeConfig() {
+    var tiposHtml = configTipos.map(function(t){ return '<option value="'+esc(t.nombre)+'">'+esc(t.nombre)+'</option>'; }).join('');
+    document.getElementById('servTipo').innerHTML = tiposHtml;
+    document.getElementById('servFiltroTipo').innerHTML = '<option value="">Todos</option>' + tiposHtml;
+
+    var motivosHtml = configMotivos.map(function(m){ return '<option value="'+esc(m.nombre)+'">'+esc(m.nombre)+'</option>'; }).join('');
+    document.getElementById('horaMotivo').innerHTML = motivosHtml;
+    document.getElementById('horaFiltroMotivo').innerHTML = '<option value="">Todos</option>' + motivosHtml;
+  }
+
+  function tipoCuentaEnRanking(nombre) {
+    var t = configTipos.find(function(x){ return x.nombre === nombre; });
+    return t ? !!t.cuenta_en_ranking : true;
+  }
+  function motivoCuentaSiAgrega(nombre) {
+    var m = configMotivos.find(function(x){ return x.nombre === nombre; });
+    return m ? !!m.cuenta_si_agrega : true;
+  }
+
+  // ============================================================
+  // BUSCADOR DE PERSONAL (Nómina General) — igual criterio que
+  // Idoneidades: búsqueda con debounce contra el padrón completo de la
+  // fuerza, en vez de precargarlo entero o depender de una planilla
+  // aparte como hacía la versión Apps Script.
+  // ============================================================
+  function buscarPersonalForm(scope) {
+    var q = document.getElementById(scope+'PersonalBusqueda').value.trim();
+    var listEl = document.getElementById(scope+'PersonalSuggest');
+    clearTimeout(_personalDebounce[scope]);
+    if (q.length < 3) {
+      listEl.innerHTML = q.length ? '<div class="autocomplete-empty">Escribí al menos 3 caracteres</div>' : '';
+      listEl.classList.toggle('show', q.length > 0);
+      return;
+    }
+    listEl.innerHTML = '<div class="autocomplete-empty">Buscando…</div>';
+    listEl.classList.add('show');
+    _personalDebounce[scope] = setTimeout(async function() {
+      var qEsc = q.replace(/[%_,]/g, '');
+      var res = await supabaseClient.from('nomina_general')
+        .select('legajo,grado,apellido,nombre')
+        .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
+        .limit(10);
+      if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+      var matches = res.data || [];
+      _personalResultados[scope] = matches;
+      if (!matches.length) {
+        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en Nómina General</div>';
+      } else {
+        // Se guarda cada resultado en _personalResultados y se pasa solo el
+        // índice al onmousedown (nada de JSON en el atributo HTML).
+        listEl.innerHTML = matches.map(function(p, i) {
+          return '<div class="autocomplete-item" onmousedown="seleccionarPersonaForm(\''+scope+'\','+i+')">' +
+            '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b><small>LP '+esc(p.legajo)+' — '+esc(p.grado)+'</small></div>';
+        }).join('');
+      }
+      listEl.classList.add('show');
+    }, 400);
+  }
+  function seleccionarPersonaForm(scope, idx) {
+    var p = _personalResultados[scope][idx];
+    if (!p) return;
+    _formSel[scope] = p;
+    personalMapa[p.legajo] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombre || '' };
+    document.getElementById(scope+'PersonalBusqueda').value = '';
+    document.getElementById(scope+'PersonalSuggest').classList.remove('show');
+    document.getElementById(scope+'PersonalTexto').innerHTML = '<b>'+esc(p.grado)+'</b> — LP '+esc(p.legajo)+' — '+esc(p.apellido)+', '+esc(p.nombre);
+    document.getElementById(scope+'PersonalPreview').classList.add('show');
+  }
+  function limpiarPersonaForm(scope) {
+    _formSel[scope] = null;
+    document.getElementById(scope+'PersonalPreview').classList.remove('show');
+    document.getElementById(scope+'PersonalBusqueda').value = '';
+  }
+
+  // ============================================================
+  // DASHBOARD
+  // ============================================================
+  var _chartTipos = null, _chartSemanal = null;
+
+  function computeRankingServicios() {
+    var map = {};
+    registros.forEach(function(r) {
+      if (r.estado !== 'CUMPLIDO') return;
+      if (!tipoCuentaEnRanking(r.tipo)) return;
+      if (!map[r.legajo]) map[r.legajo] = { legajo: r.legajo, cantidad: 0 };
+      map[r.legajo].cantidad++;
+    });
+    return Object.keys(map).map(function(k){ return map[k]; }).sort(function(a,b){ return b.cantidad - a.cantidad; });
+  }
+
+  function computeBalanceHoras() {
+    var map = {};
+    horas.forEach(function(r) {
+      if (!map[r.legajo]) map[r.legajo] = { legajo: r.legajo, balance: 0, cargas: 0 };
+      map[r.legajo].cargas++;
+      if (r.agrega_resta === 'RESTA') { map[r.legajo].balance -= Number(r.cantidad || 0); return; }
+      if (r.agrega_resta === 'AGREGA') {
+        if (!motivoCuentaSiAgrega(r.motivo)) return; // solo a modo de vista, no suma
+        map[r.legajo].balance += Number(r.cantidad || 0);
+      }
+      // agrega_resta vacío/null: siempre a modo de vista, no afecta el balance
+    });
+    return Object.keys(map).map(function(k){ return map[k]; }).sort(function(a,b){ return b.balance - a.balance; });
+  }
+
+  function renderDashboard() {
+    var hoy = isoDate(new Date());
+    var delDia = registros.filter(function(r){ return r.fecha === hoy; });
+    var en7dias = new Date(); en7dias.setDate(en7dias.getDate() + 7);
+    var limite = isoDate(en7dias);
+    var proximos = registros.filter(function(r){ return r.fecha >= hoy && r.fecha <= limite; })
+      .sort(function(a,b){ return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0; });
+
+    document.getElementById('kpiGrid').innerHTML =
+      '<div class="kpi c-blue"><div class="kpi-label">Total Servicios</div><div class="kpi-val">'+registros.length+'</div><div class="kpi-sub">registros cargados</div></div>' +
+      '<div class="kpi c-green"><div class="kpi-label">Total Horas</div><div class="kpi-val">'+horas.length+'</div><div class="kpi-sub">registros cargados</div></div>' +
+      '<div class="kpi c-orange"><div class="kpi-label">Servicio(s) de hoy</div><div class="kpi-val">'+delDia.length+'</div><div class="kpi-sub">'+fmtFecha(hoy)+'</div></div>' +
+      '<div class="kpi c-purple"><div class="kpi-label">Próximos (7 días)</div><div class="kpi-val">'+proximos.length+'</div><div class="kpi-sub">servicios programados</div></div>';
+
+    var wrapHoy = document.getElementById('tablaHoyWrap');
+    if (!delDia.length) {
+      wrapHoy.innerHTML = '<div class="no-data"><div class="no-data-icon">😌</div><div class="no-data-text">No hay servicios programados para hoy</div></div>';
+    } else {
+      var h = '<table><thead><tr><th>LP</th><th>Grado</th><th>Apellido y Nombre</th><th>Servicio</th><th>Estado</th></tr></thead><tbody>';
+      delDia.forEach(function(r) {
+        var p = personaDe(r.legajo);
+        var badge = r.estado === 'CUMPLIDO' ? 'b-green' : r.estado === 'EN PROCESO' ? 'b-blue' : 'b-red';
+        h += '<tr><td>'+esc(r.legajo)+'</td><td>'+esc(p.grado)+'</td><td>'+esc(p.apellido)+', '+esc(p.nombre)+'</td><td>'+esc(r.tipo)+'</td><td><span class="badge '+badge+'">'+esc(r.estado)+'</span></td></tr>';
+      });
+      h += '</tbody></table>';
+      wrapHoy.innerHTML = h;
+    }
+
+    var wrapProx = document.getElementById('tablaProximosWrap');
+    var proximosTop = proximos.slice(0, 10);
+    if (!proximosTop.length) {
+      wrapProx.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">No hay servicios próximos</div></div>';
+    } else {
+      var pr = '<table><thead><tr><th>Fecha</th><th>LP</th><th>Apellido y Nombre</th><th>Servicio</th></tr></thead><tbody>';
+      proximosTop.forEach(function(r) {
+        var p = personaDe(r.legajo);
+        pr += '<tr><td>'+fmtFecha(r.fecha)+'</td><td>'+esc(r.legajo)+'</td><td>'+esc(p.apellido)+', '+esc(p.nombre)+'</td><td>'+esc(r.tipo)+'</td></tr>';
+      });
+      pr += '</tbody></table>';
+      wrapProx.innerHTML = pr;
+    }
+
+    var ranking = computeRankingServicios().slice(0, 10);
+    var wrapRank = document.getElementById('rankingWrap');
+    if (!ranking.length) {
+      wrapRank.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin datos</div></div>';
+    } else {
+      var rk = '';
+      ranking.forEach(function(r, i) {
+        var p = personaDe(r.legajo);
+        rk += '<div class="rank-row"><div class="rank-pos">'+(i+1)+'</div><div class="rank-name">'+esc(p.apellido)+', '+esc(p.nombre)+'<small>LP '+esc(r.legajo)+' — '+esc(p.grado)+'</small></div><div class="rank-count">'+r.cantidad+'</div></div>';
+      });
+      wrapRank.innerHTML = rk;
+    }
+
+    var balance = computeBalanceHoras();
+    var wrapBal = document.getElementById('balanceWrap');
+    if (!balance.length) {
+      wrapBal.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin datos</div></div>';
+    } else {
+      var b = '<table><thead><tr><th>LP</th><th>Grado</th><th>Apellido y Nombre</th><th>Balance de horas</th></tr></thead><tbody>';
+      balance.forEach(function(r) {
+        var p = personaDe(r.legajo);
+        var badge = r.balance > 0 ? 'b-green' : r.balance < 0 ? 'b-red' : 'b-gray';
+        b += '<tr><td>'+esc(r.legajo)+'</td><td>'+esc(p.grado)+'</td><td>'+esc(p.apellido)+', '+esc(p.nombre)+'</td><td><span class="badge '+badge+'">'+(r.balance>0?'+':'')+r.balance+' hs</span></td></tr>';
+      });
+      b += '</tbody></table>';
+      wrapBal.innerHTML = b;
+    }
+
+    renderChartTipos();
+    renderChartSemanal();
+  }
+
+  function renderChartTipos() {
+    var porTipo = {};
+    registros.forEach(function(r) {
+      if (r.estado !== 'CUMPLIDO') return;
+      porTipo[r.tipo] = (porTipo[r.tipo] || 0) + 1;
+    });
+    var top = Object.keys(porTipo).map(function(k){ return { k:k, v:porTipo[k] }; }).sort(function(a,b){ return b.v - a.v; });
+    var ctx = document.getElementById('chartTipos').getContext('2d');
+    if (_chartTipos) _chartTipos.destroy();
+    _chartTipos = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: top.map(function(t){ return t.k; }), datasets: [{ label: 'Cumplidos', data: top.map(function(t){ return t.v; }), backgroundColor: '#1a237e' }] },
+      options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+
+  function mondayOf(d) {
+    var r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var day = r.getDay();
+    r.setDate(r.getDate() + (day === 0 ? -6 : 1 - day));
+    return r;
+  }
+  function fmtFechaCorta(d) { return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); }
+
+  function renderChartSemanal() {
+    var hoy = new Date();
+    var semanaActual = mondayOf(hoy);
+    var semanas = [];
+    for (var i = 9; i >= 0; i--) {
+      var inicio = new Date(semanaActual); inicio.setDate(inicio.getDate() - i*7);
+      var fin = new Date(inicio); fin.setDate(fin.getDate() + 6);
+      semanas.push({ inicio: isoDate(inicio), fin: isoDate(fin), label: fmtFechaCorta(inicio) });
+    }
+    var totales = semanas.map(function(s) {
+      return horas.filter(function(r){ return r.fecha >= s.inicio && r.fecha <= s.fin; })
+        .reduce(function(sum,r){ return sum + Number(r.cantidad||0); }, 0);
+    });
+    var ctx = document.getElementById('chartSemanal').getContext('2d');
+    if (_chartSemanal) _chartSemanal.destroy();
+    _chartSemanal = new Chart(ctx, {
+      type: 'line',
+      data: { labels: semanas.map(function(s){ return s.label; }), datasets: [{ label: 'Horas cargadas', data: totales, borderColor: '#0277bd', backgroundColor: 'rgba(2,119,189,.15)', fill: true, tension: .25 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  function abrirDetalleModal(titulo, bodyHtml) {
+    document.getElementById('detalleModalTitulo').textContent = titulo;
+    document.getElementById('detalleModalBody').innerHTML = bodyHtml;
+    document.getElementById('detalleModal').classList.add('show');
+  }
+
+  // ============================================================
+  // SERVICIOS
+  // ============================================================
+  function renderServicios() {
+    var q = (document.getElementById('servBuscar').value || '').toLowerCase();
+    var fEstado = document.getElementById('servFiltroEstado').value;
+    var fTipo = document.getElementById('servFiltroTipo').value;
+    var hoy = isoDate(new Date());
+
+    var filtrados = registros.filter(function(r) {
+      if (fEstado && r.estado !== fEstado) return false;
+      if (fTipo && r.tipo !== fTipo) return false;
+      if (!q) return true;
+      var p = personaDe(r.legajo);
+      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.tipo, r.estado, r.observaciones].join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+
+    document.getElementById('servCount').textContent = filtrados.length + ' de ' + registros.length;
+
+    var wrap = document.getElementById('tablaServiciosWrap');
+    if (!filtrados.length) {
+      wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin registros</div></div>';
+    } else {
+      var html = '<table><thead><tr>' +
+        '<th>Fecha</th><th>LP</th><th>Grado</th><th>Apellido y Nombre</th><th>Servicio</th><th>Estado</th><th>Observaciones</th><th class="action-col">Acciones</th>' +
+        '</tr></thead><tbody>';
+      filtrados.forEach(function(r) {
+        var p = personaDe(r.legajo);
+        var cls = r.estado === 'CUMPLIDO' ? 'est-cumplido' : r.estado === 'EN PROCESO' ? 'est-enproceso' : 'est-norealizado';
+        html += '<tr class="'+(r.fecha === hoy ? 'today-row' : '')+'">' +
+          '<td>'+fmtFecha(r.fecha)+'</td>' +
+          '<td>'+esc(r.legajo)+'</td>' +
+          '<td>'+esc(p.grado)+'</td>' +
+          '<td class="clickable" onclick="verDetalleServicios(\''+esc(r.legajo)+'\')" style="color:var(--primary);font-weight:600;">'+esc(p.apellido)+', '+esc(p.nombre)+'</td>' +
+          '<td>'+esc(r.tipo)+'</td>' +
+          '<td><select class="estado-inline '+cls+'" onchange="cambiarEstadoServicio(\''+r.id+'\',this.value,this)">' +
+            ['EN PROCESO','CUMPLIDO','NO REALIZADO'].map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
+          '</select></td>' +
+          '<td>'+esc(r.observaciones)+'</td>' +
+          '<td class="action-col">' +
+            '<button class="btn btn-ghost btn-sm" onclick="editarServicio(\''+r.id+'\')">✏️</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarServicio(\''+r.id+'\')">🗑️</button>' +
+          '</td></tr>';
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+    }
+    renderResumenServicios();
+  }
+
+  function renderResumenServicios() {
+    var resumen = computeRankingServicios();
+    var wrap = document.getElementById('resumenServiciosWrap');
+    if (!resumen.length) {
+      wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin datos</div></div>';
+      return;
+    }
+    var html = '<table><thead><tr><th>#</th><th>LP</th><th>Grado</th><th>Apellido y Nombre</th><th>Cantidad de servicios</th></tr></thead><tbody>';
+    resumen.forEach(function(r, i) {
+      var p = personaDe(r.legajo);
+      html += '<tr class="clickable" onclick="verDetalleServicios(\''+esc(r.legajo)+'\')">' +
+        '<td>'+(i+1)+'</td><td>'+esc(r.legajo)+'</td><td>'+esc(p.grado)+'</td>' +
+        '<td>'+esc(p.apellido)+', '+esc(p.nombre)+'</td><td><b>'+r.cantidad+'</b></td></tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  function verDetalleServicios(legajo) {
+    var regs = registros.filter(function(r){ return String(r.legajo) === String(legajo); });
+    if (!regs.length) return;
+    var p = personaDe(legajo);
+    var cumplidos = regs.filter(function(r){ return r.estado === 'CUMPLIDO' && tipoCuentaEnRanking(r.tipo); }).length;
+    var html = '<div style="margin-bottom:14px;font-size:13px;color:var(--muted)">LP <b>'+esc(legajo)+'</b> — '+esc(p.grado)+' — Cumplidos en el ranking: <b>'+cumplidos+'</b> de '+regs.length+' registro(s) total</div>';
+    html += '<table><thead><tr><th>Fecha</th><th>Servicio</th><th>Estado</th><th>Observaciones</th></tr></thead><tbody>';
+    regs.sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; }).forEach(function(r) {
+      var badge = r.estado === 'CUMPLIDO' ? 'b-green' : r.estado === 'EN PROCESO' ? 'b-blue' : 'b-red';
+      html += '<tr><td>'+fmtFecha(r.fecha)+'</td><td>'+esc(r.tipo)+'</td><td><span class="badge '+badge+'">'+esc(r.estado)+'</span></td><td>'+esc(r.observaciones)+'</td></tr>';
+    });
+    html += '</tbody></table>';
+    abrirDetalleModal(esc(p.apellido)+', '+esc(p.nombre)+' — LP '+esc(legajo), html);
+  }
+
+  async function cambiarEstadoServicio(id, nuevoEstado, selectEl) {
+    selectEl.disabled = true;
+    try {
+      var res = await supabaseClient.from('servicios_registros').update({ estado: nuevoEstado }).eq('id', id);
+      if (res.error) throw res.error;
+      var r = registros.find(function(x){ return x.id === id; });
+      if (r) r.estado = nuevoEstado;
+      selectEl.className = 'estado-inline ' + (nuevoEstado === 'CUMPLIDO' ? 'est-cumplido' : nuevoEstado === 'EN PROCESO' ? 'est-enproceso' : 'est-norealizado');
+      alertShow('topAlert', 'success', '✅ Estado actualizado.');
+      renderResumenServicios();
+      renderDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cambiar el estado: ' + (e.message || e));
+      renderServicios();
+    } finally {
+      selectEl.disabled = false;
+    }
+  }
+
+  function limpiarFormServicio() {
+    _editContext.serv = null;
+    document.getElementById('servEditId').value = '';
+    document.getElementById('servFecha').value = '';
+    document.getElementById('servTipo').selectedIndex = 0;
+    document.getElementById('servEstado').value = 'EN PROCESO';
+    document.getElementById('servObs').value = '';
+    limpiarPersonaForm('serv');
+    document.getElementById('servFormTitle').textContent = 'Nuevo servicio';
+  }
+
+  function editarServicio(id) {
+    var r = registros.find(function(x){ return x.id === id; });
+    if (!r) return;
+    _editContext.serv = id;
+    document.getElementById('servEditId').value = id;
+    document.getElementById('servFecha').value = r.fecha;
+    document.getElementById('servTipo').value = r.tipo;
+    document.getElementById('servEstado').value = r.estado;
+    document.getElementById('servObs').value = r.observaciones || '';
+    var p = personaDe(r.legajo);
+    _formSel.serv = { legajo: r.legajo, grado: p.grado, apellido: p.apellido, nombre: p.nombre };
+    document.getElementById('servPersonalTexto').innerHTML = '<b>'+esc(p.grado)+'</b> — LP '+esc(r.legajo)+' — '+esc(p.apellido)+', '+esc(p.nombre);
+    document.getElementById('servPersonalPreview').classList.add('show');
+    document.getElementById('servFormTitle').textContent = 'Editando servicio';
+    switchTab('servicios');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function guardarServicio() {
+    var fecha = document.getElementById('servFecha').value;
+    var tipo = document.getElementById('servTipo').value;
+    var estado = document.getElementById('servEstado').value;
+    var obs = document.getElementById('servObs').value.trim();
+    var persona = _formSel.serv;
+    if (!fecha || !persona || !tipo || !estado) {
+      alertShow('topAlert', 'error', 'Completá fecha, personal, servicio y estado.');
+      return;
+    }
+    var entry = { fecha: fecha, legajo: persona.legajo, tipo: tipo, estado: estado, observaciones: obs || null };
+    showLoading('Guardando servicio…');
+    try {
+      var res = _editContext.serv
+        ? await supabaseClient.from('servicios_registros').update(entry).eq('id', _editContext.serv)
+        : await supabaseClient.from('servicios_registros').insert(entry);
+      if (res.error) throw res.error;
+      alertShow('topAlert', 'success', '✅ Servicio guardado correctamente.');
+      limpiarFormServicio();
+      await cargarServicios();
+      await cargarPersonalUsado();
+      renderServicios();
+      renderDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarServicio(id) {
+    showConfirm('¿Eliminar este registro de servicio? No se puede deshacer.', function(){ eliminarServicio(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
+  async function eliminarServicio(id) {
+    showLoading('Eliminando…');
+    try {
+      var res = await supabaseClient.from('servicios_registros').delete().eq('id', id);
+      if (res.error) throw res.error;
+      await cargarServicios();
+      renderServicios();
+      renderDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function exportarServiciosExcel() {
+    var q = (document.getElementById('servBuscar').value || '').toLowerCase();
+    var fEstado = document.getElementById('servFiltroEstado').value;
+    var fTipo = document.getElementById('servFiltroTipo').value;
+    var filtrados = registros.filter(function(r) {
+      if (fEstado && r.estado !== fEstado) return false;
+      if (fTipo && r.tipo !== fTipo) return false;
+      if (!q) return true;
+      var p = personaDe(r.legajo);
+      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.tipo, r.estado, r.observaciones].join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+    if (!filtrados.length) { alertShow('topAlert', 'error', 'No hay filas para exportar con este filtro.'); return; }
+    showLoading('Generando Excel…');
+    try {
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('Servicios');
+      ws.columns = [
+        { header: 'Fecha', key: 'fecha', width: 12 },
+        { header: 'LP', key: 'lp', width: 10 },
+        { header: 'Grado', key: 'grado', width: 18 },
+        { header: 'Apellido', key: 'apellido', width: 20 },
+        { header: 'Nombre', key: 'nombre', width: 20 },
+        { header: 'Servicio', key: 'tipo', width: 24 },
+        { header: 'Estado', key: 'estado', width: 14 },
+        { header: 'Observaciones', key: 'obs', width: 40 }
+      ];
+      ws.getRow(1).font = { bold: true };
+      filtrados.forEach(function(r) {
+        var p = personaDe(r.legajo);
+        ws.addRow({ fecha: fmtFecha(r.fecha), lp: r.legajo, grado: p.grado, apellido: p.apellido, nombre: p.nombre, tipo: r.tipo, estado: r.estado, obs: r.observaciones || '' });
+      });
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'servicios_' + isoDate(new Date()) + '.xlsx';
+      a.click();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al generar el Excel: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // HORAS
+  // ============================================================
+  function renderHoras() {
+    var q = (document.getElementById('horaBuscar').value || '').toLowerCase();
+    var fTipo = document.getElementById('horaFiltroTipo').value;
+    var fMotivo = document.getElementById('horaFiltroMotivo').value;
+
+    var filtrados = horas.filter(function(r) {
+      if (fTipo && r.agrega_resta !== fTipo) return false;
+      if (fMotivo && r.motivo !== fMotivo) return false;
+      if (!q) return true;
+      var p = personaDe(r.legajo);
+      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.motivo, r.observaciones].join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+
+    document.getElementById('horaCount').textContent = filtrados.length + ' de ' + horas.length;
+
+    var wrap = document.getElementById('tablaHorasWrap');
+    if (!filtrados.length) {
+      wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin registros</div></div>';
+    } else {
+      var html = '<table><thead><tr>' +
+        '<th>Fecha</th><th>LP</th><th>Grado</th><th>Apellido y Nombre</th><th>Motivo</th><th>Tipo</th><th>Cant.</th><th>Observaciones</th><th class="action-col">Acciones</th>' +
+        '</tr></thead><tbody>';
+      filtrados.forEach(function(r) {
+        var p = personaDe(r.legajo);
+        var cls = r.agrega_resta === 'RESTA' ? 'est-resta' : r.agrega_resta === 'AGREGA' ? 'est-agrega' : 'est-vista';
+        html += '<tr>' +
+          '<td>'+fmtFecha(r.fecha)+'</td>' +
+          '<td>'+esc(r.legajo)+'</td>' +
+          '<td>'+esc(p.grado)+'</td>' +
+          '<td class="clickable" onclick="verDetalleHoras(\''+esc(r.legajo)+'\')" style="color:var(--primary);font-weight:600;">'+esc(p.apellido)+', '+esc(p.nombre)+'</td>' +
+          '<td>'+esc(r.motivo)+'</td>' +
+          '<td><select class="estado-inline '+cls+'" onchange="cambiarTipoHora(\''+r.id+'\',this.value,this)">' +
+            '<option value="AGREGA"'+(r.agrega_resta==='AGREGA'?' selected':'')+'>AGREGA</option>' +
+            '<option value="RESTA"'+(r.agrega_resta==='RESTA'?' selected':'')+'>RESTA</option>' +
+            '<option value=""'+(!r.agrega_resta?' selected':'')+'>— Vista —</option>' +
+          '</select></td>' +
+          '<td>'+esc(r.cantidad)+'</td>' +
+          '<td>'+esc(r.observaciones)+'</td>' +
+          '<td class="action-col">' +
+            '<button class="btn btn-ghost btn-sm" onclick="editarHora(\''+r.id+'\')">✏️</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarHora(\''+r.id+'\')">🗑️</button>' +
+          '</td></tr>';
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+    }
+    renderResumenHoras();
+  }
+
+  function renderResumenHoras() {
+    var resumen = computeBalanceHoras();
+    var wrap = document.getElementById('resumenHorasWrap');
+    if (!resumen.length) {
+      wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">Sin datos</div></div>';
+      return;
+    }
+    var html = '<table><thead><tr><th>#</th><th>LP</th><th>Grado</th><th>Apellido y Nombre</th><th>Cargas</th><th>Balance de horas</th></tr></thead><tbody>';
+    resumen.forEach(function(r, i) {
+      var p = personaDe(r.legajo);
+      var badge = r.balance > 0 ? 'b-green' : r.balance < 0 ? 'b-red' : 'b-gray';
+      html += '<tr class="clickable" onclick="verDetalleHoras(\''+esc(r.legajo)+'\')">' +
+        '<td>'+(i+1)+'</td><td>'+esc(r.legajo)+'</td><td>'+esc(p.grado)+'</td>' +
+        '<td>'+esc(p.apellido)+', '+esc(p.nombre)+'</td><td>'+r.cargas+'</td>' +
+        '<td><span class="badge '+badge+'">'+(r.balance>0?'+':'')+r.balance+' hs</span></td></tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  function verDetalleHoras(legajo) {
+    var regs = horas.filter(function(r){ return String(r.legajo) === String(legajo); });
+    if (!regs.length) return;
+    var p = personaDe(legajo);
+    var bal = computeBalanceHoras().find(function(r){ return String(r.legajo) === String(legajo); });
+    var html = '<div style="margin-bottom:14px;font-size:13px;color:var(--muted)">LP <b>'+esc(legajo)+'</b> — '+esc(p.grado)+' — Balance total: <b>'+(bal && bal.balance>0?'+':'')+(bal?bal.balance:0)+' hs</b> ('+regs.length+' carga(s))</div>';
+    html += '<table><thead><tr><th>Fecha</th><th>Motivo</th><th>Tipo</th><th>Cant.</th><th>Observaciones</th></tr></thead><tbody>';
+    regs.sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; }).forEach(function(r) {
+      var badge = r.agrega_resta === 'RESTA' ? 'b-red' : r.agrega_resta === 'AGREGA' ? 'b-green' : 'b-gray';
+      html += '<tr><td>'+fmtFecha(r.fecha)+'</td><td>'+esc(r.motivo)+'</td><td><span class="badge '+badge+'">'+esc(r.agrega_resta || 'Vista')+'</span></td><td>'+esc(r.cantidad)+'</td><td>'+esc(r.observaciones)+'</td></tr>';
+    });
+    html += '</tbody></table>';
+    abrirDetalleModal(esc(p.apellido)+', '+esc(p.nombre)+' — LP '+esc(legajo), html);
+  }
+
+  async function cambiarTipoHora(id, nuevoValor, selectEl) {
+    selectEl.disabled = true;
+    try {
+      var res = await supabaseClient.from('servicios_horas').update({ agrega_resta: nuevoValor || null }).eq('id', id);
+      if (res.error) throw res.error;
+      var r = horas.find(function(x){ return x.id === id; });
+      if (r) r.agrega_resta = nuevoValor || null;
+      selectEl.className = 'estado-inline ' + (nuevoValor === 'RESTA' ? 'est-resta' : nuevoValor === 'AGREGA' ? 'est-agrega' : 'est-vista');
+      alertShow('topAlert', 'success', '✅ Actualizado.');
+      renderResumenHoras();
+      renderDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al actualizar: ' + (e.message || e));
+      renderHoras();
+    } finally {
+      selectEl.disabled = false;
+    }
+  }
+
+  function limpiarFormHora() {
+    _editContext.hora = null;
+    document.getElementById('horaEditId').value = '';
+    document.getElementById('horaFecha').value = '';
+    document.getElementById('horaMotivo').selectedIndex = 0;
+    document.getElementById('horaTipo').value = 'AGREGA';
+    document.getElementById('horaCantidad').value = '';
+    document.getElementById('horaObs').value = '';
+    limpiarPersonaForm('hora');
+    document.getElementById('horaFormTitle').textContent = 'Nuevo registro de horas';
+  }
+
+  function editarHora(id) {
+    var r = horas.find(function(x){ return x.id === id; });
+    if (!r) return;
+    _editContext.hora = id;
+    document.getElementById('horaEditId').value = id;
+    document.getElementById('horaFecha').value = r.fecha;
+    document.getElementById('horaMotivo').value = r.motivo;
+    document.getElementById('horaTipo').value = r.agrega_resta || '';
+    document.getElementById('horaCantidad').value = r.cantidad;
+    document.getElementById('horaObs').value = r.observaciones || '';
+    var p = personaDe(r.legajo);
+    _formSel.hora = { legajo: r.legajo, grado: p.grado, apellido: p.apellido, nombre: p.nombre };
+    document.getElementById('horaPersonalTexto').innerHTML = '<b>'+esc(p.grado)+'</b> — LP '+esc(r.legajo)+' — '+esc(p.apellido)+', '+esc(p.nombre);
+    document.getElementById('horaPersonalPreview').classList.add('show');
+    document.getElementById('horaFormTitle').textContent = 'Editando registro de horas';
+    switchTab('horas');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function guardarHora() {
+    var fecha = document.getElementById('horaFecha').value;
+    var motivo = document.getElementById('horaMotivo').value;
+    var tipo = document.getElementById('horaTipo').value;
+    var cantidad = document.getElementById('horaCantidad').value;
+    var obs = document.getElementById('horaObs').value.trim();
+    var persona = _formSel.hora;
+    if (!fecha || !persona || !motivo || cantidad === '') {
+      alertShow('topAlert', 'error', 'Completá fecha, personal, motivo y cantidad.');
+      return;
+    }
+    var entry = { fecha: fecha, legajo: persona.legajo, motivo: motivo, agrega_resta: tipo || null, cantidad: Number(cantidad), observaciones: obs || null };
+    showLoading('Guardando registro…');
+    try {
+      var res = _editContext.hora
+        ? await supabaseClient.from('servicios_horas').update(entry).eq('id', _editContext.hora)
+        : await supabaseClient.from('servicios_horas').insert(entry);
+      if (res.error) throw res.error;
+      alertShow('topAlert', 'success', '✅ Registro guardado correctamente.');
+      limpiarFormHora();
+      await cargarHoras();
+      await cargarPersonalUsado();
+      renderHoras();
+      renderDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarHora(id) {
+    showConfirm('¿Eliminar este registro de horas? No se puede deshacer.', function(){ eliminarHora(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
+  async function eliminarHora(id) {
+    showLoading('Eliminando…');
+    try {
+      var res = await supabaseClient.from('servicios_horas').delete().eq('id', id);
+      if (res.error) throw res.error;
+      await cargarHoras();
+      renderHoras();
+      renderDashboard();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function exportarHorasExcel() {
+    var q = (document.getElementById('horaBuscar').value || '').toLowerCase();
+    var fTipo = document.getElementById('horaFiltroTipo').value;
+    var fMotivo = document.getElementById('horaFiltroMotivo').value;
+    var filtrados = horas.filter(function(r) {
+      if (fTipo && r.agrega_resta !== fTipo) return false;
+      if (fMotivo && r.motivo !== fMotivo) return false;
+      if (!q) return true;
+      var p = personaDe(r.legajo);
+      var hay = [r.legajo, p.grado, p.apellido, p.nombre, r.motivo, r.observaciones].join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+    if (!filtrados.length) { alertShow('topAlert', 'error', 'No hay filas para exportar con este filtro.'); return; }
+    showLoading('Generando Excel…');
+    try {
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('Horas');
+      ws.columns = [
+        { header: 'Fecha', key: 'fecha', width: 12 },
+        { header: 'LP', key: 'lp', width: 10 },
+        { header: 'Grado', key: 'grado', width: 18 },
+        { header: 'Apellido', key: 'apellido', width: 20 },
+        { header: 'Nombre', key: 'nombre', width: 20 },
+        { header: 'Motivo', key: 'motivo', width: 26 },
+        { header: 'Tipo', key: 'tipo', width: 12 },
+        { header: 'Cantidad', key: 'cant', width: 10 },
+        { header: 'Observaciones', key: 'obs', width: 40 }
+      ];
+      ws.getRow(1).font = { bold: true };
+      filtrados.forEach(function(r) {
+        var p = personaDe(r.legajo);
+        ws.addRow({ fecha: fmtFecha(r.fecha), lp: r.legajo, grado: p.grado, apellido: p.apellido, nombre: p.nombre, motivo: r.motivo, tipo: r.agrega_resta || 'Vista', cant: r.cantidad, obs: r.observaciones || '' });
+      });
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'horas_' + isoDate(new Date()) + '.xlsx';
+      a.click();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al generar el Excel: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // CONFIGURACIÓN — tipos de servicio y motivos de horas
+  // ============================================================
+  function renderConfigLists() {
+    document.getElementById('listaConfigTipos').innerHTML = configTipos.map(function(t) {
+      return '<li><span class="nombre">'+esc(t.nombre)+'</span>' +
+        '<label class="config-check"><input type="checkbox" '+(t.cuenta_en_ranking?'checked':'')+' onchange="cambiarCuentaEnRanking(\''+esc(t.nombre).replace(/'/g,"\\'")+'\',this.checked)"> Cuenta en el ranking</label>' +
+        '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigTipo(\''+esc(t.nombre).replace(/'/g,"\\'")+'\')">🗑️</button></li>';
+    }).join('') || '<li style="color:var(--muted);">Sin tipos cargados</li>';
+
+    document.getElementById('listaConfigMotivos').innerHTML = configMotivos.map(function(m) {
+      return '<li><span class="nombre">'+esc(m.nombre)+'</span>' +
+        '<label class="config-check"><input type="checkbox" '+(m.cuenta_si_agrega?'checked':'')+' onchange="cambiarCuentaSiAgrega(\''+esc(m.nombre).replace(/'/g,"\\'")+'\',this.checked)"> Suma cuando es AGREGA</label>' +
+        '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigMotivo(\''+esc(m.nombre).replace(/'/g,"\\'")+'\')">🗑️</button></li>';
+    }).join('') || '<li style="color:var(--muted);">Sin motivos cargados</li>';
+  }
+
+  async function agregarConfigTipo() {
+    var input = document.getElementById('nuevoTipo');
+    var nombre = str(input.value).toUpperCase();
+    if (!nombre) return;
+    showLoading('Agregando…');
+    try {
+      var res = await supabaseClient.from('servicios_config_tipos').insert({ nombre: nombre });
+      if (res.error) throw res.error;
+      input.value = '';
+      await cargarConfig();
+      poblarSelectsDeConfig();
+      renderConfigLists();
+      alertShow('topAlert', 'success', '✅ Tipo agregado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al agregar (¿ya existe?): ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+  async function agregarConfigMotivo() {
+    var input = document.getElementById('nuevoMotivo');
+    var nombre = str(input.value).toUpperCase();
+    if (!nombre) return;
+    showLoading('Agregando…');
+    try {
+      var res = await supabaseClient.from('servicios_config_motivos').insert({ nombre: nombre });
+      if (res.error) throw res.error;
+      input.value = '';
+      await cargarConfig();
+      poblarSelectsDeConfig();
+      renderConfigLists();
+      alertShow('topAlert', 'success', '✅ Motivo agregado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al agregar (¿ya existe?): ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function cambiarCuentaEnRanking(nombre, checked) {
+    try {
+      var res = await supabaseClient.from('servicios_config_tipos').update({ cuenta_en_ranking: checked }).eq('nombre', nombre);
+      if (res.error) throw res.error;
+      var t = configTipos.find(function(x){ return x.nombre === nombre; });
+      if (t) t.cuenta_en_ranking = checked;
+      renderDashboard();
+      renderServicios();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al actualizar: ' + (e.message || e));
+      renderConfigLists();
+    }
+  }
+  async function cambiarCuentaSiAgrega(nombre, checked) {
+    try {
+      var res = await supabaseClient.from('servicios_config_motivos').update({ cuenta_si_agrega: checked }).eq('nombre', nombre);
+      if (res.error) throw res.error;
+      var m = configMotivos.find(function(x){ return x.nombre === nombre; });
+      if (m) m.cuenta_si_agrega = checked;
+      renderDashboard();
+      renderHoras();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al actualizar: ' + (e.message || e));
+      renderConfigLists();
+    }
+  }
+
+  function confirmarEliminarConfigTipo(nombre) {
+    showConfirm('¿Sacar "'+nombre+'" de la lista de tipos de servicio? No borra los registros históricos ya cargados con ese nombre.', function(){ eliminarConfigTipo(nombre); }, { peligroso: true, textoOk: 'Sacar', icon: '🗑️' });
+  }
+  async function eliminarConfigTipo(nombre) {
+    showLoading('Quitando…');
+    try {
+      var res = await supabaseClient.from('servicios_config_tipos').delete().eq('nombre', nombre);
+      if (res.error) throw res.error;
+      await cargarConfig();
+      poblarSelectsDeConfig();
+      renderConfigLists();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+  function confirmarEliminarConfigMotivo(nombre) {
+    showConfirm('¿Sacar "'+nombre+'" de la lista de motivos? No borra los registros históricos ya cargados con ese nombre.', function(){ eliminarConfigMotivo(nombre); }, { peligroso: true, textoOk: 'Sacar', icon: '🗑️' });
+  }
+  async function eliminarConfigMotivo(nombre) {
+    showLoading('Quitando…');
+    try {
+      var res = await supabaseClient.from('servicios_config_motivos').delete().eq('nombre', nombre);
+      if (res.error) throw res.error;
+      await cargarConfig();
+      poblarSelectsDeConfig();
+      renderConfigLists();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  initAuth();
+</script>
+</body>
+</html>
