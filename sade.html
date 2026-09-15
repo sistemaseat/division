@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SADE — Comunicaciones y Expedientes — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--primary);
+    color: white;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* ── TABS ── */
+  .tabs {
+    background: var(--primary-light);
+    display: flex;
+    padding: 0 28px;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: none; border: none;
+    color: rgba(255,255,255,.65);
+    padding: 13px 22px;
+    cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── KPI GRID ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .kpi {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px 20px;
+    border-left: 4px solid;
+    box-shadow: var(--shadow);
+    transition: transform .15s, box-shadow .15s;
+    cursor: pointer;
+    position: relative;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.active-filter { outline: 2.5px solid var(--accent); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-red    { border-left-color: var(--red-light); }
+  .kpi.c-orange { border-left-color: var(--accent); }
+  .kpi.c-purple { border-left-color: var(--purple); }
+  .kpi.c-teal   { border-left-color: var(--teal); }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-size: 36px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+  .kpi-sub   { font-size: 11px; color: var(--muted); }
+  .kpi-hint  { font-size: 10px; color: var(--muted); opacity: .7; margin-top: 4px; }
+
+  /* ── SEARCH BAR ── */
+  .search-bar {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow);
+  }
+  .search-input-wrap { position: relative; flex: 1; min-width: 200px; }
+  .search-input {
+    width: 100%;
+    padding: 9px 12px 9px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .ctrl-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; }
+  select, input[type="date"], input[type="text"], input[type="number"], textarea {
+    padding: 7px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+    background: white;
+    font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill {
+    background: var(--primary);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .active-filter-badge {
+    background: var(--accent);
+    color: var(--primary);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  /* ── TABLE ── */
+  .table-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; }
+  .table-header-row { display:flex; align-items:center; margin-bottom:14px; gap:10px; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; min-width: 700px; }
+  thead th {
+    background: var(--primary);
+    color: white;
+    padding: 10px 13px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    white-space: nowrap;
+  }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { background: #0d47a1; }
+  thead th.sort-asc::after  { content: ' ▲'; opacity: .8; }
+  thead th.sort-desc::after { content: ' ▼'; opacity: .8; }
+  tbody td {
+    padding: 10px 13px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .b-green   { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow  { background: #fff9c4; color: #f57f17; }
+  .b-red     { background: #ffebee; color: #c62828; }
+  .b-blue    { background: #e3f2fd; color: #0277bd; }
+  .b-purple  { background: #f3e5f5; color: #6a1b9a; }
+  .b-teal    { background: #e0f2f1; color: #00695c; }
+  .b-orange  { background: #fff3e0; color: #e65100; }
+  .b-gray    { background: #f5f5f5; color: #616161; }
+
+  /* ── FORM ── */
+  .form-wrap { max-width: 860px; margin: 0 auto; }
+  .form-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 18px;
+  }
+  .form-card h2 { font-size: 20px; font-weight: 800; color: var(--primary); margin-bottom: 6px; }
+  .form-card p  { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+  .form-hint  { display: block; font-size: 11px; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; margin-top: 2px; }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+    transition: border-color .2s;
+    background: white;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+  .form-group input[readonly] { background: #f0f2f5; color: var(--muted); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+  .required-star { color: var(--red); margin-left: 2px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 11px 22px;
+    border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all .18s;
+    text-transform: uppercase; letter-spacing: .4px;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(26,35,126,.4); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-success:hover:not(:disabled) { background: #1b5e20; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-danger:hover:not(:disabled)  { background: #b71c1c; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-ghost:hover:not(:disabled)   { background: #d0d0d0; }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* ── ALERT ── */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .alert-warning { background: #fff9c4; color: #e65100; border-left: 4px solid #ffd600; }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.55); z-index: 9999;
+    align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* ── NO DATA ── */
+  .no-data { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 60px; margin-bottom: 12px; }
+  .no-data-text { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .no-data-sub  { font-size: 13px; }
+
+  /* ── MODAL (detalle) ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.5); z-index: 8888;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 700px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); line-height: 1; padding: 4px 8px; border-radius: 6px; }
+  .modal-close:hover { background: var(--bg); color: var(--text); }
+  .detail-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .detail-item  { display: flex; flex-direction: column; gap: 3px; }
+  .detail-item.full { grid-column: 1 / -1; }
+  .detail-lbl   { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  .detail-val   { font-size: 14px; color: var(--text); }
+
+  /* ── MODAL DE CONFIRMACIÓN ── */
+  #confirmModal { z-index: 9500; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* ── HISTORIAL DE MOVIMIENTOS ── */
+  .mov-item {
+    border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; gap: 10px; align-items: flex-start;
+  }
+  .mov-titulo { font-weight: 700; font-size: 13px; }
+  .mov-sub    { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .mov-obs    { font-size: 12px; margin-top: 4px; }
+
+  /* ── PAGINATION ── */
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; flex-wrap: wrap; }
+  .page-btn { padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 6px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text); transition: all .15s; min-width: 36px; text-align: center; }
+  .page-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+  .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .page-info { font-size: 13px; color: var(--muted); margin: 0 8px; }
+
+  .action-col { white-space: nowrap; text-align: right; }
+  .action-col button { margin-left: 4px; }
+
+  /* ── ESTADO SELECT INLINE ── */
+  .estado-select {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    outline: none;
+    transition: all .15s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 20px;
+  }
+  .estado-select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26,35,126,.15); }
+  .estado-select.s-orange { background-color: #fff3e0; color: #e65100; }
+  .estado-select.s-blue   { background-color: #e3f2fd; color: #0277bd; }
+  .estado-select.s-green  { background-color: #e8f5e9; color: #2e7d32; }
+  .estado-select.s-teal   { background-color: #e0f2f1; color: #00695c; }
+  .estado-select.saving   { opacity: .5; pointer-events: none; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1000px) {
+    .kpi-grid  { grid-template-columns: repeat(3, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .content   { padding: 14px; }
+    .kpi-grid  { grid-template-columns: repeat(2, 1fr); }
+    .kpi-val   { font-size: 28px; }
+    .search-bar { flex-direction: column; align-items: stretch; }
+    .form-card { padding: 20px; }
+    .header    { padding: 12px 16px; }
+    .header-user { width: 100%; justify-content: flex-start; gap: 6px 10px; }
+    .tabs      { padding: 0 10px; }
+    .tab-btn   { padding: 11px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<!-- MODAL DE DETALLE -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Detalle</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>
+      <button class="btn btn-primary" id="modalEditarBtn" data-action="editar-desde-modal">✏️ Editar</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">📄</div>
+    <div>
+      <div class="brand-title">SADE</div>
+      <div class="brand-sub">Sistema de Comunicaciones y Expedientes — División Tiro</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- TABS -->
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="listado">📋 Listado</button>
+  <button class="tab-btn"        data-tab="expedientes">📁 Expedientes</button>
+  <button class="tab-btn"        data-tab="comunicaciones">✉️ Comunicaciones</button>
+  <button class="tab-btn"        data-tab="nueva">➕ Nueva Entrada</button>
+  <button class="tab-btn"        data-tab="busqueda">🔍 Búsqueda Avanzada</button>
+</nav>
+
+<!-- MAIN -->
+<main class="content">
+
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ─── LISTADO ─── -->
+  <div class="tab-pane active" id="pane-listado">
+
+    <!-- KPIs clicables -->
+    <div class="kpi-grid">
+      <div class="kpi c-blue" id="kpi-total" onclick="filtrarPorEstado('')" title="Ver todos">
+        <div class="kpi-label">Total Registros</div>
+        <div class="kpi-val" id="k-total">–</div>
+        <div class="kpi-sub">en la base</div>
+        <div class="kpi-hint">clic para ver todos</div>
+      </div>
+      <div class="kpi c-orange" id="kpi-pendiente" onclick="filtrarPorEstado('Pendiente')" title="Filtrar Pendientes">
+        <div class="kpi-label">Pendientes</div>
+        <div class="kpi-val" id="k-pendiente">–</div>
+        <div class="kpi-sub">sin resolver</div>
+        <div class="kpi-hint">clic para filtrar</div>
+      </div>
+      <div class="kpi c-purple" id="kpi-tramite" onclick="filtrarPorEstado('En Trámite')" title="Filtrar En Trámite">
+        <div class="kpi-label">En Trámite</div>
+        <div class="kpi-val" id="k-tramite">–</div>
+        <div class="kpi-sub">en proceso</div>
+        <div class="kpi-hint">clic para filtrar</div>
+      </div>
+      <div class="kpi c-green" id="kpi-resuelto" onclick="filtrarPorEstado('Resuelto')" title="Filtrar Resueltos">
+        <div class="kpi-label">Resueltos</div>
+        <div class="kpi-val" id="k-resuelto">–</div>
+        <div class="kpi-sub">finalizados</div>
+        <div class="kpi-hint">clic para filtrar</div>
+      </div>
+      <div class="kpi c-teal" id="kpi-conocimiento" onclick="filtrarPorEstado('Conocimiento')" title="Filtrar Conocimiento">
+        <div class="kpi-label">Conocimiento</div>
+        <div class="kpi-val" id="k-conocimiento">–</div>
+        <div class="kpi-sub">tomado conocimiento</div>
+        <div class="kpi-hint">clic para filtrar</div>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="search-bar">
+      <span class="ctrl-label">🔍</span>
+      <div class="search-input-wrap">
+        <input class="search-input" id="quickSearch" type="text"
+               placeholder="Buscar en todos los campos…"
+               oninput="applyFilters()">
+      </div>
+      <span class="ctrl-label">Tipo</span>
+      <select id="filterTipo" onchange="applyFilters()">
+        <option value="">Todos</option>
+        <option>Expediente</option>
+        <option>Comunicación</option>
+        <option>Nota Interna</option>
+        <option>Resolución</option>
+        <option>Circular</option>
+        <option>Otro</option>
+      </select>
+      <span class="ctrl-label">Sentido</span>
+      <select id="filterSentido" onchange="applyFilters()">
+        <option value="">Todos</option>
+        <option value="Entrante">📥 Entrante</option>
+        <option value="Saliente">📤 Saliente</option>
+      </select>
+      <span class="ctrl-label">Estado</span>
+      <select id="filterEstado" onchange="applyFilters()">
+        <option value="">Todos</option>
+        <option>Pendiente</option>
+        <option>En Trámite</option>
+        <option>Resuelto</option>
+        <option>Conocimiento</option>
+      </select>
+      <span class="ctrl-label">Prioridad</span>
+      <select id="filterPrioridad" onchange="applyFilters()">
+        <option value="">Todas</option>
+        <option>Normal</option>
+        <option>Alta</option>
+        <option>Urgente</option>
+      </select>
+      <div class="count-pill" id="countPill">0 registros</div>
+      <button class="btn btn-ghost" style="padding:7px 14px;font-size:12px" onclick="clearFilters()">✕ Limpiar</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card" id="tableCard">
+      <div class="table-header-row">
+        <div class="section-title" style="margin:0" id="tableTitle">Todos los registros</div>
+        <span id="activeBadge"></span>
+      </div>
+      <div id="noDataListado" class="no-data" style="display:none">
+        <div class="no-data-icon">📂</div>
+        <div class="no-data-text">Sin registros en SADE</div>
+        <div class="no-data-sub">Cargá el primer registro desde <strong>Nueva Entrada</strong></div>
+      </div>
+      <div id="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortBy('n_sade')">N° SADE</th>
+              <th class="sortable" onclick="sortBy('fecha_ingreso')">Fecha Ingreso</th>
+              <th class="sortable" onclick="sortBy('tipo')">Tipo</th>
+              <th>Asunto</th>
+              <th>Remitente / Destinatario</th>
+              <th class="sortable" onclick="sortBy('prioridad')">Prioridad</th>
+              <th class="sortable" onclick="sortBy('estado')">Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="mainTbody"></tbody>
+        </table>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+
+  </div><!-- /pane-listado -->
+
+  <!-- ─── EXPEDIENTES ─── -->
+  <div class="tab-pane" id="pane-expedientes">
+    <div class="table-card">
+      <div class="table-header-row">
+        <div class="section-title" style="margin:0">📁 Expedientes</div>
+        <span class="count-pill" id="countExp">–</span>
+      </div>
+      <div id="noDataExp" class="no-data" style="display:none">
+        <div class="no-data-icon">📁</div>
+        <div class="no-data-text">Sin expedientes cargados</div>
+        <div class="no-data-sub">Agregá uno desde <strong>Nueva Entrada</strong> con tipo Expediente</div>
+      </div>
+      <div id="expWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>N° SADE</th>
+              <th>Fecha Ingreso</th>
+              <th>Asunto</th>
+              <th>Remitente / Destinatario</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="expTbody"></tbody>
+        </table>
+        <div class="pagination" id="paginationExp"></div>
+      </div>
+    </div>
+  </div><!-- /pane-expedientes -->
+
+  <!-- ─── COMUNICACIONES ─── -->
+  <div class="tab-pane" id="pane-comunicaciones">
+    <div class="table-card">
+      <div class="table-header-row">
+        <div class="section-title" style="margin:0">✉️ Comunicaciones</div>
+        <span class="count-pill" id="countCom">–</span>
+      </div>
+      <div id="noDataCom" class="no-data" style="display:none">
+        <div class="no-data-icon">✉️</div>
+        <div class="no-data-text">Sin comunicaciones cargadas</div>
+        <div class="no-data-sub">Agregá una desde <strong>Nueva Entrada</strong> con tipo Comunicación</div>
+      </div>
+      <div id="comWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>N° SADE</th>
+              <th>Fecha Ingreso</th>
+              <th>Asunto</th>
+              <th>Remitente / Destinatario</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="comTbody"></tbody>
+        </table>
+        <div class="pagination" id="paginationCom"></div>
+      </div>
+    </div>
+  </div><!-- /pane-comunicaciones -->
+
+  <!-- ─── NUEVA ENTRADA ─── -->
+  <div class="tab-pane" id="pane-nueva">
+    <div class="form-wrap">
+      <div class="alert" id="alertNueva"></div>
+      <div class="form-card">
+        <h2 id="formTitle">➕ Nueva Entrada SADE</h2>
+        <p id="formSubtitle">Completá los campos del expediente/comunicación y su primer movimiento. Después vas a poder agregarle más idas y vueltas desde "Ver".</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Tipo <span class="required-star">*</span></label>
+            <select id="f-tipo" onchange="onTipoChange()">
+              <option value="">— Seleccionar —</option>
+              <option>Expediente</option>
+              <option>Comunicación</option>
+              <option>Nota Interna</option>
+              <option>Resolución</option>
+              <option>Circular</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sentido de este primer movimiento <span class="required-star">*</span></label>
+            <select id="f-sentido" onchange="onSentidoChange()">
+              <option value="">— Seleccionar —</option>
+              <option value="Entrante">📥 Recibida (Entrante)</option>
+              <option value="Saliente">📤 Enviada (Saliente)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">N° SADE / Expediente</label>
+            <input type="text" id="f-nsade" placeholder="Ej: NO-2026-17803821-GCABA-SISC (opcional)">
+            <span class="form-hint" id="nsadeHint"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha Ingreso <span class="required-star">*</span></label>
+            <input type="date" id="f-fecha">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prioridad</label>
+            <select id="f-prioridad">
+              <option>Normal</option>
+              <option>Alta</option>
+              <option>Urgente</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Asunto <span class="required-star">*</span></label>
+            <input type="text" id="f-asunto" placeholder="Descripción breve del asunto">
+          </div>
+          <div class="form-group" id="grpOrigen">
+            <label class="form-label">Remitente <span class="required-star" id="reqOrigen" style="display:none">*</span></label>
+            <input type="text" id="f-origen" placeholder="De quién vino la comunicación">
+          </div>
+          <div class="form-group" id="grpDestino">
+            <label class="form-label">Destinatario <span class="required-star" id="reqDestino" style="display:none">*</span></label>
+            <input type="text" id="f-destino" placeholder="A quién se le envió la respuesta">
+          </div>
+          <div class="form-group">
+            <label class="form-label">N° Relacionado <span class="form-hint" style="display:inline">(opcional)</span></label>
+            <input type="text" id="f-relacionado" placeholder="N° SADE de OTRO hilo relacionado (no de un movimiento de este mismo)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estado</label>
+            <select id="f-estado">
+              <option>Pendiente</option>
+              <option>En Trámite</option>
+              <option>Resuelto</option>
+              <option>Conocimiento</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha Resolución</label>
+            <input type="date" id="f-fecha-res">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Observaciones generales</label>
+            <textarea id="f-obs" placeholder="Notas generales del caso (además de las que vas a poder cargar por movimiento)"></textarea>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="guardarEntrada()">💾 <span id="btnGuardarLabel">Guardar Entrada</span></button>
+          <button class="btn btn-ghost" onclick="limpiarFormulario()">↺ Limpiar</button>
+          <button class="btn btn-ghost" id="btnCancelarEdicion" style="display:none" onclick="cancelarEdicion()">✕ Cancelar edición</button>
+        </div>
+      </div>
+    </div>
+  </div><!-- /pane-nueva -->
+
+  <!-- ─── BÚSQUEDA AVANZADA ─── -->
+  <div class="tab-pane" id="pane-busqueda">
+    <div class="alert" id="alertBusqueda"></div>
+    <div class="form-card" style="max-width:100%;margin-bottom:16px">
+      <h2>🔍 Búsqueda Avanzada</h2>
+      <p>Usá múltiples filtros combinados para encontrar registros específicos.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">N° SADE / Expediente</label>
+          <input type="text" id="s-nsade" placeholder="Búsqueda parcial permitida">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Asunto (palabra clave)</label>
+          <input type="text" id="s-asunto" placeholder="Ej: habilitación, licencia…">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Remitente</label>
+          <input type="text" id="s-origen">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destinatario</label>
+          <input type="text" id="s-destino">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select id="s-tipo">
+            <option value="">Todos</option>
+            <option>Expediente</option>
+            <option>Comunicación</option>
+            <option>Nota Interna</option>
+            <option>Resolución</option>
+            <option>Circular</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sentido</label>
+          <select id="s-sentido">
+            <option value="">Todos</option>
+            <option value="Entrante">📥 Entrante</option>
+            <option value="Saliente">📤 Saliente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select id="s-estado">
+            <option value="">Todos</option>
+            <option>Pendiente</option>
+            <option>En Trámite</option>
+            <option>Resuelto</option>
+            <option>Conocimiento</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prioridad</label>
+          <select id="s-prioridad">
+            <option value="">Todas</option>
+            <option>Normal</option>
+            <option>Alta</option>
+            <option>Urgente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Ingreso — Desde</label>
+          <input type="date" id="s-desde">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Ingreso — Hasta</label>
+          <input type="date" id="s-hasta">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observaciones (palabra clave)</label>
+          <input type="text" id="s-obs">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="busquedaAvanzada()">🔍 Buscar</button>
+        <button class="btn btn-ghost" onclick="limpiarBusqueda()">↺ Limpiar filtros</button>
+      </div>
+    </div>
+    <div id="searchResults" style="display:none">
+      <div class="table-card">
+        <div class="table-header-row">
+          <div class="section-title" style="margin:0">Resultados de búsqueda</div>
+          <span class="count-pill" id="searchCount">0 encontrados</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>N° SADE</th><th>Fecha Ingreso</th><th>Tipo</th><th>Asunto</th>
+              <th>Remitente / Destinatario</th><th>Prioridad</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="searchTbody"></tbody>
+        </table>
+        <div class="pagination" id="paginationSearch"></div>
+      </div>
+    </div>
+  </div><!-- /pane-busqueda -->
+
+</main>
+
+</div><!-- /appRoot -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ─── STATE ───────────────────────────────────────
+  var allData = [];              // sade_hilos crudo
+  var movimientosPorHilo = {};   // hilo_id -> [sade_movimientos]
+  var filtered    = [];
+  var currentSort = { col:'fecha_ingreso', dir:'desc' };
+  var currentPage = 1;
+  var PAGE_SIZE   = 20;
+
+  var expPage    = 1;
+  var comPage    = 1;
+  var searchPage = 1;
+
+  var editingId   = null;  // id (uuid) del hilo que se está editando (null = alta nueva)
+  var modalHiloId = null;  // id (uuid) del hilo actualmente abierto en el modal de detalle
+  var reabrirHiloId = null; // si se seteó, cargarDatos() reabre el modal de ese hilo al terminar
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // ── Utilidades ────────────────────────────────────────────────
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function orNull(v) { v = str(v); return v === '' ? null : v; }
+  function set(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; }
+  function isoToday(){ var t=new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+  function toInputDate(d){ if(!d) return ''; d=String(d); return d.length>=10 ? d.slice(0,10) : d; }
+  function parseDate(d){
+    if(!d) return new Date(0); d=String(d);
+    if(d.includes('/')) { var p=d.split('/'); return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0])); }
+    if(d.includes('-')) return new Date(d);
+    return new Date(0);
+  }
+  function fmtDate(d){
+    if(!d) return ''; d=String(d).trim();
+    if(!d||d.length<4) return '';
+    if(d.includes('/')) return d;
+    var p=d.split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : d;
+  }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo === 'success') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('f-fecha').value = isoToday();
+    onTipoChange();
+    onSentidoChange();
+
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+        document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('pane-'+btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Delegación de clicks para todo lo que se genera dinámicamente
+    // (paginación, ver/editar/eliminar por fila, ver relacionado, historial
+    // de movimientos). Así los N° SADE u otros textos con apóstrofos nunca
+    // se interpolan dentro de un onclick — viajan como data-* (atributo
+    // HTML, escapado por esc()), no como literal de JS.
+    document.addEventListener('click', function(e) {
+      var el = e.target.closest('[data-action]');
+      if (!el) return;
+      var action = el.dataset.action;
+
+      switch (action) {
+        case 'page-listado':
+          currentPage = parseInt(el.dataset.page, 10);
+          renderTable();
+          break;
+        case 'page-exp':
+          expPage = parseInt(el.dataset.page, 10);
+          renderTipoTab('Expediente','expTbody','noDataExp','expWrap','countExp','paginationExp', expPage);
+          break;
+        case 'page-com':
+          comPage = parseInt(el.dataset.page, 10);
+          renderTipoTab('Comunicación','comTbody','noDataCom','comWrap','countCom','paginationCom', comPage);
+          break;
+        case 'page-search':
+          searchPage = parseInt(el.dataset.page, 10);
+          renderSearchResults();
+          break;
+        case 'ver':
+          verDetalle(parseInt(el.dataset.idx, 10), el.dataset.src);
+          break;
+        case 'editar':
+          editarEntrada(el.dataset.id);
+          break;
+        case 'editar-desde-modal':
+          closeModal();
+          editarEntrada(el.dataset.id);
+          break;
+        case 'eliminar':
+          confirmarEliminar(el.dataset.id, el.dataset.label);
+          break;
+        case 'ver-relacionado':
+          verRelacionado(el.dataset.n);
+          break;
+        case 'eliminar-movimiento':
+          confirmarEliminarMovimiento(el.dataset.id);
+          break;
+      }
+    });
+
+    document.getElementById('detailModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+  });
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que el resto del sitio: el login se
+  // hace en la portada (index.html); acá solo se verifica la sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarDatos();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarDatos() {
+    showLoading('Cargando datos SADE…');
+    try {
+      var r1 = await supabaseClient.from('sade_hilos').select('*').order('fecha_ingreso', { ascending: false });
+      if (r1.error) throw r1.error;
+      allData = r1.data || [];
+
+      var r2 = await supabaseClient.from('sade_movimientos').select('*').order('fecha');
+      if (r2.error) throw r2.error;
+      movimientosPorHilo = {};
+      (r2.data || []).forEach(function(m) {
+        if (!movimientosPorHilo[m.hilo_id]) movimientosPorHilo[m.hilo_id] = [];
+        movimientosPorHilo[m.hilo_id].push(m);
+      });
+
+      updateKPIs();
+      applyFilters();
+      renderTipoTab('Expediente',   'expTbody', 'noDataExp', 'expWrap', 'countExp', 'paginationExp', expPage);
+      renderTipoTab('Comunicación', 'comTbody', 'noDataCom', 'comWrap', 'countCom', 'paginationCom', comPage);
+
+      if (reabrirHiloId) {
+        var idHilo = reabrirHiloId;
+        reabrirHiloId = null;
+        var idx = allData.findIndex(function(x){ return x.id === idHilo; });
+        if (idx !== -1) verDetalle(idx, 'all');
+      }
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ─── KPIs ─────────────────────────────────────────
+  function updateKPIs() {
+    var counts = { 'Pendiente':0, 'En Trámite':0, 'Resuelto':0, 'Conocimiento':0 };
+    allData.forEach(function(r) { if (counts[r.estado] !== undefined) counts[r.estado]++; });
+    set('k-total',       allData.length);
+    set('k-pendiente',   counts['Pendiente']);
+    set('k-tramite',     counts['En Trámite']);
+    set('k-resuelto',    counts['Resuelto']);
+    set('k-conocimiento',counts['Conocimiento']);
+  }
+
+  // ─── KPI CLICK FILTER ────────────────────────────
+  function filtrarPorEstado(estado) {
+    document.getElementById('quickSearch').value     = '';
+    document.getElementById('filterTipo').value      = '';
+    document.getElementById('filterSentido').value   = '';
+    document.getElementById('filterPrioridad').value = '';
+    document.getElementById('filterEstado').value = estado;
+
+    ['kpi-total','kpi-pendiente','kpi-tramite','kpi-resuelto','kpi-conocimiento'].forEach(function(id) {
+      document.getElementById(id).classList.remove('active-filter');
+    });
+    var map = { '':'kpi-total', 'Pendiente':'kpi-pendiente', 'En Trámite':'kpi-tramite', 'Resuelto':'kpi-resuelto', 'Conocimiento':'kpi-conocimiento' };
+    if (map[estado]) document.getElementById(map[estado]).classList.add('active-filter');
+
+    var badge = document.getElementById('activeBadge');
+    if (estado) {
+      badge.innerHTML = '<span class="active-filter-badge">Filtro: ' + esc(estado) + '</span>';
+      document.getElementById('tableTitle').textContent = 'Mostrando: ' + estado;
+    } else {
+      badge.innerHTML = '';
+      document.getElementById('tableTitle').textContent = 'Todos los registros';
+    }
+
+    applyFilters();
+  }
+
+  // ─── FILTERS ─────────────────────────────────────
+  function applyFilters() {
+    var q       = (document.getElementById('quickSearch').value    || '').toLowerCase().trim();
+    var tipo    = document.getElementById('filterTipo').value;
+    var sentido = document.getElementById('filterSentido').value;
+    var est     = document.getElementById('filterEstado').value;
+    var prior   = document.getElementById('filterPrioridad').value;
+
+    filtered = allData.filter(function(r) {
+      if (tipo    && r.tipo      !== tipo)    return false;
+      if (est     && r.estado    !== est)     return false;
+      if (prior   && r.prioridad !== prior)   return false;
+      if (sentido && ultimoMovimiento(r).sentido !== sentido) return false;
+      if (q) {
+        var hay = Object.values(r).some(function(v){ return String(v==null?'':v).toLowerCase().indexOf(q) >= 0; });
+        if (!hay) return false;
+      }
+      return true;
+    });
+
+    sortFiltered();
+    currentPage = 1;
+    renderTable();
+    document.getElementById('countPill').textContent = filtered.length + ' registro' + (filtered.length !== 1 ? 's' : '');
+
+    var empty = allData.length === 0;
+    document.getElementById('noDataListado').style.display = empty ? 'block' : 'none';
+    document.getElementById('tableWrap').style.display     = empty ? 'none'  : 'block';
+  }
+
+  function clearFilters() {
+    document.getElementById('quickSearch').value     = '';
+    document.getElementById('filterTipo').value      = '';
+    document.getElementById('filterSentido').value   = '';
+    document.getElementById('filterEstado').value    = '';
+    document.getElementById('filterPrioridad').value = '';
+    ['kpi-total','kpi-pendiente','kpi-tramite','kpi-resuelto','kpi-conocimiento'].forEach(function(id) {
+      document.getElementById(id).classList.remove('active-filter');
+    });
+    document.getElementById('activeBadge').innerHTML = '';
+    document.getElementById('tableTitle').textContent = 'Todos los registros';
+    applyFilters();
+  }
+
+  // ─── SORT ────────────────────────────────────────
+  function sortBy(col) {
+    currentSort.dir = (currentSort.col === col && currentSort.dir === 'asc') ? 'desc' : 'asc';
+    currentSort.col = col;
+    sortFiltered();
+    currentPage = 1;
+    renderTable();
+  }
+
+  function sortFiltered() {
+    var col = currentSort.col;
+    var dir = currentSort.dir === 'asc' ? 1 : -1;
+    filtered.sort(function(a, b) {
+      var va = String(a[col]==null?'':a[col]), vb = String(b[col]==null?'':b[col]);
+      if (col === 'fecha_ingreso') return dir * (parseDate(va) - parseDate(vb));
+      return dir * va.localeCompare(vb, 'es', { sensitivity:'base' });
+    });
+  }
+
+  function sortByDate(arr) {
+    return arr.slice().sort(function(a, b) {
+      return parseDate(b.fecha_ingreso) - parseDate(a.fecha_ingreso);
+    });
+  }
+
+  // ─── HISTORIAL DE MOVIMIENTOS ────────────────────
+  // El movimiento "inicial" vive embebido en los propios campos del hilo
+  // (sentido, n_sade, organismo_origen, destinatario, observaciones) y
+  // nunca se pisa; los siguientes viven en sade_movimientos, vinculados
+  // por hilo_id (on delete cascade). Acá se arma el historial completo,
+  // ordenado por fecha.
+  function todosLosMovimientos(hilo) {
+    var propios = (movimientosPorHilo[hilo.id] || []).slice();
+    var inicial = {
+      fecha: hilo.fecha_ingreso,
+      sentido: hilo.sentido,
+      n_sade_movimiento: hilo.n_sade,
+      organismo_origen: hilo.organismo_origen,
+      destinatario: hilo.destinatario,
+      observacion: hilo.observaciones,
+      id: null,
+      _inicial: true
+    };
+    var todos = [inicial].concat(propios);
+    todos.sort(function(a, b){ return parseDate(a.fecha) - parseDate(b.fecha); });
+    return todos;
+  }
+
+  function ultimoMovimiento(hilo) {
+    var todos = todosLosMovimientos(hilo);
+    return todos[todos.length - 1];
+  }
+
+  // ─── CELDAS DE TABLA ─────────────────────────────
+  function numeroCell(hilo) {
+    var todos  = todosLosMovimientos(hilo);
+    var ultimo = todos[todos.length - 1];
+    var html = '<strong>' + esc(hilo.n_sade || '(sin número)') + '</strong>';
+    if (todos.length > 1 && ultimo.n_sade_movimiento && String(ultimo.n_sade_movimiento).trim() !== String(hilo.n_sade||'').trim()) {
+      html += '<br><span style="font-size:10px;color:var(--muted);font-weight:400">últ.: ' + esc(ultimo.n_sade_movimiento) + '</span>';
+    }
+    return html;
+  }
+
+  function remitenteDestinatarioCell(hilo) {
+    var todos  = todosLosMovimientos(hilo);
+    var ultimo = todos[todos.length - 1];
+    var origen  = (ultimo.organismo_origen || '').toString().trim();
+    var destino = (ultimo.destinatario || '').toString().trim();
+    var contador = todos.length > 1 ? ' <span class="badge b-gray" title="'+todos.length+' movimientos en el historial">'+todos.length+'↔</span>' : '';
+
+    if (ultimo.sentido === 'Entrante' && origen)  return '<span title="Remitente (último movimiento)">📥 ' + esc(origen) + '</span>' + contador;
+    if (ultimo.sentido === 'Saliente' && destino) return '<span title="Destinatario (último movimiento)">📤 ' + esc(destino) + '</span>' + contador;
+    if (origen && destino && origen === destino)  return esc(origen) + contador;
+    if (origen && destino) return '📥 ' + esc(origen) + ' <span style="color:var(--muted)">→</span> 📤 ' + esc(destino) + contador;
+    if (origen)  return '📥 ' + esc(origen) + contador;
+    if (destino) return '📤 ' + esc(destino) + contador;
+    return '<span style="color:var(--muted)">–</span>' + contador;
+  }
+
+  // ─── ROW HELPERS ─────────────────────────────────
+  function rowHtml(r, idx, src) {
+    return '<tr>' +
+      '<td style="font-weight:700;color:var(--primary)">' + numeroCell(r) + '</td>' +
+      '<td style="white-space:nowrap">' + fmtDate(r.fecha_ingreso) + '</td>' +
+      '<td>' + badgeTipo(r.tipo) + '</td>' +
+      '<td style="max-width:220px">' + esc(r.asunto) + '</td>' +
+      '<td>' + remitenteDestinatarioCell(r) + '</td>' +
+      '<td>' + badgePrioridad(r.prioridad) + '</td>' +
+      '<td>' + selectEstado(r.id, r.estado) + '</td>' +
+      '<td class="action-col">' +
+        '<button class="btn btn-primary btn-sm" data-action="ver" data-idx="' + idx + '" data-src="' + esc(src) + '">👁</button>' +
+        '<button class="btn btn-ghost btn-sm" data-action="editar" data-id="' + esc(r.id) + '">✏️</button>' +
+        '<button class="btn btn-danger btn-sm" data-action="eliminar" data-id="' + esc(r.id) + '" data-label="' + esc(r.n_sade || '(sin número)') + '">🗑️</button>' +
+      '</td></tr>';
+  }
+
+  function rowHtmlTipo(r) {
+    var idx = allData.indexOf(r);
+    return '<tr>' +
+      '<td style="font-weight:700;color:var(--primary)">' + numeroCell(r) + '</td>' +
+      '<td style="white-space:nowrap">' + fmtDate(r.fecha_ingreso) + '</td>' +
+      '<td style="max-width:220px">' + esc(r.asunto) + '</td>' +
+      '<td>' + remitenteDestinatarioCell(r) + '</td>' +
+      '<td>' + badgePrioridad(r.prioridad) + '</td>' +
+      '<td>' + selectEstado(r.id, r.estado) + '</td>' +
+      '<td class="action-col">' +
+        '<button class="btn btn-primary btn-sm" data-action="ver" data-idx="' + idx + '" data-src="all">👁</button>' +
+        '<button class="btn btn-ghost btn-sm" data-action="editar" data-id="' + esc(r.id) + '">✏️</button>' +
+        '<button class="btn btn-danger btn-sm" data-action="eliminar" data-id="' + esc(r.id) + '" data-label="' + esc(r.n_sade || '(sin número)') + '">🗑️</button>' +
+      '</td></tr>';
+  }
+
+  function rowHtmlSearch(r, idx) {
+    return '<tr>' +
+      '<td style="font-weight:700;color:var(--primary)">' + numeroCell(r) + '</td>' +
+      '<td style="white-space:nowrap">' + fmtDate(r.fecha_ingreso) + '</td>' +
+      '<td>' + badgeTipo(r.tipo) + '</td>' +
+      '<td style="max-width:220px">' + esc(r.asunto) + '</td>' +
+      '<td>' + remitenteDestinatarioCell(r) + '</td>' +
+      '<td>' + badgePrioridad(r.prioridad) + '</td>' +
+      '<td>' + badgeEstado(r.estado) + '</td>' +
+      '<td class="action-col">' +
+        '<button class="btn btn-primary btn-sm" data-action="ver" data-idx="' + idx + '" data-src="search">👁</button>' +
+        '<button class="btn btn-ghost btn-sm" data-action="editar" data-id="' + esc(r.id) + '">✏️</button>' +
+        '<button class="btn btn-danger btn-sm" data-action="eliminar" data-id="' + esc(r.id) + '" data-label="' + esc(r.n_sade || '(sin número)') + '">🗑️</button>' +
+      '</td></tr>';
+  }
+
+  // ─── RENDER MAIN TABLE ───────────────────────────
+  function renderTable() {
+    var tbody = document.getElementById('mainTbody');
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted)">Sin resultados</td></tr>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+    var start = (currentPage - 1) * PAGE_SIZE;
+    var page  = filtered.slice(start, start + PAGE_SIZE);
+    tbody.innerHTML = page.map(function(r, i) { return rowHtml(r, start+i, 'filtered'); }).join('');
+    renderPagination('pagination', filtered.length, currentPage, 'page-listado');
+  }
+
+  // ─── RENDER TIPO TABS ─────────────────────────────
+  function renderTipoTab(tipo, tbodyId, noDataId, wrapId, countId, pagId, pg) {
+    var data = sortByDate(allData.filter(function(r){ return r.tipo === tipo; }));
+    set(countId, data.length + ' registro' + (data.length !== 1 ? 's' : ''));
+
+    document.getElementById(noDataId).style.display = data.length === 0 ? 'block' : 'none';
+    document.getElementById(wrapId).style.display   = data.length === 0 ? 'none'  : 'block';
+
+    var start  = (pg - 1) * PAGE_SIZE;
+    var page   = data.slice(start, start + PAGE_SIZE);
+    var tbody  = document.getElementById(tbodyId);
+    tbody.innerHTML = page.map(function(r){ return rowHtmlTipo(r); }).join('');
+
+    var isTipo = tipo === 'Expediente';
+    renderPagination(pagId, data.length, pg, isTipo ? 'page-exp' : 'page-com');
+  }
+
+  // ─── PAGINATION ───────────────────────────────────
+  function renderPagination(elId, total, pg, actionName) {
+    var pages = Math.ceil(total / PAGE_SIZE);
+    var el    = document.getElementById(elId);
+    if (pages <= 1) { el.innerHTML = ''; return; }
+
+    function btn(p, label, disabled, extraClass) {
+      return '<button class="page-btn' + (extraClass||'') + '" data-action="' + actionName + '" data-page="' + p + '" ' + (disabled?'disabled':'') + '>' + label + '</button>';
+    }
+
+    var html = btn(pg-1, '‹', pg===1);
+    var s = Math.max(1, pg-2), e = Math.min(pages, pg+2);
+    if (s > 1) { html += btn(1,'1',false); if (s>2) html += '<span class="page-info">…</span>'; }
+    for (var p = s; p <= e; p++) html += btn(p, p, false, p===pg?' active':'');
+    if (e < pages) { if (e<pages-1) html += '<span class="page-info">…</span>'; html += btn(pages, pages, false); }
+    html += btn(pg+1, '›', pg===pages);
+    html += '<span class="page-info">'+total+' registros</span>';
+    el.innerHTML = html;
+  }
+
+  // ─── DETAIL MODAL ────────────────────────────────
+  function verDetalle(idx, src) {
+    var r;
+    if (src === 'filtered')    r = filtered[idx];
+    else if (src === 'search') r = (window._searchResults||[])[idx];
+    else                        r = allData[idx];
+    if (!r) return;
+
+    modalHiloId = r.id;
+
+    document.getElementById('modalTitle').textContent = (r.n_sade || 'Sin número') + ' — ' + (r.tipo || '');
+
+    var fields = [
+      ['Tipo',                    r.tipo,      false],
+      ['Prioridad',                r.prioridad, false],
+      ['Estado',                   r.estado,    false],
+      ['Fecha Resolución',         fmtDate(r.fecha_resolucion), false],
+      ['Asunto',                   r.asunto,    true],
+      ['Observaciones generales',  r.observaciones, true]
+    ];
+    var html = '<div class="detail-grid" style="margin-bottom:18px">' + fields.map(function(f) {
+      return '<div class="detail-item'+(f[2]?' full':'')+'"><span class="detail-lbl">'+f[0]+'</span><span class="detail-val">'+esc(f[1]||'–')+'</span></div>';
+    }).join('') + '</div>';
+
+    if (r.n_relacionado) {
+      html += '<div style="margin-bottom:18px"><span class="detail-lbl">N° Relacionado</span> ' +
+        esc(r.n_relacionado) + ' ' +
+        '<button class="btn btn-ghost btn-sm" data-action="ver-relacionado" data-n="' + esc(r.n_relacionado) + '">Ver →</button></div>';
+    }
+
+    html += historialHtml(r);
+
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('modalEditarBtn').dataset.id = r.id;
+    document.getElementById('detailModal').classList.add('show');
+
+    toggleMovForm(false);
+  }
+
+  function historialHtml(hilo) {
+    var todos = todosLosMovimientos(hilo);
+    var items = todos.map(function(m) {
+      var icon  = m.sentido === 'Saliente' ? '📤' : (m.sentido === 'Entrante' ? '📥' : '•');
+      var quien = m.sentido === 'Saliente' ? ('Destinatario: ' + esc(m.destinatario||'–'))
+                : m.sentido === 'Entrante' ? ('Remitente: ' + esc(m.organismo_origen||'–'))
+                : '';
+      var delBtn = (!m._inicial && m.id)
+        ? '<button class="btn btn-danger btn-sm" data-action="eliminar-movimiento" data-id="'+esc(m.id)+'">🗑️</button>'
+        : '';
+      return '<div class="mov-item">' +
+          '<div>' +
+            '<div class="mov-titulo">'+icon+' '+fmtDate(m.fecha)+' <span style="color:var(--muted);font-weight:400">— N° '+esc(m.n_sade_movimiento||'–')+'</span>'+(m._inicial?' <span class="badge b-gray">inicial</span>':'')+'</div>' +
+            '<div class="mov-sub">'+quien+'</div>' +
+            (m.observacion ? '<div class="mov-obs">'+esc(m.observacion)+'</div>' : '') +
+          '</div>' + delBtn +
+        '</div>';
+    }).join('');
+
+    return '<div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+        '<span class="detail-lbl" style="font-size:12px">Historial de movimientos (' + todos.length + ')</span>' +
+        '<button class="btn btn-ghost btn-sm" onclick="toggleMovForm()">➕ Agregar Movimiento</button>' +
+      '</div>' +
+      items +
+      '<div id="movForm" style="display:none;border-top:2px solid var(--border);margin-top:12px;padding-top:14px">' +
+        '<div class="alert" id="alertMovimiento"></div>' +
+        '<div class="form-grid" style="margin-bottom:12px">' +
+          '<div class="form-group"><label class="form-label">Fecha</label><input type="date" id="mov-fecha"></div>' +
+          '<div class="form-group"><label class="form-label">Sentido</label>' +
+            '<select id="mov-sentido" onchange="onMovSentidoChange()">' +
+              '<option value="">— Seleccionar —</option>' +
+              '<option value="Entrante">📥 Recibida (Entrante)</option>' +
+              '<option value="Saliente">📤 Enviada (Saliente)</option>' +
+            '</select></div>' +
+          '<div class="form-group"><label class="form-label">N° de este movimiento</label><input type="text" id="mov-nsade"></div>' +
+          '<div class="form-group" id="movGrpOrigen"><label class="form-label">Remitente</label><input type="text" id="mov-origen"></div>' +
+          '<div class="form-group" id="movGrpDestino"><label class="form-label">Destinatario</label><input type="text" id="mov-destino"></div>' +
+          '<div class="form-group full"><label class="form-label">Observación</label><textarea id="mov-obs"></textarea></div>' +
+        '</div>' +
+        '<div class="btn-row">' +
+          '<button class="btn btn-success btn-sm" onclick="guardarMovimiento()">💾 Guardar Movimiento</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="toggleMovForm(false)">✕ Cancelar</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function toggleMovForm(forzar) {
+    var el = document.getElementById('movForm');
+    if (!el) return;
+    var mostrar = typeof forzar === 'boolean' ? forzar : el.style.display === 'none';
+    el.style.display = mostrar ? 'block' : 'none';
+    if (mostrar) {
+      limpiarFormMovimiento();
+      var hilo = allData.find(function(x){ return x.id === modalHiloId; });
+      var nsadeEl = document.getElementById('mov-nsade');
+      if (hilo && hilo.tipo === 'Expediente') {
+        nsadeEl.value = hilo.n_sade || '';
+        nsadeEl.readOnly = true;
+      } else {
+        nsadeEl.readOnly = false;
+      }
+    }
+  }
+
+  function onMovSentidoChange() {
+    var sentido = document.getElementById('mov-sentido').value;
+    document.getElementById('movGrpOrigen').style.display  = sentido === 'Entrante' ? '' : 'none';
+    document.getElementById('movGrpDestino').style.display = sentido === 'Saliente' ? '' : 'none';
+  }
+
+  function limpiarFormMovimiento() {
+    document.getElementById('mov-fecha').value = isoToday();
+    document.getElementById('mov-sentido').selectedIndex = 0;
+    document.getElementById('mov-nsade').value  = '';
+    document.getElementById('mov-nsade').readOnly = false;
+    document.getElementById('mov-origen').value = '';
+    document.getElementById('mov-destino').value= '';
+    document.getElementById('mov-obs').value    = '';
+    onMovSentidoChange();
+  }
+
+  async function guardarMovimiento() {
+    var fecha   = str(document.getElementById('mov-fecha').value);
+    var sentido = document.getElementById('mov-sentido').value;
+    var nsade   = str(document.getElementById('mov-nsade').value);
+    var origen  = str(document.getElementById('mov-origen').value);
+    var destino = str(document.getElementById('mov-destino').value);
+    var obs     = str(document.getElementById('mov-obs').value);
+
+    if (!fecha)   { alertShow('alertMovimiento','warning','La fecha es obligatoria.'); return; }
+    if (!sentido) { alertShow('alertMovimiento','warning','Elegí Entrante o Saliente.'); return; }
+    if (!nsade)   { alertShow('alertMovimiento','warning','Falta el N° de este movimiento.'); return; }
+    if (sentido === 'Entrante' && !origen)  { alertShow('alertMovimiento','warning','Falta el Remitente.'); return; }
+    if (sentido === 'Saliente' && !destino) { alertShow('alertMovimiento','warning','Falta el Destinatario.'); return; }
+
+    var payload = {
+      hilo_id: modalHiloId,
+      fecha: fecha,
+      sentido: sentido,
+      n_sade_movimiento: nsade,
+      organismo_origen: sentido === 'Entrante' ? origen  : '',
+      destinatario:      sentido === 'Saliente' ? destino : '',
+      observacion: obs
+    };
+
+    showLoading('Guardando movimiento…');
+    reabrirHiloId = modalHiloId;
+    try {
+      var res = await supabaseClient.from('sade_movimientos').insert(payload);
+      if (res.error) throw res.error;
+      await cargarDatos();
+    } catch (e) {
+      console.error(e);
+      alertShow('alertMovimiento', 'error', 'Error: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarMovimiento(idMov) {
+    showConfirm('¿Eliminar este movimiento del historial?', async function() {
+      showLoading('Eliminando movimiento…');
+      reabrirHiloId = modalHiloId;
+      try {
+        var res = await supabaseClient.from('sade_movimientos').delete().eq('id', idMov);
+        if (res.error) throw res.error;
+        await cargarDatos();
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'Error al eliminar el movimiento: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Eliminar' });
+  }
+
+  function verRelacionado(n) {
+    var idx = allData.findIndex(function(x){ return String(x.n_sade||'').trim() === String(n||'').trim(); });
+    if (idx === -1) { alertShow('topAlert', 'error', 'No se encontró ningún registro con N° SADE "'+n+'".'); return; }
+    verDetalle(idx, 'all');
+  }
+
+  function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
+
+  // ─── MOSTRAR/OCULTAR CAMPOS SEGÚN TIPO / SENTIDO ─
+  // Sentido/Remitente/Destinatario aplican al primer movimiento tanto de
+  // un Expediente como de una Comunicación (un expediente también puede
+  // tener idas y vueltas — solo que mantiene siempre el mismo N°).
+  function onTipoChange() {
+    var tipo = document.getElementById('f-tipo').value;
+    document.getElementById('nsadeHint').textContent = tipo === 'Expediente'
+      ? 'Este número va a quedar fijo: todos los movimientos futuros de este expediente lo van a compartir.'
+      : 'Cada movimiento de esta comunicación va a tener su propio N° (este es el del primero).';
+  }
+
+  function onSentidoChange() {
+    var sentido = document.getElementById('f-sentido').value;
+    document.getElementById('grpOrigen').style.display  = sentido === 'Entrante' ? '' : 'none';
+    document.getElementById('grpDestino').style.display = sentido === 'Saliente' ? '' : 'none';
+    document.getElementById('reqOrigen').style.display  = sentido === 'Entrante' ? '' : 'none';
+    document.getElementById('reqDestino').style.display = sentido === 'Saliente' ? '' : 'none';
+  }
+
+  // ─── NUEVA ENTRADA / EDICIÓN ──────────────────────
+  async function guardarEntrada() {
+    var fecha   = str(document.getElementById('f-fecha').value);
+    var tipo    = str(document.getElementById('f-tipo').value);
+    var asunto  = str(document.getElementById('f-asunto').value);
+    var sentido = document.getElementById('f-sentido').value;
+    var origen  = str(document.getElementById('f-origen').value);
+    var destino = str(document.getElementById('f-destino').value);
+    var nsade   = str(document.getElementById('f-nsade').value);
+
+    if (!fecha)   { alertShow('alertNueva','warning','La fecha de ingreso es obligatoria.'); return; }
+    if (!tipo)    { alertShow('alertNueva','warning','El tipo es obligatorio.'); return; }
+    if (!asunto)  { alertShow('alertNueva','warning','El asunto es obligatorio.'); return; }
+    if (!sentido) { alertShow('alertNueva','warning','Elegí si este primer movimiento es Entrante o Saliente.'); return; }
+    if (sentido === 'Entrante' && !origen)  { alertShow('alertNueva','warning','Falta el Remitente (de quién vino).'); return; }
+    if (sentido === 'Saliente' && !destino) { alertShow('alertNueva','warning','Falta el Destinatario (a quién se envió).'); return; }
+
+    // Los expedientes mantienen siempre el mismo número — si ya existe otro
+    // hilo con ese N°, lo correcto es agregarle un movimiento ahí, no crear
+    // un hilo duplicado.
+    if (tipo === 'Expediente' && nsade) {
+      var dup = allData.find(function(x) {
+        return x.tipo === 'Expediente' && String(x.n_sade||'').trim() === nsade && x.id !== editingId;
+      });
+      if (dup) {
+        var idxDup = allData.indexOf(dup);
+        showConfirm('Ya existe un expediente con el N° "'+nsade+'". Los expedientes mantienen siempre el mismo número.\n\n¿Querés abrirlo para agregarle este movimiento en vez de crear un duplicado?', function() {
+          limpiarFormulario();
+          verDetalle(idxDup, 'all');
+          setTimeout(function(){ toggleMovForm(true); }, 50);
+        }, { icon: '📁', textoOk: 'Abrir expediente' });
+        return;
+      }
+    }
+
+    var payload = {
+      n_sade:           orNull(nsade),
+      fecha_ingreso:    fecha,
+      tipo:             tipo,
+      sentido:          sentido,
+      asunto:           asunto,
+      organismo_origen: sentido === 'Entrante' ? origen  : '',
+      destinatario:     sentido === 'Saliente' ? destino : '',
+      n_relacionado:    orNull(document.getElementById('f-relacionado').value),
+      prioridad:        document.getElementById('f-prioridad').value,
+      estado:           document.getElementById('f-estado').value,
+      fecha_resolucion: orNull(document.getElementById('f-fecha-res').value),
+      observaciones:    str(document.getElementById('f-obs').value)
+    };
+
+    var isEdit = !!editingId;
+    showLoading(isEdit ? 'Actualizando…' : 'Guardando…');
+    try {
+      var res;
+      if (isEdit) res = await supabaseClient.from('sade_hilos').update(payload).eq('id', editingId);
+      else        res = await supabaseClient.from('sade_hilos').insert(payload);
+      if (res.error) throw res.error;
+      alertShow('alertNueva','success', isEdit ? '✅ Entrada actualizada correctamente.' : '✅ Entrada guardada correctamente.');
+      limpiarFormulario();
+      await cargarDatos();
+    } catch (e) {
+      console.error(e);
+      alertShow('alertNueva','error','Error: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function editarEntrada(id) {
+    var r = allData.find(function(x){ return x.id === id; });
+    if (!r) { alertShow('topAlert', 'error', 'No se encontró el registro (recargá los datos e intentá de nuevo).'); return; }
+
+    editingId = id;
+
+    document.getElementById('f-nsade').value       = r.n_sade || '';
+    document.getElementById('f-fecha').value       = toInputDate(r.fecha_ingreso);
+    document.getElementById('f-tipo').value        = r.tipo || '';
+    document.getElementById('f-prioridad').value   = r.prioridad || 'Normal';
+    document.getElementById('f-asunto').value      = r.asunto || '';
+    document.getElementById('f-origen').value      = r.organismo_origen || '';
+    document.getElementById('f-destino').value     = r.destinatario || '';
+    document.getElementById('f-sentido').value     = r.sentido || '';
+    document.getElementById('f-relacionado').value = r.n_relacionado || '';
+    document.getElementById('f-estado').value      = r.estado || 'Pendiente';
+    document.getElementById('f-fecha-res').value   = toInputDate(r.fecha_resolucion);
+    document.getElementById('f-obs').value         = r.observaciones || '';
+
+    onTipoChange();
+    onSentidoChange();
+
+    document.getElementById('formTitle').textContent    = '✏️ Editar Entrada SADE — ' + (r.n_sade || 'sin número');
+    document.getElementById('formSubtitle').textContent  = 'Estás editando los datos de cabecera y el movimiento inicial de este hilo. Para agregar una ida/vuelta nueva, usá "Ver" → "Agregar Movimiento".';
+    document.getElementById('btnGuardarLabel').textContent = 'Actualizar Entrada';
+    document.getElementById('btnCancelarEdicion').style.display = 'inline-flex';
+
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelector('.tab-btn[data-tab="nueva"]').classList.add('active');
+    document.getElementById('pane-nueva').classList.add('active');
+    document.getElementById('pane-nueva').scrollIntoView({ behavior:'smooth' });
+  }
+
+  function cancelarEdicion() {
+    limpiarFormulario();
+  }
+
+  function limpiarFormulario() {
+    ['f-nsade','f-asunto','f-origen','f-destino','f-obs','f-fecha-res','f-relacionado'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('f-fecha').value = isoToday();
+    document.getElementById('f-tipo').selectedIndex      = 0;
+    document.getElementById('f-prioridad').selectedIndex = 0;
+    document.getElementById('f-estado').selectedIndex    = 0;
+    document.getElementById('f-sentido').selectedIndex   = 0;
+
+    editingId = null;
+    document.getElementById('formTitle').textContent = '➕ Nueva Entrada SADE';
+    document.getElementById('formSubtitle').textContent = 'Completá los campos del expediente/comunicación y su primer movimiento. Después vas a poder agregarle más idas y vueltas desde "Ver".';
+    document.getElementById('btnGuardarLabel').textContent = 'Guardar Entrada';
+    document.getElementById('btnCancelarEdicion').style.display = 'none';
+    onTipoChange();
+    onSentidoChange();
+  }
+
+  // ─── ELIMINAR ────────────────────────────────────
+  function confirmarEliminar(id, label) {
+    var hilo  = allData.find(function(x){ return x.id === id; });
+    var extra = hilo ? (movimientosPorHilo[hilo.id]||[]).length : 0;
+    var msg = extra > 0
+      ? '¿Eliminar el registro "'+label+'"? Esto también va a borrar sus '+extra+' movimiento'+(extra!==1?'s':'')+' del historial.'
+      : '¿Eliminar el registro "'+label+'"?';
+    showConfirm(msg, async function() {
+      showLoading('Eliminando…');
+      try {
+        // on delete cascade en sade_movimientos.hilo_id: se borra solo el historial.
+        var res = await supabaseClient.from('sade_hilos').delete().eq('id', id);
+        if (res.error) throw res.error;
+        if (editingId === id) limpiarFormulario();
+        if (modalHiloId === id) closeModal();
+        await cargarDatos();
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Eliminar' });
+  }
+
+  // ─── BÚSQUEDA AVANZADA ───────────────────────────
+  function busquedaAvanzada() {
+    var f = {
+      nsade:    (document.getElementById('s-nsade').value   ||'').toLowerCase().trim(),
+      asunto:   (document.getElementById('s-asunto').value  ||'').toLowerCase().trim(),
+      origen:   (document.getElementById('s-origen').value  ||'').toLowerCase().trim(),
+      destino:  (document.getElementById('s-destino').value ||'').toLowerCase().trim(),
+      obs:      (document.getElementById('s-obs').value     ||'').toLowerCase().trim(),
+      tipo:     document.getElementById('s-tipo').value,
+      sentido:  document.getElementById('s-sentido').value,
+      estado:   document.getElementById('s-estado').value,
+      prioridad:document.getElementById('s-prioridad').value,
+      desde:    document.getElementById('s-desde').value,
+      hasta:    document.getElementById('s-hasta').value
+    };
+    var res = allData.filter(function(r){
+      if (f.nsade   && !(r.n_sade||'').toLowerCase().includes(f.nsade))            return false;
+      if (f.asunto  && !(r.asunto||'').toLowerCase().includes(f.asunto))            return false;
+      if (f.origen  && !(r.organismo_origen||'').toLowerCase().includes(f.origen))  return false;
+      if (f.destino && !(r.destinatario||'').toLowerCase().includes(f.destino))     return false;
+      if (f.obs     && !(r.observaciones||'').toLowerCase().includes(f.obs))        return false;
+      if (f.tipo      && r.tipo      !== f.tipo)      return false;
+      if (f.sentido   && ultimoMovimiento(r).sentido !== f.sentido) return false;
+      if (f.estado    && r.estado    !== f.estado)    return false;
+      if (f.prioridad && r.prioridad !== f.prioridad) return false;
+      if (f.desde && parseDate(r.fecha_ingreso) < parseDate(f.desde)) return false;
+      if (f.hasta && parseDate(r.fecha_ingreso) > parseDate(f.hasta)) return false;
+      return true;
+    });
+    res.sort(function(a,b){ return parseDate(b.fecha_ingreso)-parseDate(a.fecha_ingreso); });
+    window._searchResults = res;
+    searchPage = 1;
+    renderSearchResults();
+    document.getElementById('searchResults').style.display = 'block';
+    document.getElementById('searchResults').scrollIntoView({ behavior:'smooth' });
+  }
+
+  function renderSearchResults() {
+    var res   = window._searchResults || [];
+    set('searchCount', res.length + ' encontrado' + (res.length!==1?'s':''));
+    var start = (searchPage - 1) * PAGE_SIZE;
+    var page  = res.slice(start, start + PAGE_SIZE);
+    document.getElementById('searchTbody').innerHTML = page.length
+      ? page.map(function(r, i){ return rowHtmlSearch(r, start+i); }).join('')
+      : '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted)">Sin resultados</td></tr>';
+    renderPagination('paginationSearch', res.length, searchPage, 'page-search');
+  }
+
+  function limpiarBusqueda() {
+    ['s-nsade','s-asunto','s-origen','s-destino','s-obs','s-desde','s-hasta'].forEach(function(id){ document.getElementById(id).value=''; });
+    ['s-tipo','s-sentido','s-estado','s-prioridad'].forEach(function(id){ document.getElementById(id).selectedIndex=0; });
+    document.getElementById('searchResults').style.display='none';
+  }
+
+  // ─── ESTADO INLINE EDIT ──────────────────────────
+  function selectEstado(id, current) {
+    var cls = { 'Pendiente':'s-orange','En Trámite':'s-blue','Resuelto':'s-green','Conocimiento':'s-teal' };
+    var opts = ['Pendiente','En Trámite','Resuelto','Conocimiento'].map(function(o) {
+      return '<option value="'+o+'"'+(o===current?' selected':'')+'>'+o+'</option>';
+    }).join('');
+    return '<select class="estado-select '+(cls[current]||'')+'" '+
+      'data-id="'+esc(id)+'" '+
+      'onchange="updateEstado(this)" '+
+      'title="Cambiar estado">'+opts+'</select>';
+  }
+
+  async function updateEstado(sel) {
+    var id     = sel.dataset.id;
+    var newVal = sel.value;
+    var cls    = { 'Pendiente':'s-orange','En Trámite':'s-blue','Resuelto':'s-green','Conocimiento':'s-teal' };
+    sel.className = 'estado-select saving';
+    try {
+      var rec = allData.find(function(x){ return x.id === id; });
+      var payload = { estado: newVal };
+      if (newVal === 'Resuelto' && rec && !rec.fecha_resolucion) payload.fecha_resolucion = isoToday();
+      var res = await supabaseClient.from('sade_hilos').update(payload).eq('id', id);
+      if (res.error) throw res.error;
+      if (rec) {
+        rec.estado = newVal;
+        if (payload.fecha_resolucion) rec.fecha_resolucion = payload.fecha_resolucion;
+      }
+      sel.className = 'estado-select ' + (cls[newVal]||'');
+      updateKPIs();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al guardar el estado: ' + (e.message || e));
+      await cargarDatos();
+    }
+  }
+
+  // ─── BADGES ──────────────────────────────────────
+  function badgeEstado(e) {
+    var m = { 'Pendiente':'b-orange','En Trámite':'b-blue','Resuelto':'b-green','Conocimiento':'b-teal' };
+    return '<span class="badge '+(m[e]||'b-gray')+'">'+esc(e||'–')+'</span>';
+  }
+  function badgePrioridad(p) {
+    var m = { 'Normal':'b-gray','Alta':'b-yellow','Urgente':'b-red' };
+    return '<span class="badge '+(m[p]||'b-gray')+'">'+esc(p||'–')+'</span>';
+  }
+  function badgeTipo(t) {
+    var m = { 'Expediente':'b-blue','Comunicación':'b-teal','Nota Interna':'b-purple','Resolución':'b-orange','Circular':'b-yellow','Otro':'b-gray' };
+    return '<span class="badge '+(m[t]||'b-gray')+'">'+esc(t||'–')+'</span>';
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>
