@@ -2722,9 +2722,14 @@
       signedUrlStorage(f['CLU Imagen Drive ID']),
       signedUrlStorage(f['CLU2 Imagen Drive ID']),
       signedUrlStorage(f['DNI Frente Drive ID']),
-      signedUrlStorage(f['DNI Dorso Drive ID'])
+      signedUrlStorage(f['DNI Dorso Drive ID']),
+      signedUrlStorage(f['Licencia Municipal Frente Drive ID']),
+      signedUrlStorage(f['Licencia Municipal Dorso Drive ID']),
+      signedUrlStorage(f['Licencia Policial Frente Drive ID']),
+      signedUrlStorage(f['Licencia Policial Dorso Drive ID'])
     ]);
     var urlFoto = urls[0], urlClu = urls[1], urlClu2 = urls[2], urlDniFrente = urls[3], urlDniDorso = urls[4];
+    var urlLicMunFrente = urls[5], urlLicMunDorso = urls[6], urlLicPolFrente = urls[7], urlLicPolDorso = urls[8];
 
     var fotoHtml = urlFoto
       ? '<img src="' + esc(urlFoto) + '" alt="Foto del personal">'
@@ -2743,6 +2748,19 @@
       : '';
     var dniDorsoHtml = urlDniDorso
       ? '<div class="clu-imagen-wrap"><div class="ficha-seccion-title" style="margin-bottom:6px;">DNI (dorso)</div><img src="' + esc(urlDniDorso) + '" alt="DNI dorso" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '';
+
+    var licMunFrenteHtml = urlLicMunFrente
+      ? '<div class="clu-imagen-wrap"><div class="ficha-seccion-title" style="margin-bottom:6px;">Licencia municipal (frente)</div><img src="' + esc(urlLicMunFrente) + '" alt="Licencia municipal frente" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '';
+    var licMunDorsoHtml = urlLicMunDorso
+      ? '<div class="clu-imagen-wrap"><div class="ficha-seccion-title" style="margin-bottom:6px;">Licencia municipal (dorso)</div><img src="' + esc(urlLicMunDorso) + '" alt="Licencia municipal dorso" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '';
+    var licPolFrenteHtml = urlLicPolFrente
+      ? '<div class="clu-imagen-wrap"><div class="ficha-seccion-title" style="margin-bottom:6px;">Licencia policial (frente)</div><img src="' + esc(urlLicPolFrente) + '" alt="Licencia policial frente" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
+      : '';
+    var licPolDorsoHtml = urlLicPolDorso
+      ? '<div class="clu-imagen-wrap"><div class="ficha-seccion-title" style="margin-bottom:6px;">Licencia policial (dorso)</div><img src="' + esc(urlLicPolDorso) + '" alt="Licencia policial dorso" onclick="window.open(this.src,\'_blank\')" title="Ver en tamaño completo"></div>'
       : '';
 
     var backBtn = lastBoxType ? '<button class="modal-back" onclick="abrirCajaModal(\''+lastBoxType+'\')">← Volver al listado</button>' : '';
@@ -2822,7 +2840,7 @@
       ['Habilitación flota policial', f['Habilitacion Flota Policial']], ['Categoría policial', f['Categoria Policial']],
       ['Vencimiento lic. policial', fmtFecha(f['Vencimiento Licencia Policial'])],
       ['Licencia profesional', f['Licencia Profesional']]
-    ]);
+    ], licMunFrenteHtml + licMunDorsoHtml + licPolFrenteHtml + licPolDorsoHtml);
 
     html += _fichaSeccion('Esposas', [
       ['Esposas', f['Esposas']], ['Nro. esposas', f['Nro Esposas']]
