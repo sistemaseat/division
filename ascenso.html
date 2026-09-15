@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascensos — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--primary);
+    color: white;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* ── LAYOUT ── */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .alert-warning { background: #fff9c4; color: #e65100; border-left: 4px solid #ffd600; }
+
+  .section-label {
+    font-size: 12px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .8px; color: var(--muted); margin: 22px 0 10px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  /* ── KPI GRID (próximo evento) ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .kpi {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 22px;
+    border-left: 4px solid;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-orange { border-left-color: var(--orange); }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 8px; }
+  .kpi-val   { font-size: 24px; font-weight: 900; line-height: 1.25; color: var(--text); margin-bottom: 4px; }
+  .kpi-val.big { font-size: 32px; }
+  .kpi-sub   { font-size: 12px; color: var(--muted); }
+  .kpi-hint  { font-size: 11px; color: var(--primary); font-weight: 700; margin-top: 8px; }
+
+  /* ── STAGE STAT CARDS (resumen por etapa) ── */
+  .stage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+  }
+  .stage-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform .12s, box-shadow .12s, border-color .12s;
+  }
+  .stage-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .stage-card.active { border-color: var(--primary); background: #eef0fb; }
+  .stage-icon { font-size: 18px; margin-bottom: 6px; }
+  .stage-val  { font-size: 22px; font-weight: 900; color: var(--text); }
+  .stage-lbl  { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 8888;
+    background: rgba(0,0,0,.45);
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box-lg {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 26px;
+    width: 100%; max-width: 960px; max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .modal-title { font-size: 17px; font-weight: 800; color: var(--primary); }
+  .modal-close {
+    background: #f0f0f0; border: none; border-radius: 8px;
+    width: 32px; height: 32px; font-size: 15px; cursor: pointer; color: var(--text);
+  }
+  .modal-close:hover { background: #e0e0e0; }
+
+  /* ── MODAL DE CONFIRMACIÓN ── */
+  #confirmModal { z-index: 9500; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-top: 22px;
+  }
+  .table-toolbar {
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-title { font-size: 14px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .6px; }
+  .search-input {
+    padding: 8px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    min-width: 220px;
+  }
+  .search-input:focus { border-color: var(--primary); }
+
+  .filtro-chip {
+    display: none;
+    align-items: center; gap: 8px;
+    background: #eef0fb; color: var(--primary);
+    border-radius: 20px; padding: 6px 12px 6px 14px;
+    font-size: 12px; font-weight: 700;
+  }
+  .filtro-chip.show { display: inline-flex; }
+  .filtro-chip button {
+    background: var(--primary); color: white; border: none;
+    border-radius: 50%; width: 18px; height: 18px; font-size: 11px;
+    cursor: pointer; line-height: 1;
+  }
+
+  .btn-export {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    background: var(--green);
+    color: white;
+    border: none; border-radius: 10px;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: .5px;
+    cursor: pointer; transition: opacity .15s;
+    white-space: nowrap;
+  }
+  .btn-export:hover { opacity: .85; }
+
+  .btn-edit {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    background: #e8eaf6; color: var(--primary);
+    border: none; border-radius: 8px;
+    font-size: 11.5px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-edit:hover { background: #c5cae9; }
+
+  .btn-del {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    background: #ffebee; color: var(--red);
+    border: none; border-radius: 8px;
+    font-size: 11.5px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+    margin-left: 4px;
+  }
+  .btn-del:hover { background: #ffcdd2; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px 16px;
+  }
+  .form-field label {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .4px; color: var(--muted); margin-bottom: 5px;
+  }
+  .form-field input, .form-field select {
+    width: 100%; padding: 9px 10px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--text); outline: none;
+    font-family: inherit;
+  }
+  .form-field input:focus, .form-field select:focus { border-color: var(--primary); }
+  .form-field input:disabled { background: #f5f5f5; color: var(--muted); }
+  .form-field .required-star { color: var(--red); margin-left: 2px; }
+
+  .table-scroll { overflow-x: auto; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .tbl th {
+    background: #e8eaf6;
+    color: var(--primary);
+    font-weight: 700; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: .4px;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 2px solid #c5cae9;
+    white-space: nowrap;
+  }
+  .tbl td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .tbl tr:hover td { background: #fafbff; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge.ok   { background: #c8e6c9; color: var(--green); }
+  .badge.no   { background: #f0f0f0; color: var(--muted); }
+  .badge.next { background: var(--accent); color: var(--primary); }
+
+  /* ── EMPTY / LOADING ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.55); z-index: 9999;
+    align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .header { padding: 12px 16px; }
+    .header-user { width: 100%; justify-content: flex-start; gap: 6px 10px; }
+    .content { padding: 14px 12px; }
+    .brand-title { font-size: 18px; }
+    .kpi-val.big { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn-edit" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box-lg confirm-modal" style="max-width:420px;">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones" style="display:flex;justify-content:center;gap:10px;margin-top:10px;"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">ASC</div>
+    <div>
+      <div class="brand-title">ASCENSOS</div>
+      <div class="brand-sub">DIVISIÓN TIRO — Personal en condición de ascenso</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- ═══════════════════ CONTENT ═══════════════════ -->
+<main class="content">
+
+  <div class="alert" id="topAlert"></div>
+
+  <div class="section-label">📅 Próximo evento (PEP / Curso / Examen)</div>
+  <div class="kpi-grid" id="proximaKpis">
+    <div class="kpi c-blue" onclick="abrirModalProxima()">
+      <div class="kpi-label">📅 Próxima fecha</div>
+      <div class="kpi-val big" id="kpiFecha">—</div>
+      <div class="kpi-sub" id="kpiFechaSub">Cargando…</div>
+      <div class="kpi-hint">👆 Ver personal y datos</div>
+    </div>
+    <div class="kpi c-orange" onclick="abrirModalProxima()">
+      <div class="kpi-label">🎯 Tipo de evento</div>
+      <div class="kpi-val" id="kpiTipo">—</div>
+      <div class="kpi-sub">etapas con actividad ese día</div>
+      <div class="kpi-hint">👆 Ver personal y datos</div>
+    </div>
+    <div class="kpi c-green" onclick="abrirModalProxima()">
+      <div class="kpi-label">👥 Personal</div>
+      <div class="kpi-val big" id="kpiPersonal">—</div>
+      <div class="kpi-sub" id="kpiPersonalSub">personas involucradas ese día</div>
+      <div class="kpi-hint">👆 Ver personal y datos</div>
+    </div>
+  </div>
+
+  <div class="section-label">📊 Resumen por etapa — tocá una tarjeta para filtrar la tabla</div>
+  <div class="stage-grid" id="stageGrid"></div>
+
+  <!-- Tabla -->
+  <div class="table-wrap">
+    <div class="table-toolbar">
+      <div class="table-title">📋 Personal en condición de ascenso</div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div class="filtro-chip" id="filtroChip">
+          <span id="filtroChipTexto"></span>
+          <button onclick="limpiarFiltroEtapa()">✕</button>
+        </div>
+        <input type="text" class="search-input" id="buscar" placeholder="🔍 Buscar apellido, LP, jerarquía…" oninput="renderTabla()">
+        <button class="btn-export" style="background:var(--primary);" onclick="abrirModalNuevo()">➕ Nueva Entrada</button>
+        <button class="btn-export" onclick="exportarExcel()">⬇️ Exportar Excel</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Orden</th>
+            <th>Jerarquía</th>
+            <th>LP</th>
+            <th>Apellido</th>
+            <th>Nombres</th>
+            <th>Intento</th>
+            <th>Inscripción</th>
+            <th>Fecha PEP</th>
+            <th>Aprobó (PEP)</th>
+            <th>Fecha Curso</th>
+            <th>Fecha Examen</th>
+            <th>Aprobó (Examen)</th>
+            <th>Psicológico</th>
+            <th>Apto Psico</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <div class="icon">📭</div>
+      <p>No hay personal cargado todavía.</p>
+    </div>
+  </div>
+
+</main>
+
+</div><!-- /appRoot -->
+
+<!-- Modal: Editar / cargar resultados / nueva entrada -->
+<div class="modal-overlay" id="editarModal">
+  <div class="modal-box-lg" style="max-width:680px;">
+    <div class="modal-header">
+      <div class="modal-title" id="editarModalTitle">Editar</div>
+      <button class="modal-close" onclick="cerrarModalEditar()">✕</button>
+    </div>
+    <div class="alert" id="alertEditar"></div>
+    <div class="form-grid">
+      <div class="form-field"><label>Orden</label><input type="text" id="edOrden"></div>
+      <div class="form-field"><label>LP <span class="required-star">*</span></label><input type="text" id="edLP"></div>
+      <div class="form-field"><label>Jerarquía</label><input type="text" id="edJerarquia"></div>
+      <div class="form-field"><label>Intento</label><input type="text" id="edIntento"></div>
+      <div class="form-field"><label>Apellido <span class="required-star">*</span></label><input type="text" id="edApellido"></div>
+      <div class="form-field"><label>Nombres</label><input type="text" id="edNombres"></div>
+      <div class="form-field">
+        <label>Inscripción</label>
+        <select id="edInscripcion">
+          <option value="">—</option>
+          <option value="SI">SI</option>
+          <option value="NO">NO</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Fecha PEP</label><input type="text" id="edFechaPEP" placeholder="dd/mm - hh:mm - GRUPO X, o NO"></div>
+      <div class="form-field">
+        <label>Aprobó (PEP)</label>
+        <select id="edAprobadoPEP">
+          <option value="">—</option>
+          <option value="APROBÓ">APROBÓ</option>
+          <option value="NO">NO</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Fecha Curso</label><input type="text" id="edFechaCurso" placeholder="dd/mm/aaaa - GRUPO X, o NO"></div>
+      <div class="form-field"><label>Fecha Examen</label><input type="text" id="edFechaExamen" placeholder="dd/mm/aaaa, o NO"></div>
+      <div class="form-field">
+        <label>Aprobó (Examen)</label>
+        <select id="edAprobadoExamen">
+          <option value="">—</option>
+          <option value="APROBÓ">APROBÓ</option>
+          <option value="NO">NO</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Psicológico</label><input type="text" id="edPsicologico"></div>
+      <div class="form-field"><label>Apto Psico</label><input type="text" id="edAptoPsico"></div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+      <button class="btn-export" style="background:#9e9e9e;" onclick="cerrarModalEditar()">Cancelar</button>
+      <button class="btn-export" onclick="guardarEdicion()">💾 <span id="btnGuardarLabel">Guardar cambios</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Personal del próximo evento -->
+<div class="modal-overlay" id="proximaModal">
+  <div class="modal-box-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="proximaModalTitle">Personal — Próximo evento</div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="btn-export" style="padding:8px 16px; font-size:12px;" onclick="exportarProximaExcel()">⬇️ Exportar Excel</button>
+        <button class="modal-close" onclick="cerrarModalProxima()">✕</button>
+      </div>
+    </div>
+    <div id="proximaModalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var datos = [];          // ascenso_registros crudo
+  var filtroEtapa = null;  // { id, label, test } — tarjeta de etapa activa
+  var editingId = null;    // id (uuid) de la persona en edición (null = alta nueva)
+
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // ── Utilidades ────────────────────────────────────────────────
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function orNull(v) { v = str(v); return v === '' ? null : v; }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo === 'success') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn-export';
+    btnCancelar.style.background = '#9e9e9e';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn-export';
+    if (opciones.peligroso) btnOk.style.background = 'var(--red)';
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function hoyISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function fmtFechaCorta(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+
+  function fmtFechaLarga(iso) {
+    if (!iso) return '—';
+    var p = iso.split('-');
+    if (p.length !== 3) return iso;
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    var txt = d.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  }
+
+  // ---- Extrae una fecha comparable (ISO) de un campo de texto libre ----
+  // En la planilla real, Fecha PEP/Curso/Examen casi nunca son una fecha
+  // "pura": vienen como texto compuesto (ej. "11/06 - 15:20 - GRUPO A",
+  // "20/07/2026 - GRUPO A") o directamente "NO". Buscamos un "dd/mm/aaaa"
+  // en cualquier parte del texto y, si no hay año, asumimos el año en
+  // curso (si tu planilla llega a tener una fecha "dd/mm" que en realidad
+  // cae en el año que viene — ej. cargada en diciembre para enero — vas a
+  // tener que escribirle el año completo para que se ordene bien).
+  function extraerFechaISO(texto) {
+    if (!texto) return null;
+    var s = String(texto).trim();
+    if (!s || /^no$/i.test(s)) return null;
+    var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+    m = s.match(/(\d{1,2})\/(\d{1,2})/);
+    if (m) {
+      var anio = new Date().getFullYear();
+      return anio + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+    }
+    return null;
+  }
+
+  // ---- Helpers de estado (interpretan el texto de la planilla) ----
+  function esSI(v)         { return /^s[ií]$/i.test(String(v || '').trim()); }
+  function contieneAprob(v){ return /aprob/i.test(String(v || '')); }
+  function tieneValor(v)   { var s = String(v || '').trim().toUpperCase(); return !!s && s !== 'NO'; }
+
+  // ---- Definición de las tarjetas de etapa ----
+  var ETAPAS = [
+    { id:'inscriptos', icon:'📝', label:'Inscriptos',       test:function (r) { return tieneValor(r.inscripcion); } },
+    { id:'pep',         icon:'✅', label:'PEP aprobado',     test:function (r) { return contieneAprob(r.aprobado_pep) || esSI(r.aprobado_pep); } },
+    { id:'curso',       icon:'🎓', label:'Curso asignado',   test:function (r) { return tieneValor(r.fecha_curso); } },
+    { id:'examen',      icon:'🏆', label:'Examen aprobado',  test:function (r) { return contieneAprob(r.aprobado_examen) || esSI(r.aprobado_examen); } },
+    { id:'psico',       icon:'🧠', label:'Apto psicológico', test:function (r) { return tieneValor(r.apto_psico); } }
+  ];
+
+  function renderStageGrid() {
+    var grid = document.getElementById('stageGrid');
+    grid.innerHTML = ETAPAS.map(function (e) {
+      var count = datos.filter(e.test).length;
+      var activo = filtroEtapa && filtroEtapa.id === e.id;
+      return '<div class="stage-card' + (activo ? ' active' : '') + '" onclick="toggleFiltroEtapa(\'' + e.id + '\')">' +
+        '<div class="stage-icon">' + e.icon + '</div>' +
+        '<div class="stage-val">' + count + '</div>' +
+        '<div class="stage-lbl">' + esc(e.label) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function toggleFiltroEtapa(id) {
+    if (filtroEtapa && filtroEtapa.id === id) {
+      filtroEtapa = null;
+    } else {
+      filtroEtapa = ETAPAS.find(function (e) { return e.id === id; });
+    }
+    renderStageGrid();
+    renderTabla();
+  }
+
+  function limpiarFiltroEtapa() {
+    filtroEtapa = null;
+    renderStageGrid();
+    renderTabla();
+  }
+
+  // ---- Ordena por Orden (numérico) y, si falta, por Apellido ----
+  function ordenarDatos(arr) {
+    return arr.slice().sort(function (a, b) {
+      var oa = Number(a.orden), ob = Number(b.orden);
+      var va = isNaN(oa) ? 999999 : oa;
+      var vb = isNaN(ob) ? 999999 : ob;
+      if (va !== vb) return va - vb;
+      return String(a.apellido || '').localeCompare(String(b.apellido || ''));
+    });
+  }
+
+  // ---- Combina fecha_pep/fecha_curso/fecha_examen en una lista de eventos ----
+  function construirEventos() {
+    var eventos = [];
+    datos.forEach(function (r) {
+      var iP = extraerFechaISO(r.fecha_pep);    if (iP) eventos.push({ iso: iP, tipo: 'PEP',    persona: r });
+      var iC = extraerFechaISO(r.fecha_curso);  if (iC) eventos.push({ iso: iC, tipo: 'Curso',  persona: r });
+      var iE = extraerFechaISO(r.fecha_examen); if (iE) eventos.push({ iso: iE, tipo: 'Examen', persona: r });
+    });
+    return eventos;
+  }
+
+  var proximaFechaActual = null;
+  var proximaFechaEventos = [];
+
+  function actualizarCajasEventos() {
+    var hoy = hoyISO();
+    var eventos = construirEventos().filter(function (e) { return e.iso >= hoy; });
+    eventos.sort(function (a, b) { return a.iso < b.iso ? -1 : (a.iso > b.iso ? 1 : 0); });
+
+    var proxima = eventos.length ? eventos[0].iso : null;
+    proximaFechaActual = proxima;
+
+    if (!proxima) {
+      document.getElementById('kpiFecha').textContent = '—';
+      document.getElementById('kpiFechaSub').textContent = 'No hay eventos próximos cargados';
+      document.getElementById('kpiTipo').textContent = '—';
+      document.getElementById('kpiPersonal').textContent = '—';
+      document.getElementById('kpiPersonalSub').textContent = 'sin datos';
+      proximaFechaEventos = [];
+      return;
+    }
+
+    var delDia = eventos.filter(function (e) { return e.iso === proxima; });
+    proximaFechaEventos = delDia;
+
+    var tipos = Array.from(new Set(delDia.map(function (e) { return e.tipo; })));
+    var lps = Array.from(new Set(delDia.map(function (e) { return e.persona.lp; })));
+    var nombres = Array.from(new Set(delDia.map(function (e) { return [e.persona.apellido, e.persona.nombres].filter(Boolean).join(', '); })));
+    var preview = nombres.slice(0, 3).join(' · ');
+    if (nombres.length > 3) preview += ' · +' + (nombres.length - 3) + ' más';
+
+    document.getElementById('kpiFecha').textContent = fmtFechaCorta(proxima);
+    document.getElementById('kpiFechaSub').textContent = fmtFechaLarga(proxima);
+    document.getElementById('kpiTipo').textContent = tipos.join(', ');
+    document.getElementById('kpiPersonal').textContent = lps.length;
+    document.getElementById('kpiPersonalSub').textContent = preview || 'personas involucradas ese día';
+  }
+
+  function abrirModalProxima() {
+    if (!proximaFechaActual) { alertShow('topAlert', 'warning', 'No hay un próximo evento con datos.'); return; }
+
+    document.getElementById('proximaModalTitle').textContent = 'Personal — ' + fmtFechaLarga(proximaFechaActual);
+
+    var body = document.getElementById('proximaModalBody');
+    if (!proximaFechaEventos.length) {
+      body.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin personal para esta fecha.</p></div>';
+    } else {
+      var filas = proximaFechaEventos.slice().sort(function (a, b) {
+        return a.tipo.localeCompare(b.tipo) || String(a.persona.apellido).localeCompare(String(b.persona.apellido));
+      });
+      body.innerHTML =
+        '<div class="table-scroll"><table class="tbl"><thead><tr>' +
+        '<th>Tipo</th><th>Orden</th><th>Jerarquía</th><th>LP</th><th>Apellido</th><th>Nombres</th>' +
+        '</tr></thead><tbody>' +
+        filas.map(function (e) {
+          var r = e.persona;
+          return '<tr>' +
+            '<td><span class="badge next">' + esc(e.tipo) + '</span></td>' +
+            '<td>' + esc(r.orden) + '</td>' +
+            '<td>' + esc(r.jerarquia) + '</td>' +
+            '<td>' + esc(r.lp) + '</td>' +
+            '<td>' + esc(r.apellido) + '</td>' +
+            '<td>' + esc(r.nombres) + '</td>' +
+            '</tr>';
+        }).join('') +
+        '</tbody></table></div>';
+    }
+    document.getElementById('proximaModal').classList.add('show');
+  }
+
+  function cerrarModalProxima() {
+    document.getElementById('proximaModal').classList.remove('show');
+  }
+
+  // ---- Estilos compartidos para los excels exportados (imitan la planilla) ----
+  var COLOR_HEADER_FILL   = 'FFE8EAF6';
+  var COLOR_HEADER_BORDER = 'FFC5CAE9';
+  var COLOR_CELL_BORDER   = 'FFE0E0E0';
+
+  function estilarFilaTitulo(row) {
+    row.height = 22;
+    row.getCell(1).font = { bold: true, size: 12 };
+    row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+  }
+
+  function estilarFilaHeader(row) {
+    row.height = 20;
+    row.eachCell({ includeEmpty: true }, function (cell) {
+      cell.font = { bold: true, color: { argb: 'FF1A237E' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_FILL } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: COLOR_HEADER_BORDER } },
+        left: { style: 'thin', color: { argb: COLOR_HEADER_BORDER } },
+        bottom: { style: 'medium', color: { argb: COLOR_HEADER_BORDER } },
+        right: { style: 'thin', color: { argb: COLOR_HEADER_BORDER } }
+      };
+    });
+  }
+
+  function estilarFilaDatos(row) {
+    row.eachCell({ includeEmpty: true }, function (cell) {
+      cell.alignment = { vertical: 'middle' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: COLOR_CELL_BORDER } },
+        left: { style: 'thin', color: { argb: COLOR_CELL_BORDER } },
+        bottom: { style: 'thin', color: { argb: COLOR_CELL_BORDER } },
+        right: { style: 'thin', color: { argb: COLOR_CELL_BORDER } }
+      };
+    });
+  }
+
+  // ---- Descarga un Workbook de ExcelJS como archivo .xlsx ----
+  function descargarWorkbook(wb, nombreArchivo) {
+    return wb.xlsx.writeBuffer().then(function (buffer) {
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    });
+  }
+
+  function exportarProximaExcel() {
+    if (!proximaFechaActual || !proximaFechaEventos.length) { alertShow('topAlert', 'warning', 'No hay datos para exportar.'); return; }
+
+    var filas = proximaFechaEventos.slice().sort(function (a, b) {
+      return a.tipo.localeCompare(b.tipo) || String(a.persona.apellido).localeCompare(String(b.persona.apellido));
+    });
+
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('Proximo evento');
+    ws.columns = [
+      { width: 14 }, { width: 8 }, { width: 16 }, { width: 8 }, { width: 18 }, { width: 20 }, { width: 12 }
+    ];
+
+    estilarFilaHeader(ws.addRow(['Tipo de evento', 'Orden', 'Jerarquia', 'LP', 'Apellido', 'Nombres', 'Fecha']));
+
+    filas.forEach(function (e) {
+      var r = e.persona;
+      estilarFilaDatos(ws.addRow([e.tipo, r.orden, r.jerarquia, r.lp, r.apellido, r.nombres, fmtFechaCorta(proximaFechaActual)]));
+    });
+
+    descargarWorkbook(wb, 'ASCENSO_Proximo_' + proximaFechaActual + '.xlsx')
+      .then(function () { alertShow('topAlert', 'success', 'Excel exportado.'); })
+      .catch(function (err) { alertShow('topAlert', 'error', 'No se pudo exportar: ' + err.message); });
+  }
+
+  // ---- Alta / edición de una persona ----
+  function abrirModalNuevo() {
+    editingId = null;
+    document.getElementById('editarModalTitle').textContent = '➕ Nueva Entrada — Ascensos';
+    document.getElementById('btnGuardarLabel').textContent = 'Guardar entrada';
+    document.getElementById('alertEditar').classList.remove('show');
+    ['edOrden','edLP','edJerarquia','edIntento','edApellido','edNombres','edFechaPEP','edFechaCurso','edFechaExamen','edPsicologico','edAptoPsico'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('edLP').disabled = false;
+    document.getElementById('edInscripcion').selectedIndex = 0;
+    document.getElementById('edAprobadoPEP').selectedIndex = 0;
+    document.getElementById('edAprobadoExamen').selectedIndex = 0;
+    var maxOrden = datos.reduce(function(m,r){ var n=Number(r.orden); return isNaN(n)?m:Math.max(m,n); }, 0);
+    document.getElementById('edOrden').value = maxOrden + 1;
+    document.getElementById('editarModal').classList.add('show');
+  }
+
+  function abrirModalEditar(id) {
+    var r = datos.find(function (d) { return d.id === id; });
+    if (!r) { alertShow('topAlert', 'error', 'No se encontró el registro.'); return; }
+
+    editingId = id;
+    document.getElementById('alertEditar').classList.remove('show');
+    document.getElementById('editarModalTitle').textContent = 'Editar — ' + [r.apellido, r.nombres].filter(Boolean).join(', ');
+    document.getElementById('btnGuardarLabel').textContent = 'Guardar cambios';
+
+    document.getElementById('edOrden').value = r.orden == null ? '' : r.orden;
+    document.getElementById('edLP').value = r.lp;
+    document.getElementById('edLP').disabled = true; // LP es la clave única — no se cambia desde acá
+    document.getElementById('edJerarquia').value = r.jerarquia || '';
+    document.getElementById('edIntento').value = r.intento || '';
+    document.getElementById('edApellido').value = r.apellido || '';
+    document.getElementById('edNombres').value = r.nombres || '';
+    document.getElementById('edInscripcion').value = r.inscripcion || '';
+    document.getElementById('edFechaPEP').value = r.fecha_pep || '';
+    document.getElementById('edAprobadoPEP').value = r.aprobado_pep || '';
+    document.getElementById('edFechaCurso').value = r.fecha_curso || '';
+    document.getElementById('edFechaExamen').value = r.fecha_examen || '';
+    document.getElementById('edAprobadoExamen').value = r.aprobado_examen || '';
+    document.getElementById('edPsicologico').value = r.psicologico || '';
+    document.getElementById('edAptoPsico').value = r.apto_psico || '';
+
+    document.getElementById('editarModal').classList.add('show');
+  }
+
+  function cerrarModalEditar() {
+    document.getElementById('editarModal').classList.remove('show');
+    editingId = null;
+  }
+
+  async function guardarEdicion() {
+    var lp = str(document.getElementById('edLP').value);
+    var apellido = str(document.getElementById('edApellido').value);
+    if (!lp)       { alertShow('alertEditar', 'warning', 'El LP es obligatorio.'); return; }
+    if (!apellido) { alertShow('alertEditar', 'warning', 'El apellido es obligatorio.'); return; }
+
+    var payload = {
+      orden: orNull(document.getElementById('edOrden').value) !== null ? parseInt(document.getElementById('edOrden').value, 10) : null,
+      jerarquia: str(document.getElementById('edJerarquia').value),
+      apellido: apellido,
+      nombres: str(document.getElementById('edNombres').value),
+      intento: str(document.getElementById('edIntento').value),
+      inscripcion: orNull(document.getElementById('edInscripcion').value),
+      fecha_pep: str(document.getElementById('edFechaPEP').value),
+      aprobado_pep: orNull(document.getElementById('edAprobadoPEP').value),
+      fecha_curso: str(document.getElementById('edFechaCurso').value),
+      fecha_examen: str(document.getElementById('edFechaExamen').value),
+      aprobado_examen: orNull(document.getElementById('edAprobadoExamen').value),
+      psicologico: str(document.getElementById('edPsicologico').value),
+      apto_psico: str(document.getElementById('edAptoPsico').value)
+    };
+    if (!editingId) payload.lp = lp; // en alta nueva el LP viaja en el payload; en edición ya está fijo
+
+    showLoading(editingId ? 'Guardando…' : 'Creando…');
+    try {
+      var res;
+      if (editingId) res = await supabaseClient.from('ascenso_registros').update(payload).eq('id', editingId);
+      else            res = await supabaseClient.from('ascenso_registros').insert(payload);
+      if (res.error) throw res.error;
+      cerrarModalEditar();
+      alertShow('topAlert', 'success', editingId ? 'Cambios guardados.' : 'Entrada creada.');
+      await cargarDatos();
+    } catch (e) {
+      console.error(e);
+      var msg = /duplicate key|unique/i.test(e.message || '') ? 'Ya hay una persona cargada con ese LP.' : (e.message || e);
+      alertShow('alertEditar', 'error', 'Error al guardar: ' + msg);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminar(id, label) {
+    showConfirm('¿Eliminar a "' + label + '" de Ascensos? Esta acción no se puede deshacer.', async function() {
+      showLoading('Eliminando…');
+      try {
+        var res = await supabaseClient.from('ascenso_registros').delete().eq('id', id);
+        if (res.error) throw res.error;
+        alertShow('topAlert', 'success', 'Registro eliminado.');
+        await cargarDatos();
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Eliminar' });
+  }
+
+  // ---- Render de la tabla completa (con filtro de etapa + búsqueda) ----
+  function renderTabla() {
+    var chip = document.getElementById('filtroChip');
+    if (filtroEtapa) {
+      chip.classList.add('show');
+      document.getElementById('filtroChipTexto').textContent = filtroEtapa.icon + ' ' + filtroEtapa.label;
+    } else {
+      chip.classList.remove('show');
+    }
+
+    var q = document.getElementById('buscar').value.trim().toLowerCase();
+    var base = ordenarDatos(datos);
+    if (filtroEtapa) base = base.filter(filtroEtapa.test);
+
+    var filtrados = !q ? base : base.filter(function (r) {
+      return ['orden','jerarquia','lp','apellido','nombres','intento'].some(function (campo) {
+        return String(r[campo] || '').toLowerCase().indexOf(q) !== -1;
+      });
+    });
+
+    var tbody = document.getElementById('tblBody');
+    var empty = document.getElementById('emptyState');
+
+    if (!filtrados.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    function badgeEstado(v) {
+      var s = String(v || '').trim();
+      if (!s) return '';
+      if (contieneAprob(s)) return '<span class="badge ok">' + esc(s) + '</span>';
+      if (/^no$/i.test(s)) return '<span class="badge no">' + esc(s) + '</span>';
+      return esc(s);
+    }
+
+    tbody.innerHTML = filtrados.map(function (r) {
+      return '<tr>' +
+        '<td>' + esc(r.orden) + '</td>' +
+        '<td>' + esc(r.jerarquia) + '</td>' +
+        '<td>' + esc(r.lp) + '</td>' +
+        '<td>' + esc(r.apellido) + '</td>' +
+        '<td>' + esc(r.nombres) + '</td>' +
+        '<td>' + esc(r.intento) + '</td>' +
+        '<td>' + badgeEstado(r.inscripcion) + '</td>' +
+        '<td>' + esc(r.fecha_pep) + '</td>' +
+        '<td>' + badgeEstado(r.aprobado_pep) + '</td>' +
+        '<td>' + esc(r.fecha_curso) + '</td>' +
+        '<td>' + esc(r.fecha_examen) + '</td>' +
+        '<td>' + badgeEstado(r.aprobado_examen) + '</td>' +
+        '<td>' + esc(r.psicologico) + '</td>' +
+        '<td>' + badgeEstado(r.apto_psico) + '</td>' +
+        '<td>' +
+          '<button class="btn-edit" onclick="abrirModalEditar(\'' + r.id + '\')">✏️ Editar</button>' +
+          '<button class="btn-del" onclick="confirmarEliminar(\'' + r.id + '\',\'' + esc((r.apellido||'').replace(/'/g,"\\'")) + '\')">🗑️</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ---- Exportar a Excel con el mismo formato que la planilla de origen ----
+  function exportarExcel() {
+    if (!datos.length) { alertShow('topAlert', 'warning', 'No hay datos para exportar.'); return; }
+
+    var ordenados = ordenarDatos(datos);
+    var anio = new Date().getFullYear();
+
+    var headers = [
+      'ORDEN', 'JERARQUIA', 'LP', 'APELLIDO', 'NOMBRES', 'INTENTO',
+      'INSCRIPCION', 'FECHA PEP', 'APROBÓ', 'FECHA CURSO', 'FECHA EXAMEN',
+      'APROBÓ', 'PSICOLÓGICO', 'APTO PSICO'
+    ];
+
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('ascenso');
+    ws.columns = [
+      { width: 7 }, { width: 16 }, { width: 8 }, { width: 18 }, { width: 20 }, { width: 12 },
+      { width: 10 }, { width: 20 }, { width: 10 }, { width: 18 }, { width: 14 },
+      { width: 10 }, { width: 12 }, { width: 10 }
+    ];
+
+    var filaTitulo = ws.addRow(['PERSONAL ASCENSO ' + anio]);
+    ws.mergeCells(1, 1, 1, headers.length);
+    estilarFilaTitulo(filaTitulo);
+
+    estilarFilaHeader(ws.addRow(headers));
+
+    ordenados.forEach(function (r) {
+      estilarFilaDatos(ws.addRow([
+        r.orden, r.jerarquia, r.lp, r.apellido, r.nombres, r.intento,
+        r.inscripcion, r.fecha_pep, r.aprobado_pep, r.fecha_curso, r.fecha_examen,
+        r.aprobado_examen, r.psicologico, r.apto_psico
+      ]));
+    });
+
+    descargarWorkbook(wb, 'ASCENSO_' + hoyISO() + '.xlsx')
+      .then(function () { alertShow('topAlert', 'success', 'Excel exportado con el formato de la planilla.'); })
+      .catch(function (err) { alertShow('topAlert', 'error', 'No se pudo exportar: ' + err.message); });
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que el resto del sitio: el login se
+  // hace en la portada (index.html); acá solo se verifica la sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarDatos();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarDatos() {
+    showLoading('Cargando datos…');
+    try {
+      var res = await supabaseClient.from('ascenso_registros').select('*').order('orden');
+      if (res.error) throw res.error;
+      datos = res.data || [];
+      actualizarCajasEventos();
+      renderStageGrid();
+      renderTabla();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>
