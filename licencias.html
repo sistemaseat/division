@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Licencias Anuales — División Tiro</title>
+  <style>
+    :root {
+      --azul:       #1a3a6b;
+      --azul-medio: #2563a8;
+      --azul-claro: #eff6ff;
+      --dorado:     #c9a227;
+      --fondo:      #f1f4f9;
+      --blanco:     #ffffff;
+      --borde:      #dde3ee;
+      --verde:      #16a34a;
+      --verde-bg:   #dcfce7;
+      --amarillo-bg:#fef9c3;
+      --azul-bg:    #dbeafe;
+      --rojo:       #dc2626;
+      --rojo-bg:    #fef2f2;
+      --texto:      #1e293b;
+      --gris:       #64748b;
+      --gris-claro: #94a3b8;
+      --shadow-lg:  0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--fondo);
+      color: var(--texto);
+      min-height: 100vh;
+    }
+
+    /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+    .pantalla-auth {
+      display: none; position: fixed; inset: 0; background: var(--fondo);
+      align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+    }
+    .pantalla-auth.show { display: flex; }
+    .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+    .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+    .pantalla-auth h2 { color: var(--azul); margin: 0 0 10px; font-size: 22px; }
+    .pantalla-auth p  { color: var(--gris); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+    .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--azul);
+      color: white;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      flex-wrap: wrap;
+    }
+
+    .logo-escudo {
+      width: 52px; height: 52px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-escudo img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+    }
+    .logo-escudo .placeholder {
+      width: 48px; height: 48px;
+      background: var(--dorado);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 900;
+      color: var(--azul);
+    }
+
+    .header-text { flex: 1; min-width: 160px; }
+    .header-text h1 { font-size: 1rem; font-weight: 700; line-height: 1.3; }
+    .header-text p  { font-size: 0.74rem; opacity: 0.75; margin-top: 2px; }
+
+    .header-user { display: flex; align-items: center; gap: 12px; }
+    .header-date { color: rgba(255,255,255,.65); font-size: 12px; }
+    .header-user-email { font-size: 11px; color: rgba(255,255,255,.75); }
+    .btn-cerrar-sesion {
+      background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+      border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+      cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+    }
+    .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+    /* ── NAVBAR ── */
+    .navbar {
+      background: var(--azul);
+      border-top: 1px solid rgba(255,255,255,0.12);
+      display: flex;
+      padding: 0 1.5rem;
+      overflow-x: auto;
+    }
+
+    .nav-tab {
+      padding: 0.7rem 1.2rem;
+      font-size: 0.82rem; font-weight: 600;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+      background: none;
+      border-top: none; border-left: none; border-right: none;
+      letter-spacing: 0.02em;
+    }
+    .nav-tab:hover  { color: rgba(255,255,255,0.9); }
+    .nav-tab.active { color: white; border-bottom-color: var(--dorado); }
+
+    /* ── MAIN ── */
+    main { max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--blanco);
+      border-radius: 12px;
+      border: 1px solid var(--borde);
+      box-shadow: 0 1px 5px rgba(0,0,0,0.07);
+    }
+    .card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--borde);
+      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+    }
+    .card-header h2 { font-size: 0.95rem; color: var(--azul); display: flex; align-items: center; gap: 0.5rem; }
+
+    /* ── UPLOAD ── */
+    .upload-card { margin-bottom: 1.25rem; }
+
+    .drop-zone {
+      border: 2px dashed var(--borde);
+      border-radius: 10px;
+      padding: 1.6rem 1.5rem;
+      text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: var(--fondo);
+      margin: 1rem 1.25rem 1rem;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--azul-medio); background: var(--azul-claro); }
+    .drop-zone .dz-icon { font-size: 2rem; margin-bottom: 0.4rem; line-height: 1; }
+    .drop-zone p        { font-size: 0.85rem; color: var(--gris); }
+    .drop-zone strong   { color: var(--azul-medio); cursor: pointer; text-decoration: underline; }
+    .drop-zone small    { display: block; margin-top: 0.3rem; font-size: 0.75rem; color: var(--gris-claro); }
+
+    input[type="file"] { display: none; }
+
+    .status-bar {
+      margin: 0 1.25rem 1rem;
+      padding: 0.7rem 1rem;
+      border-radius: 8px; font-size: 0.85rem;
+      display: none; align-items: center; gap: 0.5rem;
+    }
+    .status-bar.show  { display: flex; }
+    .status-bar.info  { background: var(--azul-claro); color: var(--azul-medio); }
+    .status-bar.ok    { background: var(--verde-bg);   color: var(--verde); }
+    .status-bar.error { background: var(--rojo-bg);    color: var(--rojo); }
+    .status-bar.warn  { background: #fffbeb; color: #92400e; }
+
+    /* ── SEARCH ── */
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .search-wrap { flex: 1; min-width: 220px; position: relative; }
+    .search-wrap svg {
+      position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+      color: var(--gris-claro); pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: 0.6rem 0.9rem 0.6rem 2.3rem;
+      border: 1px solid var(--borde); border-radius: 8px;
+      font-size: 0.875rem; background: var(--blanco); color: var(--texto);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .search-wrap input:focus {
+      outline: none; border-color: var(--azul-medio);
+      box-shadow: 0 0 0 3px rgba(37,99,168,0.12);
+    }
+
+    /* ── PERSON BANNER ── */
+    .person-banner {
+      background: linear-gradient(135deg, var(--azul) 0%, var(--azul-medio) 100%);
+      color: white; border-radius: 12px;
+      padding: 1rem 1.25rem; margin-bottom: 1rem; display: none;
+    }
+    .person-banner.show {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;
+    }
+    .person-banner h3   { font-size: 1.05rem; font-weight: 700; }
+    .person-banner .meta { font-size: 0.78rem; opacity: 0.82; margin-top: 3px; }
+
+    .btn-clear {
+      background: rgba(255,255,255,0.15); color: white;
+      border: 1px solid rgba(255,255,255,0.35);
+      padding: 0.35rem 0.8rem; border-radius: 6px;
+      cursor: pointer; font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-clear:hover { background: rgba(255,255,255,0.28); }
+
+    /* ── STATS ── */
+    .stats-grid {
+      display: none;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.85rem; margin-bottom: 1.25rem;
+    }
+    .stats-grid.show { display: grid; }
+    .stat-card {
+      background: var(--blanco); border: 1px solid var(--borde);
+      border-radius: 10px; padding: 0.9rem 1rem;
+      text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .stat-card .sv { font-size: 2rem; font-weight: 800; color: var(--azul); line-height: 1; }
+    .stat-card.verde .sv { color: var(--verde); }
+    .stat-card.amber .sv { color: #d97706; }
+    .stat-card .sl { font-size: 0.72rem; color: var(--gris); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .stat-date .sv { font-size: 0.95rem !important; font-weight: 700 !important; }
+
+    /* ── TABLE ── */
+    .table-card { overflow: hidden; }
+    .badge-count { background: var(--fondo); color: var(--gris); padding: 0.15rem 0.55rem; border-radius: 20px; font-size: 0.78rem; font-weight: normal; }
+    .table-scroll { overflow-x: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th { background: var(--azul); color: white; padding: 0.7rem 0.8rem; text-align: left; font-weight: 600; white-space: nowrap; font-size: 0.78rem; letter-spacing: 0.02em; }
+    tbody tr { border-bottom: 1px solid var(--borde); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover      { background: var(--azul-claro); }
+    td { padding: 0.6rem 0.8rem; white-space: nowrap; vertical-align: middle; }
+    td.col-nombre { font-weight: 600; color: var(--azul); white-space: normal; min-width: 150px; max-width: 200px; cursor: pointer; }
+    td.col-nombre:hover { text-decoration: underline; }
+    td.col-dep { white-space: normal; max-width: 160px; color: var(--gris); font-size: 0.78rem; }
+
+    .tag { display: inline-block; padding: 0.18rem 0.5rem; border-radius: 5px; font-size: 0.76rem; font-weight: 700; }
+    .tag-blue  { background: var(--azul-bg);     color: #1e40af; }
+    .tag-green { background: var(--verde-bg);    color: #166534; }
+    .tag-amber { background: var(--amarillo-bg); color: #854d0e; }
+
+    .btn-pdf {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      background: var(--azul-claro); color: var(--azul-medio);
+      border: 1px solid #bfdbfe; padding: 0.22rem 0.6rem;
+      border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+      text-decoration: none; white-space: nowrap; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { background: var(--azul-medio); color: white; }
+    .btn-pdf.muted { background: var(--fondo); color: var(--gris-claro); border-color: var(--borde); }
+
+    /* ── TOTALES ── */
+    .totales-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+    .total-card {
+      background: var(--blanco); border: 1px solid var(--borde);
+      border-radius: 12px; padding: 1.2rem 1rem;
+      text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      position: relative; overflow: hidden;
+    }
+    .total-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--azul); }
+    .total-card.verde::before { background: var(--verde); }
+    .total-card.rojo::before  { background: #e55353; }
+    .total-card.amber::before { background: #d97706; }
+    .total-card .tv { font-size: 3rem; font-weight: 900; color: var(--azul); line-height: 1; letter-spacing: -2px; }
+    .total-card.verde .tv { color: var(--verde); }
+    .total-card.rojo  .tv { color: #e55353; }
+    .total-card.amber .tv { color: #d97706; }
+    .total-card .tl { font-size: 0.78rem; font-weight: 600; color: var(--gris); margin-top: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .total-card .ts { font-size: 0.72rem; color: var(--gris-claro); margin-top: 0.2rem; }
+
+    .search-prompt { text-align: center; padding: 4rem 1rem; color: var(--gris); }
+    .search-prompt .sp-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+    .search-prompt h3 { font-size: 1rem; color: var(--azul); margin-bottom: 0.5rem; }
+    .search-prompt p  { font-size: 0.88rem; }
+
+    /* ── CAJAS CLICKEABLES ── */
+    .boxes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.1rem; margin-bottom: 1.5rem; }
+    .box-card {
+      background: var(--blanco); border: 1px solid var(--borde);
+      border-radius: 14px; padding: 1.5rem 1rem 1.3rem;
+      text-align: center; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .box-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; }
+    .box-card:hover   { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.13); border-color: transparent; }
+    .box-card:active  { transform: translateY(-1px); }
+    .box-card.verde::before  { background: var(--verde); }
+    .box-card.azul::before   { background: var(--azul-medio); }
+    .box-card.dorado::before { background: var(--dorado); }
+    .box-card.verde:hover  { box-shadow: 0 6px 20px rgba(22,163,74,0.2); }
+    .box-card.azul:hover   { box-shadow: 0 6px 20px rgba(37,99,168,0.2); }
+    .box-card.dorado:hover { box-shadow: 0 6px 20px rgba(201,162,39,0.2); }
+    .box-icon { font-size: 2rem; line-height: 1; margin-bottom: 0.4rem; }
+    .box-num  { font-size: 3.5rem; font-weight: 900; line-height: 1; letter-spacing: -2px; color: var(--azul); }
+    .box-card.verde  .box-num { color: var(--verde); }
+    .box-card.azul   .box-num { color: var(--azul-medio); }
+    .box-card.dorado .box-num { color: #a37e10; }
+    .box-label { font-size: 0.8rem; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.4rem; }
+    .box-sub   { font-size: 0.72rem; color: var(--gris-claro); margin-top: 0.2rem; }
+
+    .dot-verde {
+      display: inline-block; width: 8px; height: 8px;
+      background: #4ade80; border-radius: 50%; margin-right: 6px;
+      box-shadow: 0 0 0 2px rgba(74,222,128,0.35);
+      animation: pulse-verde 2s ease-in-out infinite; vertical-align: middle;
+    }
+    @keyframes pulse-verde {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(74,222,128,0.35); }
+      50%       { box-shadow: 0 0 0 5px rgba(74,222,128,0.15); }
+    }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(10,20,50,0.65); z-index: 500;
+      align-items: center; justify-content: center;
+      padding: 0.75rem; backdrop-filter: blur(3px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--blanco); border-radius: 12px;
+      width: 98vw; max-width: 98vw; height: 93vh; max-height: 93vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .modal-header {
+      padding: 0.7rem 1rem; border-bottom: 1px solid var(--borde);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .modal-header h3 { font-size: 0.92rem; color: var(--azul); display: flex; align-items: center; gap: 0.5rem; }
+    .modal-close {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1px solid var(--borde); background: var(--fondo);
+      cursor: pointer; font-size: 0.9rem; color: var(--gris);
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s; flex-shrink: 0;
+    }
+    .modal-close:hover { background: var(--borde); color: var(--texto); }
+    .modal-body { flex: 1; overflow: auto; display: flex; flex-direction: column; padding: 0; }
+    .modal-body table { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
+    .modal-body thead th { background: var(--azul); color: white; padding: 0.4rem 0.5rem; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+    .modal-body.verde  thead th { background: #166534; }
+    .modal-body.azul   thead th { background: var(--azul-medio); }
+    .modal-body.dorado thead th { background: #92700b; }
+    .modal-body td { padding: 0.32rem 0.5rem; border-bottom: 1px solid var(--borde); vertical-align: middle; white-space: nowrap; font-size: 0.73rem; }
+    .modal-body tbody tr:hover { background: var(--azul-claro); }
+    .modal-body tbody tr:last-child td { border-bottom: none; }
+    .modal-body .col-nombre { font-weight: 600; color: var(--azul); cursor: pointer; }
+    .modal-body .col-nombre:hover { text-decoration: underline; }
+    .modal-body .tag { padding: 0.1rem 0.35rem; font-size: 0.68rem; }
+    .modal-body .btn-pdf { padding: 0.12rem 0.4rem; font-size: 0.68rem; }
+    .modal-empty { text-align: center; padding: 3rem 1rem; color: var(--gris); }
+
+    /* ── GANTT ── */
+    .gantt-controls {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.1rem; flex-wrap: wrap; gap: 0.75rem;
+    }
+    .year-nav {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: white; border: 1px solid var(--borde);
+      border-radius: 8px; padding: 0.4rem 0.85rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .year-nav button { background: none; border: none; cursor: pointer; color: var(--azul); font-size: 1rem; font-weight: 700; padding: 0 0.2rem; line-height: 1; }
+    .year-nav button:hover { color: var(--azul-medio); }
+    .year-nav span { font-size: 1.05rem; font-weight: 800; color: var(--azul); min-width: 3rem; text-align: center; }
+
+    .gantt-legend {
+      display: flex; gap: 1rem; align-items: center;
+      background: white; border: 1px solid var(--borde);
+      border-radius: 8px; padding: 0.4rem 0.85rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.76rem; color: var(--gris); }
+    .legend-dot  { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .legend-dot.pasada  { background: #94a3b8; }
+    .legend-dot.hoy     { background: #ef4444; width: 3px; height: 14px; border-radius: 2px; }
+    .legend-dot.estimado {
+      background: repeating-linear-gradient(45deg,#d97706,#d97706 3px,#fbbf24 3px,#fbbf24 6px);
+      border: 1px dashed #92400e;
+    }
+
+    .btn-agregar-est {
+      display: flex; align-items: center; gap: 0.35rem;
+      background: #fffbeb; color: #92400e;
+      border: 1.5px dashed #d97706; padding: 0.45rem 0.9rem;
+      border-radius: 8px; cursor: pointer;
+      font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-agregar-est:hover { background: #fef3c7; border-color: #b45309; }
+
+    .gantt-card { background: white; border: 1px solid var(--borde); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 5px rgba(0,0,0,0.07); overflow-x: auto; }
+    .gantt-inner { min-width: 700px; }
+
+    .gantt-header-row { display: flex; background: var(--azul); color: white; position: sticky; top: 0; z-index: 10; }
+    .gantt-name-col { width: 190px; min-width: 190px; padding: 0.5rem 0.75rem; border-right: 1px solid rgba(255,255,255,0.15); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; display: flex; align-items: center; }
+    .gantt-months   { flex: 1; display: flex; }
+    .gantt-month    { flex: 1; padding: 0.5rem 0; text-align: center; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; border-right: 1px solid rgba(255,255,255,0.1); }
+    .gantt-month:last-child { border-right: none; }
+
+    .gantt-row { display: flex; border-bottom: 1px solid var(--borde); min-height: 38px; }
+    .gantt-row:last-child { border-bottom: none; }
+    .gantt-row:hover .gantt-timeline { background: rgba(37,99,168,0.04); }
+
+    .gantt-person { width: 190px; min-width: 190px; padding: 0.4rem 0.75rem; border-right: 1px solid var(--borde); display: flex; flex-direction: column; justify-content: center; background: #fafbfd; }
+    .gantt-person-name { font-size: 0.75rem; font-weight: 700; color: var(--azul); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gantt-person-meta { font-size: 0.65rem; color: var(--gris-claro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+    .gantt-timeline { flex: 1; position: relative; min-height: 38px; }
+    .gantt-grid-lines { position: absolute; inset: 0; display: flex; pointer-events: none; }
+    .gantt-grid-line  { flex: 1; border-right: 1px solid var(--borde); }
+    .gantt-grid-line:last-child { border-right: none; }
+    .gantt-grid-line:nth-child(even) { background: rgba(0,0,0,0.015); }
+
+    .gantt-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; z-index: 5; pointer-events: none; }
+    .gantt-today-tip  { position: absolute; top: 2px; left: 4px; font-size: 0.58rem; color: #ef4444; font-weight: 800; white-space: nowrap; letter-spacing: 0.03em; }
+
+    .gantt-bar {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      height: 20px; border-radius: 5px; cursor: pointer;
+      display: flex; align-items: center; padding: 0 6px;
+      font-size: 0.6rem; font-weight: 700; color: white;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+      transition: height 0.1s, box-shadow 0.12s, filter 0.12s;
+      z-index: 2; min-width: 4px;
+    }
+    .gantt-bar:hover { height: 26px; box-shadow: 0 3px 10px rgba(0,0,0,0.3); filter: brightness(1.1); z-index: 20; }
+    .gantt-bar.estimado {
+      background: repeating-linear-gradient(45deg,#d97706,#d97706 4px,#fbbf24 4px,#fbbf24 8px);
+      border: 1.5px dashed #92400e; color: #451a03;
+    }
+    .gantt-bar.estimado.pasada {
+      background: repeating-linear-gradient(45deg,#94a3b8,#94a3b8 4px,#cbd5e1 4px,#cbd5e1 8px);
+      border-color: #64748b; color: #334155;
+    }
+    .gantt-empty { text-align: center; padding: 3.5rem 1rem; color: var(--gris); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state { text-align: center; padding: 3.5rem 1rem; color: var(--gris); }
+    .empty-state .ei { font-size: 3rem; margin-bottom: 0.75rem; }
+    .empty-state p   { font-size: 0.88rem; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .spin { display: inline-block; width: 15px; height: 15px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: rot 0.7s linear infinite; flex-shrink: 0; }
+    @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* ── DETALLE / FORM POPUPS ── */
+    .detalle-overlay, .form-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(10,20,50,0.5); z-index: 600;
+      align-items: center; justify-content: center;
+      padding: 1rem; backdrop-filter: blur(3px);
+    }
+    .form-overlay { z-index: 700; background: rgba(10,20,50,0.55); }
+    .detalle-overlay.open, .form-overlay.open { display: flex; }
+    .detalle-box, .form-box { background: white; border-radius: 14px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); max-height: 92vh; display: flex; flex-direction: column; }
+    .detalle-header, .form-header { padding: 0.8rem 1rem; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .detalle-badge  { display: inline-flex; align-items: center; padding: 0.22rem 0.65rem; border-radius: 20px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; background: #fef3c7; color: #92400e; border: 1px dashed #d97706; }
+    .detalle-body, .form-body { padding: 1rem; overflow-y: auto; }
+    .detalle-nombre { font-size: 1.05rem; font-weight: 800; color: var(--azul); margin-bottom: 0.2rem; }
+    .detalle-meta   { font-size: 0.77rem; color: var(--gris); margin-bottom: 0.85rem; }
+    .detalle-row    { display: flex; justify-content: space-between; align-items: center; padding: 0.32rem 0; border-bottom: 1px solid var(--fondo); font-size: 0.83rem; }
+    .detalle-row:last-child { border-bottom: none; }
+    .detalle-row .dr-l { color: var(--gris); font-size: 0.76rem; }
+    .detalle-row .dr-v { font-weight: 600; color: var(--texto); }
+    .detalle-nota { margin-top: 0.75rem; padding: 0.6rem 0.75rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.8rem; color: #78350f; }
+    .detalle-nota strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; color: #d97706; }
+    .detalle-footer, .form-footer { padding: 0.7rem 1rem; border-top: 1px solid var(--borde); display: flex; justify-content: flex-end; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
+
+    .btn-secondary { background: var(--fondo); color: var(--gris); border: 1px solid var(--borde); padding: 0.4rem 0.9rem; border-radius: 7px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.15s; }
+    .btn-secondary:hover { background: var(--borde); color: var(--texto); }
+    .btn-danger    { background: var(--rojo-bg); color: var(--rojo); border: 1px solid #fca5a5; padding: 0.4rem 0.9rem; border-radius: 7px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.15s; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-primary   { background: var(--azul); color: white; border: none; padding: 0.5rem 1.1rem; border-radius: 7px; cursor: pointer; font-size: 0.85rem; font-weight: 700; transition: background 0.15s; }
+    .btn-primary:hover    { background: var(--azul-medio); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.28rem; margin-bottom: 0.7rem; position: relative; }
+    .form-group label { font-size: 0.75rem; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: 0.03em; }
+    .form-group input, .form-group textarea, .form-group select { padding: 0.52rem 0.75rem; border: 1px solid var(--borde); border-radius: 8px; font-size: 0.85rem; color: var(--texto); font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s; width: 100%; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--azul-medio); box-shadow: 0 0 0 3px rgba(37,99,168,0.12); }
+    .form-group textarea { resize: vertical; min-height: 58px; }
+    .form-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+
+    .autocomplete-list {
+      display: none; position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--blanco); border: 1.5px solid var(--borde); border-radius: 8px;
+      max-height: 220px; overflow-y: auto; z-index: 9200; box-shadow: var(--shadow-lg); margin-top: 4px;
+    }
+    .autocomplete-list.show { display: block; }
+    .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--borde); }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover { background: #f0f2f5; }
+    .autocomplete-item b { color: var(--azul); }
+    .autocomplete-item small { display: block; color: var(--gris); font-size: 11px; }
+    .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--gris); }
+
+    .import-list { list-style: none; max-height: 320px; overflow-y: auto; margin-top: 0.75rem; }
+    .import-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--borde); font-size: 0.8rem; }
+    .import-list li:last-child { border-bottom: none; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 680px) {
+      main { padding: 1rem; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      thead th.hide-mob { display: none; }
+      td.hide-mob       { display: none; }
+      .nav-tab { padding: 0.6rem 0.75rem; font-size: 0.78rem; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn-secondary" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<!-- HEADER -->
+<header>
+  <div class="logo-escudo">
+    <img src="https://drive.google.com/uc?export=view&id=1U7OmIioVgLf5hEnjNt14Af2r-YnAElvz"
+         alt="Escudo Policía de la Ciudad"
+         onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+    <div class="placeholder" id="logoFallback" style="display:none">PC</div>
+  </div>
+  <div class="header-text">
+    <h1>Sistema de Licencias Anuales</h1>
+    <p>Policía de la Ciudad de Buenos Aires — División Tiro</p>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <button class="nav-tab active" onclick="setTab('ultima', this)">🏅 Última Licencia</button>
+  <button class="nav-tab" onclick="setTab('historial', this)">📋 Historial</button>
+  <button class="nav-tab" onclick="setTab('personal', this)">👤 Consulta de Personal</button>
+  <button class="nav-tab" onclick="setTab('gantt', this)">📅 Proyección</button>
+</nav>
+
+<main>
+
+  <!-- UPLOAD -->
+  <div class="card upload-card" id="uploadCard">
+    <div class="card-header"><h2>📤 Cargar nueva licencia</h2></div>
+    <div class="drop-zone" id="dropZone">
+      <div class="dz-icon">📄</div>
+      <p>Arrastrá el PDF aquí, o <strong id="pickBtn">hacé clic para seleccionar</strong></p>
+      <small>Se intenta leer el texto del PDF solo — si no se puede (por ejemplo, un escaneo), vas a poder completar los datos a mano antes de guardar.</small>
+    </div>
+    <input type="file" id="fileInput" accept="application/pdf">
+    <div class="status-bar" id="statusBar"></div>
+  </div>
+
+  <!-- BÚSQUEDA -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Buscar por nombre, DNI o LP…" oninput="filtrar()">
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1: ÚLTIMA LICENCIA -->
+  <div class="section active" id="sec-ultima">
+    <div class="person-banner" id="banner1">
+      <div>
+        <h3 id="b1Nombre"></h3>
+        <div class="meta" id="b1Meta"></div>
+      </div>
+      <button class="btn-clear" onclick="limpiarFiltro()">✕ Ver todos</button>
+    </div>
+    <div class="stats-grid" id="stats1"></div>
+    <div class="boxes-grid">
+      <div class="box-card verde" onclick="abrirModal('vigentes')">
+        <div class="box-icon"><span class="dot-verde"></span>🟢</div>
+        <div class="box-num" id="countV">0</div>
+        <div class="box-label">Licencias Vigentes</div>
+        <div class="box-sub">Activas hoy · clic para ver</div>
+      </div>
+      <div class="box-card azul" onclick="abrirModal('proximas')">
+        <div class="box-icon">🔵</div>
+        <div class="box-num" id="countP2">0</div>
+        <div class="box-label">Licencias Próximas</div>
+        <div class="box-sub">Programadas a futuro · clic para ver</div>
+      </div>
+      <div class="box-card dorado" onclick="abrirModal('ultimas')">
+        <div class="box-icon">🏅</div>
+        <div class="box-num" id="count1">0</div>
+        <div class="box-label">Personal registrado</div>
+        <div class="box-sub">Última licencia por persona · clic para ver</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: HISTORIAL -->
+  <div class="section" id="sec-historial">
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="card-header">
+        <h2>📎 Importar PDFs históricos</h2>
+      </div>
+      <div style="padding: 0 1.25rem 1.25rem;">
+        <p style="font-size:0.82rem; color:var(--gris); margin-bottom:0.75rem;">
+          Seleccioná de una sola vez todos los PDF que tengas guardados de tu carpeta "Licencias PDF" — la app intenta
+          leer el código de control (CodCtrLic) de cada uno y lo engancha solo con la licencia que ya está cargada en la
+          base. Los que no se puedan emparejar solos quedan listados abajo para asignarlos a mano.
+        </p>
+        <input type="file" id="importInput" accept="application/pdf" multiple onchange="importarPdfsHistoricos(this.files)">
+        <button class="btn-secondary" onclick="document.getElementById('importInput').click()">📂 Elegir PDFs…</button>
+        <div id="importStatus" style="margin-top:0.75rem; font-size:0.82rem; color:var(--gris);"></div>
+        <ul class="import-list" id="importSinEmparejar"></ul>
+      </div>
+    </div>
+    <div class="card table-card">
+      <div class="card-header">
+        <h2>📋 Licencias Registradas <span class="badge-count" id="count2">0</span></h2>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>Nombre</th><th class="hide-mob">Jerarquía</th><th>LP</th>
+            <th class="hide-mob">DNI</th><th class="hide-mob">Dependencia</th>
+            <th>Inicio</th><th>Fin</th><th class="hide-mob">Reintegro</th>
+            <th>Usufruct.</th><th class="hide-mob">Pend.</th><th class="hide-mob">Solicit.</th>
+            <th>Saldo</th><th class="hide-mob">CodCtrLic</th><th>PDF</th><th></th>
+          </tr></thead>
+          <tbody id="body2"></tbody>
+        </table>
+        <div class="empty-state" id="empty2">
+          <div class="ei">📁</div>
+          <p>No hay licencias registradas aún.<br>Subí el primer PDF para comenzar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 3: CONSULTA DE PERSONAL -->
+  <div class="section" id="sec-personal">
+    <div class="search-prompt" id="promptPersonal">
+      <div class="sp-icon">🔍</div>
+      <h3>Consulta de Personal</h3>
+      <p>Escribí el nombre, DNI o LP en el buscador de arriba<br>para ver la información del personal.</p>
+    </div>
+    <div id="contenidoPersonal" style="display:none">
+      <div class="person-banner" id="bannerP">
+        <div>
+          <h3 id="bpNombre"></h3>
+          <div class="meta" id="bpMeta"></div>
+        </div>
+        <button class="btn-clear" onclick="limpiarFiltro()">✕ Limpiar búsqueda</button>
+      </div>
+      <div class="totales-grid" id="totalesGrid" style="display:none"></div>
+      <div class="card table-card">
+        <div class="card-header">
+          <h2>📅 Historial de Licencias <span class="badge-count" id="countP">0</span></h2>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr>
+              <th>Nombre</th><th class="hide-mob">Jerarquía</th><th>LP</th>
+              <th class="hide-mob">DNI</th><th class="hide-mob">Dependencia</th>
+              <th>Inicio</th><th>Fin</th><th class="hide-mob">Reintegro</th>
+              <th>Usufruct.</th><th class="hide-mob">Pend.</th><th class="hide-mob">Solicit.</th>
+              <th>Saldo</th><th class="hide-mob">CodCtrLic</th><th>PDF</th>
+            </tr></thead>
+            <tbody id="bodyP"></tbody>
+          </table>
+          <div class="empty-state" id="emptyP">
+            <div class="ei">🔍</div>
+            <p>No se encontró personal con ese criterio de búsqueda.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 4: PROYECCIÓN (solo estimados) -->
+  <div class="section" id="sec-gantt">
+    <div class="gantt-controls">
+      <div class="year-nav">
+        <button onclick="ganttAño--; renderGantt()">◀</button>
+        <span id="ganttAñoLabel">2026</span>
+        <button onclick="ganttAño++; renderGantt()">▶</button>
+      </div>
+      <div class="gantt-legend">
+        <div class="legend-item"><div class="legend-dot estimado"></div> Estimada</div>
+        <div class="legend-item"><div class="legend-dot pasada"></div> Pasada</div>
+        <div class="legend-item"><div class="legend-dot hoy"></div> Hoy</div>
+      </div>
+      <button class="btn-agregar-est" onclick="abrirFormEstimado()">＋ Agregar estimado</button>
+    </div>
+    <div id="ganttContenido"></div>
+  </div>
+
+</main>
+
+<!-- MODAL GLOBAL (vigentes / próximas / personal) -->
+<div class="modal-overlay" id="modalOverlay" onclick="cerrarModalSiOverlay(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modalTitulo"></h3>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <table>
+        <thead><tr>
+          <th>Nombre</th><th>Jerarquía</th><th>LP</th><th>DNI</th><th>Dependencia</th>
+          <th>Inicio</th><th>Fin</th><th>Reintegro</th>
+          <th>Usufruct.</th><th>Pend.</th><th>Solicit.</th><th>Saldo</th>
+          <th>CodCtrLic</th><th>PDF</th>
+        </tr></thead>
+        <tbody id="modalTableBody"></tbody>
+      </table>
+      <div class="modal-empty" id="modalEmpty" style="display:none">
+        <div style="font-size:2.5rem;margin-bottom:0.5rem">📋</div>
+        <p id="modalEmptyMsg"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETALLE POPUP (clic en barra Gantt) -->
+<div class="detalle-overlay" id="detalleOverlay" onclick="cerrarDetalleSiOverlay(event)">
+  <div class="detalle-box">
+    <div class="detalle-header">
+      <span class="detalle-badge">📐 ESTIMADO</span>
+      <button class="modal-close" onclick="cerrarDetalle()">✕</button>
+    </div>
+    <div class="detalle-body" id="detalleBody"></div>
+    <div class="detalle-footer" id="detalleFooter">
+      <button class="btn-secondary" onclick="cerrarDetalle()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORM: Agregar estimado -->
+<div class="form-overlay" id="formOverlay" onclick="cerrarFormSiOverlay(event)">
+  <div class="form-box">
+    <div class="form-header">
+      <h3>📅 Agregar Licencia Estimada</h3>
+      <button class="modal-close" onclick="cerrarFormEstimado()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="form-group" style="position:relative;">
+        <label>Personal</label>
+        <input type="text" id="estBusqueda" autocomplete="off" placeholder="LP, apellido o nombre… (opcional)"
+               oninput="buscarPersonalEstimado()" onblur="ocultarSugerenciasConDelay('estSuggest')">
+        <div class="autocomplete-list" id="estSuggest"></div>
+      </div>
+      <div class="form-group">
+        <label>Nombre completo <span style="color:var(--rojo)">*</span></label>
+        <input type="text" id="fNombre" placeholder="Apellido y nombre…">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fecha inicio * <small style="font-weight:400">(dd/mm/aaaa)</small></label>
+          <input type="text" id="fIni" placeholder="dd/mm/aaaa" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>Fecha fin * <small style="font-weight:400">(dd/mm/aaaa)</small></label>
+          <input type="text" id="fFin" placeholder="dd/mm/aaaa" maxlength="10">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Nota</label>
+        <textarea id="fNota" placeholder="Ej: Tentativo primer semestre…"></textarea>
+      </div>
+    </div>
+    <div class="form-footer">
+      <button class="btn-secondary" onclick="cerrarFormEstimado()">Cancelar</button>
+      <button class="btn-primary" id="btnGuardarEst" onclick="guardarEstimado()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORM: revisar/completar datos de una licencia antes de guardar -->
+<div class="form-overlay" id="revisarOverlay" onclick="cerrarRevisarSiOverlay(event)">
+  <div class="form-box">
+    <div class="form-header">
+      <h3>📄 Revisar antes de guardar</h3>
+      <button class="modal-close" onclick="cerrarRevisar()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="status-bar show info" id="revisarAviso" style="margin: 0 0 0.85rem;"></div>
+      <div class="form-group" style="position:relative;">
+        <label>Personal <span style="color:var(--rojo)">*</span></label>
+        <input type="text" id="revBusqueda" autocomplete="off" placeholder="LP, apellido o nombre…"
+               oninput="buscarPersonalRevisar()" onblur="ocultarSugerenciasConDelay('revSuggest')">
+        <div class="autocomplete-list" id="revSuggest"></div>
+      </div>
+      <div id="revPersonaElegida" style="font-size:0.82rem; color:var(--gris); margin:-0.4rem 0 0.7rem;"></div>
+      <div class="form-row">
+        <div class="form-group"><label>CodCtrLic</label><input type="text" id="rCod"></div>
+        <div class="form-group"><label>Período</label><input type="text" id="rPeriodo"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Fecha inicio (dd/mm/aaaa)</label><input type="text" id="rIni"></div>
+        <div class="form-group"><label>Fecha fin (dd/mm/aaaa)</label><input type="text" id="rFin"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Reintegro (dd/mm/aaaa)</label><input type="text" id="rReintegro"></div>
+        <div class="form-group"><label>Saldo</label><input type="text" id="rSaldo"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Usufructuados</label><input type="text" id="rUsuf"></div>
+        <div class="form-group"><label>Pend. Otorgamiento</label><input type="text" id="rPend"></div>
+      </div>
+      <div class="form-group"><label>Solicitados</label><input type="text" id="rSolic"></div>
+    </div>
+    <div class="form-footer">
+      <button class="btn-secondary" onclick="cerrarRevisar()">Cancelar</button>
+      <button class="btn-primary" id="btnGuardarRevisar" onclick="confirmarGuardarLicencia()">💾 Guardar licencia</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // ── Estado ──────────────────────────────────────────────────
+  var registros    = [];   // licencias_registros crudo
+  var estimados    = [];   // licencias_estimados crudo
+  var personalTiro = [];   // personal_tiro crudo
+  var personalMapa = {};   // lp -> fila de personal_tiro
+  var todas        = [];   // registros + datos de personal_tiro ya unidos (lo que usa toda la UI)
+  var query        = '';
+  var tabAct       = 'ultima';
+  var ganttAño     = new Date().getFullYear();
+
+  var _vigentes = [], _proximas = [], _ultimas = [];
+  var _ganttItems = {};
+  var _personalDebounce = null, _personalResultados = [];
+  var _revPersonaElegida = null;   // persona elegida en el form de revisión, antes de guardar
+  var _revDatosParseados = null;   // datos ya parseados del PDF actual (o {} si se está por completar a mano)
+  var _revArchivo = null;          // File del PDF que se va a subir al confirmar
+
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // ── Utilidades ────────────────────────────────────────────────
+  function esc(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function str(v)  { return String(v == null ? '' : v).trim(); }
+  function norm(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function ddmmyyyyAiso(s) {
+    if (!s) return null;
+    var m = String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return null;
+    return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+  }
+  function isoAddmmyyyy(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function parseFechaObj(iso) {
+    if (!iso) return null;
+    var p = String(iso).split('-');
+    if (p.length !== 3) return null;
+    var d = new Date(+p[0], +p[1]-1, +p[2]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function parseFechaMs(iso) { var d = parseFechaObj(iso); return d ? d.getTime() : 0; }
+
+  function mostrarStatus(tipo, html) {
+    var el = document.getElementById('statusBar');
+    el.className = 'status-bar show ' + tipo;
+    el.innerHTML = html;
+  }
+  function ocultarSugerenciasConDelay(listId) {
+    setTimeout(function() { var el = document.getElementById(listId); if (el) el.classList.remove('show'); }, 150);
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que el resto del sitio: el login se
+  // hace en la portada (index.html); acá solo se verifica la sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarDatos();
+    } finally {
+      _sesionEnCurso = false;
+    }
+  }
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // TABS
+  // ============================================================
+  function setTab(nombre, btn) {
+    tabAct = nombre;
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('sec-' + nombre).classList.add('active');
+    document.getElementById('uploadCard').style.display = nombre === 'gantt' ? 'none' : '';
+    renderizar();
+    if (nombre === 'gantt') renderGantt();
+  }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarDatos() {
+    mostrarStatus('info', '<span class="spin"></span> Cargando…');
+    try {
+      var r1 = await supabaseClient.from('licencias_registros').select('*').order('fecha_inicio', { ascending: false });
+      if (r1.error) throw r1.error;
+      registros = r1.data || [];
+
+      var r2 = await supabaseClient.from('licencias_estimados').select('*').order('fecha_inicio');
+      if (r2.error) throw r2.error;
+      estimados = r2.data || [];
+
+      var r3 = await supabaseClient.from('personal_tiro')
+        .select('lp,grado,apellido,nombres,dni,dependencia').order('apellido');
+      if (r3.error) throw r3.error;
+      personalTiro = r3.data || [];
+      personalMapa = {};
+      personalTiro.forEach(function(p) { personalMapa[p.lp] = p; });
+
+      unirDatos();
+      document.getElementById('statusBar').classList.remove('show');
+      renderizar();
+    } catch (e) {
+      console.error(e);
+      mostrarStatus('error', '⚠️ Error al cargar los datos: ' + (e.message || e));
+    }
+  }
+
+  function personaDe(lp) {
+    return personalMapa[lp] || { grado: '', apellido: '(no encontrado en Personal Tiro)', nombres: '', dni: '', dependencia: '' };
+  }
+
+  // Une cada licencia con los datos de personal_tiro (Grado/Apellido/
+  // Nombre/DNI/Dependencia) — nunca se guardan duplicados en la tabla de
+  // licencias, ver licencias_schema.sql.
+  function unirDatos() {
+    todas = registros.map(function(r) {
+      var p = personaDe(r.lp);
+      return Object.assign({}, r, {
+        nombre: (p.apellido||'') + (p.nombres ? ', '+p.nombres : ''),
+        jerarquia: p.grado || '',
+        dni: p.dni || '',
+        dependencia: p.dependencia || ''
+      });
+    });
+  }
+
+  // ============================================================
+  // SUBIR / LEER UN PDF
+  // ============================================================
+  window.addEventListener('load', setupDropZone);
+  function setupDropZone() {
+    var dz = document.getElementById('dropZone');
+    var input = document.getElementById('fileInput');
+    document.getElementById('pickBtn').addEventListener('click', () => input.click());
+    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault(); dz.classList.remove('drag-over');
+      var f = e.dataTransfer.files[0];
+      if (f && f.type === 'application/pdf') procesarPDF(f);
+      else mostrarStatus('error', '❌ Solo se aceptan archivos PDF.');
+    });
+    input.addEventListener('change', e => { var f = e.target.files[0]; if (f) procesarPDF(f); });
+  }
+
+  async function extraerTextoPDF(arrayBuffer) {
+    var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    var texto = '';
+    for (var i = 1; i <= pdf.numPages; i++) {
+      var page = await pdf.getPage(i);
+      var content = await page.getTextContent();
+      texto += content.items.map(function(it){ return it.str; }).join(' ') + '\n';
+    }
+    return texto;
+  }
+
+  // Mismas expresiones regulares que usaba el Code.gs viejo para parsear
+  // el texto de la licencia — acá corren sobre el texto que extrae
+  // pdf.js directo del PDF, sin pasar por el OCR de Google Drive.
+  function parsearTextoLicencia(texto) {
+    var g = function(pattern, flags) {
+      var m = texto.match(new RegExp(pattern, flags || 'i'));
+      return m ? m[1].trim() : '';
+    };
+    var d = {};
+    d.jerarquia = g('Jerarqu[ií]a[:\\s]+([^\\n]+?)(?=\\s+L\\.?P\\.?)');
+    d.lp        = g('L\\.?P\\.?[:\\s]*(\\d+)');
+    d.dni       = g('DNI[:\\s]*(\\d+)');
+    var nombre  = g('Nombres\\s+y\\s+Apellidos[:\\s]*([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\\s]+)');
+    if (nombre) nombre = nombre.replace(/\s*\bDependencia\b.*/is, '').replace(/\s+/g, ' ').trim();
+    d.nombre = nombre;
+    d.usufructuados = g('Usufructuados[:\\s]*(\\d+)') || '0';
+    d.pendOtorg     = g('Pend\\.?\\s*Otorgamiento[:\\s]*(\\d+)') || '0';
+    d.solicitados   = g('Solicitados[:\\s]*(\\d+)') || '0';
+    d.saldo         = g('Saldo[:\\s]*(\\d+)') || '0';
+    d.fechaInicio = g('Inicio[:\\s]*(\\d{1,2}\\/\\d{1,2}\\/\\d{4})');
+    d.fechaFin    = g('Finalizaci[oó]n[:\\s]*(\\d{1,2}\\/\\d{1,2}\\/\\d{4})');
+    d.reintegro   = g('Reintegro[:\\s]*(\\d{1,2}\\/\\d{1,2}\\/\\d{4})');
+    d.codCtrLic   = g('CodCtrLic[:\\s]*(\\d+)');
+    d.periodo     = g('PERIODO[:\\s]*(\\d{4})') || g('per[ií]odo[:\\s]*(\\d{4})');
+    return d;
+  }
+
+  function resolverPersonaDesdeParseo(d) {
+    if (d.lp && personalMapa[d.lp]) return personalMapa[d.lp];
+    if (d.dni) {
+      var porDni = personalTiro.find(function(p){ return p.dni && p.dni === d.dni; });
+      if (porDni) return porDni;
+    }
+    return null;
+  }
+
+  async function procesarPDF(file) {
+    mostrarStatus('info', '<span class="spin"></span> Leyendo <strong>' + esc(file.name) + '</strong>…');
+    try {
+      var buffer = await file.arrayBuffer();
+      var texto = await extraerTextoPDF(buffer.slice(0));
+      var datos = parsearTextoLicencia(texto);
+      var persona = resolverPersonaDesdeParseo(datos);
+      document.getElementById('fileInput').value = '';
+      mostrarStatus('', '');
+      document.getElementById('statusBar').classList.remove('show');
+      abrirRevisar(datos, persona, file, texto.trim().length < 20);
+    } catch (e) {
+      console.error(e);
+      mostrarStatus('error', '⚠️ No se pudo leer el PDF (' + (e.message||e) + ') — completá los datos a mano.');
+      abrirRevisar({}, null, file, true);
+    }
+  }
+
+  // ── FORM: revisar/completar antes de guardar ──────────────────
+  function abrirRevisar(datos, persona, file, sinTexto) {
+    _revDatosParseados = datos;
+    _revArchivo = file;
+    _revPersonaElegida = persona;
+
+    var aviso = document.getElementById('revisarAviso');
+    if (sinTexto) {
+      aviso.className = 'status-bar show warn';
+      aviso.innerHTML = '⚠️ No se pudo extraer texto de este PDF (probablemente es un escaneo/imagen) — completá los datos a mano antes de guardar.';
+    } else if (!datos.codCtrLic || !persona) {
+      aviso.className = 'status-bar show warn';
+      aviso.innerHTML = '⚠️ Se leyeron algunos datos, pero revisalos: ' + (!persona ? 'no se pudo identificar a la persona automáticamente. ' : '') + (!datos.codCtrLic ? 'no se encontró el código de control (CodCtrLic).' : '');
+    } else {
+      aviso.className = 'status-bar show ok';
+      aviso.innerHTML = '✅ Datos leídos del PDF — revisalos antes de confirmar.';
+    }
+
+    document.getElementById('revBusqueda').value = '';
+    document.getElementById('revPersonaElegida').textContent = persona
+      ? 'Elegido: ' + (persona.grado||'') + ' ' + (persona.apellido||'') + ', ' + (persona.nombres||'') + ' (LP ' + persona.lp + ')'
+      : (datos.nombre ? 'PDF decía: "' + datos.nombre + '" — buscá y elegí a la persona correcta.' : '');
+
+    document.getElementById('rCod').value      = datos.codCtrLic || '';
+    document.getElementById('rPeriodo').value  = datos.periodo || '';
+    document.getElementById('rIni').value      = datos.fechaInicio || '';
+    document.getElementById('rFin').value      = datos.fechaFin || '';
+    document.getElementById('rReintegro').value= datos.reintegro || '';
+    document.getElementById('rSaldo').value    = datos.saldo || '0';
+    document.getElementById('rUsuf').value     = datos.usufructuados || '0';
+    document.getElementById('rPend').value     = datos.pendOtorg || '0';
+    document.getElementById('rSolic').value    = datos.solicitados || '0';
+
+    document.getElementById('btnGuardarRevisar').disabled = false;
+    document.getElementById('btnGuardarRevisar').textContent = '💾 Guardar licencia';
+    document.getElementById('revisarOverlay').classList.add('open');
+  }
+  function cerrarRevisar() { document.getElementById('revisarOverlay').classList.remove('open'); }
+  function cerrarRevisarSiOverlay(e) { if (e.target === document.getElementById('revisarOverlay')) cerrarRevisar(); }
+
+  function buscarPersonalRevisar() {
+    var q = norm(str(document.getElementById('revBusqueda').value));
+    var listEl = document.getElementById('revSuggest');
+    if (q.length < 2) { listEl.innerHTML = ''; listEl.classList.remove('show'); return; }
+    var matches = personalTiro.filter(function(p) {
+      return norm(p.lp).indexOf(q) !== -1 || norm(p.apellido).indexOf(q) !== -1 || norm(p.nombres).indexOf(q) !== -1;
+    }).slice(0, 10);
+    _personalResultados = matches;
+    listEl.innerHTML = matches.length
+      ? matches.map(function(p,i){ return '<div class="autocomplete-item" onmousedown="elegirPersonaRevisar(' + i + ')"><b>'+esc(p.apellido)+', '+esc(p.nombres)+'</b><small>LP '+esc(p.lp)+' — '+esc(p.grado)+'</small></div>'; }).join('')
+      : '<div class="autocomplete-empty">Sin coincidencias en Personal Tiro</div>';
+    listEl.classList.add('show');
+  }
+  function elegirPersonaRevisar(idx) {
+    var p = _personalResultados[idx];
+    if (!p) return;
+    _revPersonaElegida = p;
+    document.getElementById('revBusqueda').value = '';
+    document.getElementById('revSuggest').classList.remove('show');
+    document.getElementById('revPersonaElegida').textContent = 'Elegido: ' + (p.grado||'') + ' ' + p.apellido + ', ' + p.nombres + ' (LP ' + p.lp + ')';
+  }
+
+  async function confirmarGuardarLicencia() {
+    if (!_revPersonaElegida) { alert('Buscá y elegí a la persona antes de guardar.'); return; }
+    var cod = str(document.getElementById('rCod').value);
+    var fi = ddmmyyyyAiso(document.getElementById('rIni').value);
+    var ff = ddmmyyyyAiso(document.getElementById('rFin').value);
+    if (!fi || !ff) { alert('Fecha inicio y fecha fin son obligatorias, en formato dd/mm/aaaa.'); return; }
+    var reintegro = ddmmyyyyAiso(document.getElementById('rReintegro').value);
+    var periodo = parseInt(document.getElementById('rPeriodo').value, 10);
+
+    if (cod && todas.some(function(t){ return t.cod_ctr_lic === cod; })) {
+      if (!confirm('Ya existe una licencia cargada con el código de control ' + cod + '. ¿Guardar igual? (vas a terminar con dos registros para el mismo CodCtrLic)')) return;
+    }
+
+    var btn = document.getElementById('btnGuardarRevisar');
+    btn.disabled = true; btn.textContent = '⏳ Guardando…';
+    try {
+      var payload = {
+        cod_ctr_lic: cod || null,
+        lp: _revPersonaElegida.lp,
+        fecha_inicio: fi,
+        fecha_fin: ff,
+        reintegro: reintegro,
+        periodo: isNaN(periodo) ? null : periodo,
+        usufructuados: parseInt(document.getElementById('rUsuf').value, 10) || 0,
+        pend_otorgamiento: parseInt(document.getElementById('rPend').value, 10) || 0,
+        solicitados: parseInt(document.getElementById('rSolic').value, 10) || 0,
+        saldo: parseInt(document.getElementById('rSaldo').value, 10) || 0,
+      };
+      var res = await supabaseClient.from('licencias_registros').insert(payload).select().single();
+      if (res.error) throw res.error;
+
+      if (_revArchivo && cod) {
+        var path = 'LICENCIAS/' + cod + '.pdf';
+        var up = await supabaseClient.storage.from('adjuntos').upload(path, _revArchivo, { upsert: true, contentType: 'application/pdf' });
+        if (!up.error) {
+          await supabaseClient.from('licencias_registros').update({ pdf_path: path }).eq('id', res.data.id);
+        } else {
+          console.error('Error al subir el PDF: ', up.error);
+        }
+      }
+
+      cerrarRevisar();
+      mostrarStatus('ok', '✅ Licencia de <strong>' + esc(_revPersonaElegida.apellido) + '</strong> guardada.');
+      await cargarDatos();
+    } catch (e) {
+      console.error(e);
+      var msg = /duplicate key|unique/i.test(e.message||'') ? 'Ya existe una licencia con ese código de control.' : (e.message||e);
+      alert('Error al guardar: ' + msg);
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 Guardar licencia';
+    }
+  }
+
+  // ============================================================
+  // IMPORTAR PDFs HISTÓRICOS (bulk) — para la carpeta de Drive
+  // "Licencias PDF" que ya tenías. No hace falta ninguna API de Google:
+  // se procesan igual que una carga nueva (texto + regex), pero acá solo
+  // se busca el CodCtrLic para enganchar el archivo con la fila que ya
+  // está cargada en la base (de datos_licencias.sql) — nunca crea una
+  // licencia nueva sola.
+  // ============================================================
+  async function importarPdfsHistoricos(fileList) {
+    var files = Array.from(fileList || []);
+    if (!files.length) return;
+    var statusEl = document.getElementById('importStatus');
+    var sinEmparejar = [];
+    var ok = 0, yaEstaba = 0;
+
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      statusEl.textContent = 'Procesando ' + (i+1) + ' de ' + files.length + ': ' + file.name + '…';
+      try {
+        var buffer = await file.arrayBuffer();
+        var texto = await extraerTextoPDF(buffer.slice(0));
+        var datos = parsearTextoLicencia(texto);
+        if (!datos.codCtrLic) { sinEmparejar.push({ file: file, motivo: 'No se pudo leer el CodCtrLic de este PDF' }); continue; }
+        var fila = todas.find(function(t){ return t.cod_ctr_lic === datos.codCtrLic; });
+        if (!fila) { sinEmparejar.push({ file: file, motivo: 'CodCtrLic ' + datos.codCtrLic + ' leído, pero no hay ninguna licencia cargada con ese código' }); continue; }
+        if (fila.pdf_path) { yaEstaba++; continue; }
+        var path = 'LICENCIAS/' + datos.codCtrLic + '.pdf';
+        var up = await supabaseClient.storage.from('adjuntos').upload(path, file, { upsert: true, contentType: 'application/pdf' });
+        if (up.error) { sinEmparejar.push({ file: file, motivo: 'Error al subir: ' + up.error.message }); continue; }
+        var upd = await supabaseClient.from('licencias_registros').update({ pdf_path: path }).eq('id', fila.id);
+        if (upd.error) { sinEmparejar.push({ file: file, motivo: 'Error al guardar: ' + upd.error.message }); continue; }
+        ok++;
+      } catch (e) {
+        sinEmparejar.push({ file: file, motivo: 'No se pudo leer este PDF (¿es un escaneo/imagen?)' });
+      }
+    }
+
+    statusEl.innerHTML = '✅ ' + ok + ' PDF adjuntados' + (yaEstaba ? ', ' + yaEstaba + ' ya tenían PDF (se dejaron como estaban)' : '') + (sinEmparejar.length ? ', ' + sinEmparejar.length + ' sin poder emparejar (ver lista abajo)' : '.');
+
+    var listEl = document.getElementById('importSinEmparejar');
+    listEl.innerHTML = sinEmparejar.map(function(s, idx) {
+      return '<li><span>📄 ' + esc(s.file.name) + ' — ' + esc(s.motivo) + '</span><button class="btn-secondary" style="padding:3px 8px;font-size:0.72rem;" onclick="emparejarManualmente(' + idx + ')">Emparejar a mano</button></li>';
+    }).join('');
+    window._sinEmparejar = sinEmparejar;
+
+    document.getElementById('importInput').value = '';
+    await cargarDatos();
+  }
+
+  function emparejarManualmente(idx) {
+    var item = window._sinEmparejar && window._sinEmparejar[idx];
+    if (!item) return;
+    // Reusa el mismo form de revisión: al confirmar, si hay CodCtrLic
+    // coincidente lo actualiza; si no, deja cargar como licencia nueva.
+    abrirRevisar({}, null, item.file, true);
+  }
+
+  // ── Ver PDF (URL firmada, el bucket es privado) ────────────────
+  async function verPdf(path) {
+    if (!path) return;
+    try {
+      var res = await supabaseClient.storage.from('adjuntos').createSignedUrl(path, 3600);
+      if (res.error || !res.data) { alert('No se pudo generar el link del PDF: ' + (res.error ? res.error.message : '')); return; }
+      window.open(res.data.signedUrl, '_blank');
+    } catch (e) {
+      alert('Error al abrir el PDF: ' + (e.message||e));
+    }
+  }
+
+  function adjuntarPdfExistente(id) {
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'application/pdf';
+    input.onchange = async function() {
+      var file = input.files[0];
+      if (!file) return;
+      var fila = todas.find(function(t){ return t.id === id; });
+      if (!fila) return;
+      var path = 'LICENCIAS/' + (fila.cod_ctr_lic || fila.id) + '.pdf';
+      mostrarStatus('info', '<span class="spin"></span> Subiendo PDF…');
+      var up = await supabaseClient.storage.from('adjuntos').upload(path, file, { upsert: true, contentType: 'application/pdf' });
+      if (up.error) { mostrarStatus('error', '⚠️ Error al subir: ' + up.error.message); return; }
+      var upd = await supabaseClient.from('licencias_registros').update({ pdf_path: path }).eq('id', id);
+      if (upd.error) { mostrarStatus('error', '⚠️ Error al guardar: ' + upd.error.message); return; }
+      mostrarStatus('ok', '✅ PDF adjuntado.');
+      await cargarDatos();
+    };
+    input.click();
+  }
+
+  function confirmarEliminarLicencia(id) {
+    if (!confirm('¿Eliminar esta licencia? Esta acción no se puede deshacer (el PDF adjunto, si lo tiene, queda guardado en el bucket).')) return;
+    supabaseClient.from('licencias_registros').delete().eq('id', id).then(function(res) {
+      if (res.error) { alert('Error al eliminar: ' + res.error.message); return; }
+      cargarDatos();
+    });
+  }
+
+  // ── Filtro ──────────────────────────────────────────────────
+  function filtrar() { query = norm(document.getElementById('searchInput').value.trim()); renderizar(); }
+  function limpiarFiltro() { query = ''; document.getElementById('searchInput').value = ''; renderizar(); }
+
+  // ── Render principal ────────────────────────────────────────
+  function renderizar() {
+    var filtradas = query
+      ? todas.filter(l => norm(l.nombre).indexOf(query) !== -1 || norm(l.dni).indexOf(query) !== -1 || norm(l.lp).indexOf(query) !== -1)
+      : [...todas];
+    renderTab1(filtradas);
+    renderTab2(filtradas);
+    renderTab3(filtradas);
+    if (tabAct === 'gantt') renderGantt();
+  }
+
+  // ── TAB 1: ÚLTIMA LICENCIA ────────────────────────────────────
+  function renderTab1(filtradas) {
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+
+    _vigentes = filtradas
+      .filter(l => { var i = parseFechaObj(l.fecha_inicio), f = parseFechaObj(l.fecha_fin); return i && f && i <= hoy && f >= hoy; })
+      .sort((a,b) => parseFechaMs(a.fecha_inicio) - parseFechaMs(b.fecha_inicio));
+
+    _proximas = filtradas
+      .filter(l => { var i = parseFechaObj(l.fecha_inicio); return i && i > hoy; })
+      .sort((a,b) => parseFechaMs(a.fecha_inicio) - parseFechaMs(b.fecha_inicio));
+
+    var mapa = {};
+    filtradas.forEach(l => {
+      var clave = l.lp || '__sin_lp__';
+      if (!mapa[clave] || parseFechaMs(l.fecha_inicio) > parseFechaMs(mapa[clave].fecha_inicio)) mapa[clave] = l;
+    });
+    _ultimas = Object.values(mapa).sort((a,b) => parseFechaMs(b.fecha_inicio) - parseFechaMs(a.fecha_inicio));
+
+    document.getElementById('countV').textContent  = _vigentes.length;
+    document.getElementById('countP2').textContent = _proximas.length;
+    document.getElementById('count1').textContent  = _ultimas.length;
+
+    var unica  = Object.keys(mapa).length === 1 && _ultimas.length > 0;
+    var banner = document.getElementById('banner1');
+    var stats  = document.getElementById('stats1');
+
+    if (unica) {
+      var l = _ultimas[0];
+      banner.classList.add('show');
+      document.getElementById('b1Nombre').textContent = l.nombre || '—';
+      document.getElementById('b1Meta').textContent = [l.jerarquia, 'LP: '+l.lp, 'DNI: '+l.dni, l.dependencia].filter(Boolean).join(' · ');
+      stats.classList.add('show');
+      stats.innerHTML = `
+        <div class="stat-card"><div class="sv">${l.usufructuados||0}</div><div class="sl">Usufructuados</div></div>
+        <div class="stat-card amber"><div class="sv">${l.pend_otorgamiento||0}</div><div class="sl">Pend. Otorgamiento</div></div>
+        <div class="stat-card"><div class="sv">${l.solicitados||0}</div><div class="sl">Solicitados</div></div>
+        <div class="stat-card verde"><div class="sv">${l.saldo||0}</div><div class="sl">Saldo disponible</div></div>
+        <div class="stat-card stat-date"><div class="sv">${isoAddmmyyyy(l.fecha_inicio)}</div><div class="sl">Inicio</div></div>
+        <div class="stat-card stat-date"><div class="sv">${isoAddmmyyyy(l.fecha_fin)}</div><div class="sl">Finalización</div></div>
+        <div class="stat-card stat-date"><div class="sv">${isoAddmmyyyy(l.reintegro)}</div><div class="sl">Reintegro</div></div>`;
+    } else {
+      banner.classList.remove('show');
+      stats.classList.remove('show');
+    }
+  }
+
+  // ── MODAL (vigentes / próximas / última por persona) ───────────
+  var modalCfg = {
+    vigentes: { titulo: '🟢 Licencias Vigentes — activas hoy',          clase: 'verde',  vacio: 'No hay personal con licencia activa hoy.',    lista: () => _vigentes },
+    proximas: { titulo: '🔵 Licencias Próximas — programadas a futuro', clase: 'azul',   vacio: 'No hay licencias programadas a futuro.',       lista: () => _proximas },
+    ultimas:  { titulo: '🏅 Última Licencia Registrada por personal',   clase: 'dorado', vacio: 'No hay licencias registradas aún.',            lista: () => _ultimas  }
+  };
+  function abrirModal(tipo) {
+    var cfg = modalCfg[tipo], lista = cfg.lista();
+    document.getElementById('modalTitulo').innerHTML = cfg.titulo + ' <span class="badge-count">' + lista.length + '</span>';
+    document.getElementById('modalBody').className = 'modal-body ' + cfg.clase;
+    var tbody = document.getElementById('modalTableBody');
+    var empty = document.getElementById('modalEmpty');
+    document.getElementById('modalEmptyMsg').textContent = cfg.vacio;
+    if (!lista.length) { tbody.innerHTML = ''; empty.style.display = 'block'; }
+    else { empty.style.display = 'none'; tbody.innerHTML = lista.map(filaModal).join(''); }
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+  function filaModal(l) {
+    return `<tr>
+      <td class="col-nombre" onclick="filtrarPor('${esc(l.nombre)}')" title="${esc(l.nombre)}">${esc(l.nombre)||'—'}</td>
+      <td>${esc(l.jerarquia)||'—'}</td><td>${esc(l.lp)||'—'}</td><td>${esc(l.dni)||'—'}</td>
+      <td>${esc(l.dependencia)||'—'}</td>
+      <td>${isoAddmmyyyy(l.fecha_inicio)}</td><td>${isoAddmmyyyy(l.fecha_fin)}</td><td>${isoAddmmyyyy(l.reintegro)}</td>
+      <td><span class="tag tag-blue">${l.usufructuados}</span></td>
+      <td><span class="tag tag-amber">${l.pend_otorgamiento}</span></td>
+      <td>${l.solicitados}</td>
+      <td><span class="tag tag-green">${l.saldo}</span></td>
+      <td style="color:var(--gris)">${esc(l.cod_ctr_lic)||'—'}</td>
+      <td>${l.pdf_path ? `<span class="btn-pdf" onclick="verPdf('${esc(l.pdf_path)}')">📄 Ver</span>` : '<span class="btn-pdf muted">Sin PDF</span>'}</td>
+    </tr>`;
+  }
+  function cerrarModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+  function cerrarModalSiOverlay(e) { if (e.target === document.getElementById('modalOverlay')) cerrarModal(); }
+
+  // ── TAB 2: HISTORIAL ──────────────────────────────────────────
+  function renderTab2(filtradas) {
+    renderTabla('body2', 'empty2', 'count2', [...filtradas].sort((a,b) => parseFechaMs(b.fecha_inicio) - parseFechaMs(a.fecha_inicio)), true);
+  }
+  function renderTabla(bodyId, emptyId, countId, lista, conAcciones) {
+    var tbody = document.getElementById(bodyId);
+    var empty = document.getElementById(emptyId);
+    document.getElementById(countId).textContent = lista.length;
+    if (!lista.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = lista.map(l => filaTabla(l, conAcciones)).join('');
+  }
+  function filaTabla(l, conAcciones) {
+    return `<tr>
+      <td class="col-nombre" onclick="irAPersona('${esc(l.nombre)}')" title="Clic para filtrar">${esc(l.nombre)||'—'}</td>
+      <td class="hide-mob">${esc(l.jerarquia)||'—'}</td>
+      <td>${esc(l.lp)||'—'}</td>
+      <td class="hide-mob">${esc(l.dni)||'—'}</td>
+      <td class="col-dep hide-mob">${esc(l.dependencia)||'—'}</td>
+      <td>${isoAddmmyyyy(l.fecha_inicio)}</td>
+      <td>${isoAddmmyyyy(l.fecha_fin)}</td>
+      <td class="hide-mob">${isoAddmmyyyy(l.reintegro)}</td>
+      <td><span class="tag tag-blue">${l.usufructuados}</span></td>
+      <td class="hide-mob"><span class="tag tag-amber">${l.pend_otorgamiento}</span></td>
+      <td class="hide-mob">${l.solicitados}</td>
+      <td><span class="tag tag-green">${l.saldo}</span></td>
+      <td class="hide-mob" style="font-size:0.76rem;color:var(--gris)">${esc(l.cod_ctr_lic)||'—'}</td>
+      <td>${l.pdf_path ? `<span class="btn-pdf" onclick="verPdf('${esc(l.pdf_path)}')">📄 Ver</span>` : '<span class="btn-pdf muted">Sin PDF</span>'}</td>
+      <td>${conAcciones ? `<button class="btn-secondary" style="padding:3px 8px;font-size:0.72rem;" onclick="adjuntarPdfExistente('${l.id}')">📎</button> <button class="btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="confirmarEliminarLicencia('${l.id}')">🗑</button>` : ''}</td>
+    </tr>`;
+  }
+
+  // ── TAB 3: CONSULTA DE PERSONAL ───────────────────────────────
+  function renderTab3(filtradas) {
+    var prompt = document.getElementById('promptPersonal');
+    var contenido = document.getElementById('contenidoPersonal');
+    if (!query) { prompt.style.display = 'block'; contenido.style.display = 'none'; return; }
+    prompt.style.display = 'none'; contenido.style.display = 'block';
+
+    var mapa = {};
+    filtradas.forEach(l => { var clave = l.lp || '__sin_lp__'; (mapa[clave] = mapa[clave]||[]).push(l); });
+    var personas = Object.values(mapa);
+    var unica = personas.length === 1;
+    var banner = document.getElementById('bannerP');
+    var totalesGrid = document.getElementById('totalesGrid');
+
+    if (unica) {
+      var licencias = personas[0].sort((a,b) => parseFechaMs(a.fecha_inicio) - parseFechaMs(b.fecha_inicio));
+      var ultima = licencias[licencias.length-1];
+      banner.classList.add('show');
+      document.getElementById('bpNombre').textContent = ultima.nombre || '—';
+      document.getElementById('bpMeta').textContent = [ultima.jerarquia, 'LP: '+ultima.lp, 'DNI: '+ultima.dni, ultima.dependencia].filter(Boolean).join(' · ');
+
+      var usuf = Number(ultima.usufructuados)||0, pend = Number(ultima.pend_otorgamiento)||0, solic = Number(ultima.solicitados)||0, saldo = Number(ultima.saldo)||0;
+      var totalDias = usuf+pend+solic+saldo, comprometidos = usuf+pend+solic;
+      totalesGrid.style.display = 'grid';
+      totalesGrid.innerHTML = `
+        <div class="total-card"><div class="tv">${totalDias}</div><div class="tl">Total días anuales</div><div class="ts">Usufruct. + Pend. + Solicit. + Saldo</div></div>
+        <div class="total-card rojo"><div class="tv">${comprometidos}</div><div class="tl">Días usufructuados</div><div class="ts">Total − Saldo disponible</div></div>
+        <div class="total-card verde"><div class="tv">${saldo}</div><div class="tl">Saldo disponible</div><div class="ts">Días restantes por tomar</div></div>
+        <div class="total-card amber"><div class="tv">${licencias.length}</div><div class="tl">Tramos de licencia</div><div class="ts">Registros en el sistema</div></div>`;
+      renderTabla('bodyP', 'emptyP', 'countP', licencias, false);
+    } else {
+      banner.classList.remove('show');
+      totalesGrid.style.display = 'none';
+      var ultimas = personas.map(g => g.sort((a,b) => parseFechaMs(b.fecha_inicio)-parseFechaMs(a.fecha_inicio))[0])
+                            .sort((a,b) => parseFechaMs(b.fecha_inicio)-parseFechaMs(a.fecha_inicio));
+      renderTabla('bodyP', 'emptyP', 'countP', ultimas, false);
+    }
+  }
+
+  function filtrarPor(nombre) { document.getElementById('searchInput').value = nombre; query = norm(nombre); cerrarModal(); renderizar(); }
+  function irAPersona(nombre) {
+    document.getElementById('searchInput').value = nombre; query = norm(nombre);
+    setTab('personal', document.querySelectorAll('.nav-tab')[2]);
+  }
+
+  // ── GANTT — solo estimados ─────────────────────────────────────
+  function diasEnAño(a) { return (a%4===0 && (a%100!==0||a%400===0)) ? 366 : 365; }
+  function diaDelAño(fecha, año) { return Math.floor((fecha - new Date(año,0,1)) / 86400000); }
+  function pct(dia, total) { return (dia/total*100).toFixed(4)+'%'; }
+
+  function renderGantt() {
+    var año = ganttAño, total = diasEnAño(año);
+    var iniAño = new Date(año,0,1), finAño = new Date(año,11,31,23,59,59);
+    document.getElementById('ganttAñoLabel').textContent = año;
+    _ganttItems = {};
+
+    var enAño = estimados.filter(e => {
+      var ini = parseFechaObj(e.fecha_inicio), fin = parseFechaObj(e.fecha_fin);
+      return ini && fin && ini <= finAño && fin >= iniAño;
+    });
+
+    var contenedor = document.getElementById('ganttContenido');
+    if (!enAño.length) {
+      contenedor.innerHTML = `<div class="gantt-empty"><div style="font-size:3rem;margin-bottom:1rem">📅</div><p>No hay licencias estimadas para ${año}.<br>
+        <span style="font-size:0.82rem;color:var(--gris-claro)">Usá <strong>＋ Agregar estimado</strong> para proyectar fechas.</span></p></div>`;
+      return;
+    }
+
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    var diaHoy = diaDelAño(hoy, año);
+    var todayLine = (hoy >= iniAño && hoy <= finAño) ? `<div class="gantt-today-line" style="left:${pct(diaHoy,total)}"><div class="gantt-today-tip">HOY</div></div>` : '';
+    var gridLines = MESES.map(() => `<div class="gantt-grid-line"></div>`).join('');
+    var monthHeaders = MESES.map(m => `<div class="gantt-month">${m}</div>`).join('');
+    var sorted = [...enAño].sort((a,b) => (a.nombre||'').localeCompare(b.nombre||'','es'));
+
+    var filas = sorted.map(e => {
+      var nombre = e.nombre || '—';
+      var meta = [e.jerarquia, e.lp ? 'LP '+e.lp : ''].filter(Boolean).join(' · ');
+      var ini = parseFechaObj(e.fecha_inicio), fin = parseFechaObj(e.fecha_fin);
+      var bar = '';
+      if (ini && fin) {
+        var efIni = ini < iniAño ? iniAño : ini, efFin = fin > finAño ? finAño : fin;
+        var dIni = diaDelAño(efIni, año), dFin = diaDelAño(efFin, año), dur = dFin - dIni + 1;
+        if (dur > 0) {
+          var pasada = fin < hoy;
+          var barId = 'e_' + e.id;
+          _ganttItems[barId] = e;
+          var label = dur >= 5 ? `${isoAddmmyyyy(e.fecha_inicio)} – ${isoAddmmyyyy(e.fecha_fin)}` : '';
+          bar = `<div class="gantt-bar estimado${pasada ? ' pasada' : ''}" style="left:${pct(dIni,total)};width:${pct(dur,total)}" onclick="abrirDetalle('${barId}')">${esc(label)}</div>`;
+        }
+      }
+      return `<div class="gantt-row">
+        <div class="gantt-person"><div class="gantt-person-name" title="${esc(nombre)}">${esc(nombre)}</div><div class="gantt-person-meta">${esc(meta)}</div></div>
+        <div class="gantt-timeline"><div class="gantt-grid-lines">${gridLines}</div>${todayLine}${bar}</div>
+      </div>`;
+    }).join('');
+
+    contenedor.innerHTML = `<div class="gantt-card"><div class="gantt-inner">
+      <div class="gantt-header-row"><div class="gantt-name-col">Proyectado <span style="font-weight:400;opacity:0.7">(${sorted.length})</span></div><div class="gantt-months">${monthHeaders}</div></div>
+      <div class="gantt-body">${filas}</div>
+    </div></div>`;
+  }
+
+  function abrirDetalle(barId) {
+    var e = _ganttItems[barId];
+    if (!e) return;
+    var filas = [
+      { l: 'Nombre', v: e.nombre || '—' }, { l: 'Jerarquía', v: e.jerarquia || '—' },
+      { l: 'LP', v: e.lp || '—' }, { l: 'DNI', v: e.dni || '—' }, { l: 'Dependencia', v: e.dependencia || '—' },
+      { l: 'Fecha inicio', v: isoAddmmyyyy(e.fecha_inicio) }, { l: 'Fecha fin', v: isoAddmmyyyy(e.fecha_fin) },
+    ];
+    var html = filas.map(({l,v}) => `<div class="detalle-row"><span class="dr-l">${l}</span><span class="dr-v">${esc(v)}</span></div>`).join('');
+    if (e.nota) html += `<div class="detalle-nota"><strong>Nota</strong>${esc(e.nota)}</div>`;
+    document.getElementById('detalleBody').innerHTML =
+      `<div class="detalle-nombre">${esc(e.nombre||'—')}</div>
+       <div class="detalle-meta">${esc([e.jerarquia, e.lp?'LP '+e.lp:''].filter(Boolean).join(' · '))}</div>${html}`;
+    document.getElementById('detalleFooter').innerHTML =
+      `<button class="btn-danger" onclick="borrarEstimado('${e.id}')">🗑 Eliminar</button><button class="btn-secondary" onclick="cerrarDetalle()">Cerrar</button>`;
+    document.getElementById('detalleOverlay').classList.add('open');
+  }
+  function cerrarDetalle() { document.getElementById('detalleOverlay').classList.remove('open'); }
+  function cerrarDetalleSiOverlay(e) { if (e.target === document.getElementById('detalleOverlay')) cerrarDetalle(); }
+
+  async function borrarEstimado(id) {
+    if (!confirm('¿Eliminar este estimado?')) return;
+    cerrarDetalle();
+    var res = await supabaseClient.from('licencias_estimados').delete().eq('id', id);
+    if (res.error) { alert('Error: ' + res.error.message); return; }
+    await cargarDatos();
+  }
+
+  // ── FORM ESTIMADO ──────────────────────────────────────────────
+  var _estPersonaElegida = null;
+  function abrirFormEstimado() {
+    _estPersonaElegida = null;
+    ['estBusqueda','fNombre','fIni','fFin','fNota'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('formOverlay').classList.add('open');
+  }
+  function cerrarFormEstimado() { document.getElementById('formOverlay').classList.remove('open'); }
+  function cerrarFormSiOverlay(e) { if (e.target === document.getElementById('formOverlay')) cerrarFormEstimado(); }
+
+  function buscarPersonalEstimado() {
+    var q = norm(str(document.getElementById('estBusqueda').value));
+    var listEl = document.getElementById('estSuggest');
+    if (q.length < 2) { listEl.innerHTML = ''; listEl.classList.remove('show'); return; }
+    var matches = personalTiro.filter(p => norm(p.lp).indexOf(q)!==-1 || norm(p.apellido).indexOf(q)!==-1 || norm(p.nombres).indexOf(q)!==-1).slice(0,10);
+    _personalResultados = matches;
+    listEl.innerHTML = matches.length
+      ? matches.map((p,i) => `<div class="autocomplete-item" onmousedown="elegirPersonaEstimado(${i})"><b>${esc(p.apellido)}, ${esc(p.nombres)}</b><small>LP ${esc(p.lp)} — ${esc(p.grado)}</small></div>`).join('')
+      : '<div class="autocomplete-empty">Sin coincidencias en Personal Tiro</div>';
+    listEl.classList.add('show');
+  }
+  function elegirPersonaEstimado(idx) {
+    var p = _personalResultados[idx];
+    if (!p) return;
+    _estPersonaElegida = p;
+    document.getElementById('estBusqueda').value = '';
+    document.getElementById('estSuggest').classList.remove('show');
+    document.getElementById('fNombre').value = (p.apellido||'') + ', ' + (p.nombres||'');
+  }
+
+  async function guardarEstimado() {
+    var nombre = str(document.getElementById('fNombre').value);
+    var fi = ddmmyyyyAiso(document.getElementById('fIni').value);
+    var ff = ddmmyyyyAiso(document.getElementById('fFin').value);
+    if (!nombre || !fi || !ff) { alert('Nombre, fecha inicio y fecha fin son obligatorios (fechas en formato dd/mm/aaaa).'); return; }
+
+    var btn = document.getElementById('btnGuardarEst');
+    btn.disabled = true; btn.textContent = '⏳ Guardando…';
+    var p = _estPersonaElegida;
+    var payload = {
+      lp: p ? p.lp : '',
+      nombre: nombre,
+      jerarquia: p ? (p.grado||'') : '',
+      dependencia: p ? (p.dependencia||'') : '',
+      fecha_inicio: fi, fecha_fin: ff,
+      nota: str(document.getElementById('fNota').value)
+    };
+    try {
+      var res = await supabaseClient.from('licencias_estimados').insert(payload);
+      if (res.error) throw res.error;
+      cerrarFormEstimado();
+      await cargarDatos();
+      if (tabAct === 'gantt') renderGantt();
+    } catch (e) {
+      alert('Error: ' + (e.message||e));
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 Guardar';
+    }
+  }
+
+  // Cerrar con Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { cerrarModal(); cerrarDetalle(); cerrarFormEstimado(); cerrarRevisar(); }
+  });
+
+  initAuth();
+
+</script>
+</body>
+</html>
