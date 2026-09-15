@@ -392,11 +392,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Servicio<span class="required-star">*</span></label>
-            <select id="servTipo" onchange="onServTipoChange()"></select>
-          </div>
-          <div class="form-group" id="servTurnoGrupo" style="display:none;">
-            <label class="form-label">Turno<span class="required-star">*</span></label>
-            <select id="servTurno"></select>
+            <select id="servTipo"></select>
           </div>
           <div class="form-group">
             <label class="form-label">Estado<span class="required-star">*</span></label>
@@ -556,7 +552,7 @@
       </div>
       <div class="table-card">
         <div class="section-title"><span class="ico">🕒</span> Horarios por tipo (para Presentismo)</div>
-        <div class="config-hint">Cuando una persona tiene uno de estos servicios asignado ese día, Presentismo la marca sola como PRESENTE en la Carga Diaria con este horario — no hace falta cargarla dos veces. Dejá el Turno vacío para un tipo con un solo horario fijo (ej. SATURACION); agregá una fila por turno para un tipo con más de un horario (ej. ESPACIOS PUBLICOS: MAÑANA/TARDE) — el formulario de Servicios pide el Turno solo, cuando el tipo elegido tiene alguno cargado acá.</div>
+        <div class="config-hint">Cuando una persona tiene uno de estos servicios asignado ese día, Presentismo la marca sola como PRESENTE en la Carga Diaria con este horario — no hace falta cargarla dos veces. Dejá el Turno vacío para un tipo con un solo horario fijo (ej. SATURACION); agregá una fila por turno para un tipo con más de un horario (ej. ESPACIOS PUBLICOS: MAÑANA/TARDE) — en el desplegable "Servicio" del formulario de Servicios, un tipo con turnos cargados acá aparece directamente separado en uno por turno (ej. "ESPACIOS PUBLICOS (TURNO MAÑANA)"), no como el tipo "pelado" seguido de un segundo campo.</div>
         <div class="config-add-row">
           <input type="text" id="nuevoHorTipo" placeholder="Tipo de servicio (igual a como está arriba)">
           <input type="text" id="nuevoHorTurno" placeholder="Turno (opcional, ej. MAÑANA)" style="max-width:160px;">
@@ -756,10 +752,33 @@
   function personaDe(legajo) { return personalMapa[legajo] || { grado: '', apellido: '(no encontrado en Nómina General)', nombre: '' }; }
 
   function poblarSelectsDeConfig() {
-    var tiposHtml = configTipos.map(function(t){ return '<option value="'+esc(t.nombre)+'">'+esc(t.nombre)+'</option>'; }).join('');
-    document.getElementById('servTipo').innerHTML = tiposHtml;
-    document.getElementById('servFiltroTipo').innerHTML = '<option value="">Todos</option>' + tiposHtml;
-    onServTipoChange();
+    // Select "Servicio" del formulario de Nuevo Servicio: un tipo con
+    // turnos configurados (ver turnosDeTipo/servicios_config_horarios)
+    // aparece ya separado en una opción por turno (ej. "ESPACIOS PUBLICOS
+    // (TURNO MAÑANA)") en vez de mostrar el tipo pelado y pedir el turno
+    // aparte en un segundo campo — así no se puede elegir sin turno por
+    // error. El value de cada <option> combina tipo y turno separados por
+    // "|" (ej. "ESPACIOS PUBLICOS|MAÑANA"); un tipo sin turnos usa el
+    // nombre solo, sin "|". Ver guardarServicio/editarServicio, que arman
+    // y desarman ese value.
+    var opcionesTipo = [];
+    configTipos.forEach(function(t) {
+      var turnos = turnosDeTipo(t.nombre);
+      if (turnos.length) {
+        turnos.forEach(function(tu) {
+          opcionesTipo.push({ value: t.nombre + '|' + tu, label: t.nombre + ' (TURNO ' + tu + ')' });
+        });
+      } else {
+        opcionesTipo.push({ value: t.nombre, label: t.nombre });
+      }
+    });
+    document.getElementById('servTipo').innerHTML = opcionesTipo.map(function(o){ return '<option value="'+esc(o.value)+'">'+esc(o.label)+'</option>'; }).join('');
+
+    // El filtro de la tabla de Servicios sí muestra el tipo pelado (sin
+    // separar por turno) — ahí interesa ver todo lo de "ESPACIOS PUBLICOS"
+    // junto, sea cual sea el turno de cada fila.
+    var tiposFiltroHtml = configTipos.map(function(t){ return '<option value="'+esc(t.nombre)+'">'+esc(t.nombre)+'</option>'; }).join('');
+    document.getElementById('servFiltroTipo').innerHTML = '<option value="">Todos</option>' + tiposFiltroHtml;
 
     var motivosHtml = configMotivos.map(function(m){ return '<option value="'+esc(m.nombre)+'">'+esc(m.nombre)+'</option>'; }).join('');
     document.getElementById('horaMotivo').innerHTML = motivosHtml;
@@ -783,19 +802,9 @@
   function turnosDeTipo(tipo) {
     return configHorarios.filter(function(h){ return h.tipo === tipo && h.turno; }).map(function(h){ return h.turno; });
   }
-  function onServTipoChange() {
-    var tipo = document.getElementById('servTipo').value;
-    var turnos = turnosDeTipo(tipo);
-    var grupo = document.getElementById('servTurnoGrupo');
-    var sel = document.getElementById('servTurno');
-    if (turnos.length) {
-      sel.innerHTML = turnos.map(function(t){ return '<option value="'+esc(t)+'">'+esc(t)+'</option>'; }).join('');
-      grupo.style.display = '';
-    } else {
-      sel.innerHTML = '';
-      grupo.style.display = 'none';
-    }
-  }
+  // Arma el value combinado ("TIPO|TURNO", o "TIPO" si no tiene turno) que
+  // usa la opción del select "Servicio" — ver poblarSelectsDeConfig.
+  function valorServTipo(tipo, turno) { return tipo + (turno ? '|' + turno : ''); }
   function horarioDeServicio(tipo, turno) {
     var h = configHorarios.find(function(x){ return x.tipo === tipo && x.turno === (turno || ''); });
     return h ? h.horario : '';
@@ -1121,7 +1130,6 @@
     document.getElementById('servEditId').value = '';
     document.getElementById('servFecha').value = '';
     document.getElementById('servTipo').selectedIndex = 0;
-    onServTipoChange();
     document.getElementById('servEstado').value = 'EN PROCESO';
     document.getElementById('servObs').value = '';
     limpiarPersonaForm('serv');
@@ -1134,9 +1142,7 @@
     _editContext.serv = id;
     document.getElementById('servEditId').value = id;
     document.getElementById('servFecha').value = r.fecha;
-    document.getElementById('servTipo').value = r.tipo;
-    onServTipoChange();
-    if (r.turno) document.getElementById('servTurno').value = r.turno;
+    document.getElementById('servTipo').value = valorServTipo(r.tipo, r.turno);
     document.getElementById('servEstado').value = r.estado;
     document.getElementById('servObs').value = r.observaciones || '';
     var p = personaDe(r.legajo);
@@ -1150,18 +1156,15 @@
 
   async function guardarServicio() {
     var fecha = document.getElementById('servFecha').value;
-    var tipo = document.getElementById('servTipo').value;
-    var necesitaTurno = turnosDeTipo(tipo).length > 0;
-    var turno = necesitaTurno ? document.getElementById('servTurno').value : '';
+    var servValor = document.getElementById('servTipo').value;
+    var pipeIdx = servValor.indexOf('|');
+    var tipo = pipeIdx === -1 ? servValor : servValor.slice(0, pipeIdx);
+    var turno = pipeIdx === -1 ? '' : servValor.slice(pipeIdx + 1);
     var estado = document.getElementById('servEstado').value;
     var obs = document.getElementById('servObs').value.trim();
     var persona = _formSel.serv;
     if (!fecha || !persona || !tipo || !estado) {
       alertShow('topAlert', 'error', 'Completá fecha, personal, servicio y estado.');
-      return;
-    }
-    if (necesitaTurno && !turno) {
-      alertShow('topAlert', 'error', 'Elegí el turno.');
       return;
     }
     var entry = { fecha: fecha, legajo: persona.legajo, tipo: tipo, turno: turno, estado: estado, observaciones: obs || null };
@@ -1621,7 +1624,7 @@
       document.getElementById('nuevoHorTurno').value = '';
       document.getElementById('nuevoHorHorario').value = '';
       await cargarConfig();
-      onServTipoChange();
+      poblarSelectsDeConfig();
       renderConfigLists();
       alertShow('topAlert', 'success', '✅ Horario agregado.');
     } catch (e) {
@@ -1656,7 +1659,7 @@
       var res = await supabaseClient.from('servicios_config_horarios').delete().eq('tipo', tipo).eq('turno', turno);
       if (res.error) throw res.error;
       await cargarConfig();
-      onServTipoChange();
+      poblarSelectsDeConfig();
       renderConfigLists();
     } catch (e) {
       alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
