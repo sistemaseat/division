@@ -960,7 +960,7 @@
     btn.classList.add('active');
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.getElementById('sec-' + nombre).classList.add('active');
-    document.getElementById('uploadCard').style.display = nombre === 'gantt' ? 'none' : '';
+    document.getElementById('uploadCard').style.display = nombre === 'ultima' ? '' : 'none';
     renderizar();
     if (nombre === 'gantt') renderGantt();
   }
