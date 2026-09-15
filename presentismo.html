@@ -246,6 +246,9 @@
   tr.fila-desde-servicio td { background: #eef6ff; }
   tr.fila-desde-servicio td.persona-cell { border-left: 3px solid var(--blue); }
   .badge-servicio { font-size: .68rem; font-weight: 700; color: var(--blue); margin-top: 2px; }
+  tr.fila-desde-licencia td { background: #f7f0fb; }
+  tr.fila-desde-licencia td.persona-cell { border-left: 3px solid var(--purple); }
+  .badge-licencia { font-size: .68rem; font-weight: 700; color: var(--purple); margin-top: 2px; }
   tr#tr-separador-carga td { background: linear-gradient(to right,#dceefb,#f0f7ff); border-top: 2px solid var(--blue); border-bottom: 1px solid #aad4ee; font-size: 12px; font-weight: 700; color: var(--primary); padding: 6px 13px; }
   #tabla-carga input, #tabla-carga select { font-size: 12px; padding: 5px 7px; width: 100%; min-width: 110px; }
 
@@ -1124,9 +1127,11 @@
     document.querySelectorAll('#tbodyCarga tr').forEach(function(tr){
       if (tr.id === 'tr-separador-carga') return;
       tr.dataset.estado = '';
-      tr.classList.remove('fila-ausente', 'fila-especial', 'fila-desde-servicio');
+      tr.classList.remove('fila-ausente', 'fila-especial', 'fila-desde-servicio', 'fila-desde-licencia');
       delete tr.dataset.desdeServicio;
+      delete tr.dataset.desdeLicencia;
       var badge = tr.querySelector('.badge-servicio'); if (badge) badge.remove();
+      var badgeL = tr.querySelector('.badge-licencia'); if (badgeL) badgeL.remove();
       var bp = tr.querySelector('.btn-pres'); if (bp) bp.classList.remove('on');
       var ba = tr.querySelector('.btn-aus');  if (ba) ba.classList.remove('on');
       tr.querySelectorAll('.campo-pres,.campo-aus').forEach(function(el){ el.classList.add('campo-oculto'); });
@@ -1168,8 +1173,9 @@
         if (TIPOS_SIN_HORARIO.indexOf(r.tipo_presencia) !== -1) tr.classList.add('fila-especial');
       });
       await aplicarServiciosDelDia(fecha);
+      await aplicarLicenciasDelDia(fecha);
       refrescarDatalists();
-      if (data.length === 0 && !document.querySelector('#tbodyCarga .badge-servicio')) {
+      if (data.length === 0 && !document.querySelector('#tbodyCarga .badge-servicio') && !document.querySelector('#tbodyCarga .badge-licencia')) {
         alertShow('topAlert', 'info', 'Sin carga guardada para el ' + fmtFecha(fecha) + ' — es una fecha nueva.');
       }
     } catch (e) {
@@ -1212,6 +1218,45 @@
       var celda = tr.querySelector('.persona-cell');
       if (celda && !celda.querySelector('.badge-servicio')) {
         celda.insertAdjacentHTML('beforeend', '<div class="badge-servicio" title="Autocompletado desde Servicios y Horarios — se vuelve a completar así cada vez que se abre este día">🚓 Servicio asignado</div>');
+      }
+    });
+  }
+
+  // Licencias Anuales → Carga Diaria: si alguien tiene una licencia anual
+  // registrada que cubre este día, esto la marca AUSENTE con Motivo
+  // "LICENCIA ANUAL" y arma la Observación con el rango de fechas y el
+  // Código de Control de esa licencia (mismo formato que ya se usaba a
+  // mano: "Licencia Anual dd/mm/aaaa al dd/mm/aaaa Cod Ctrl NNNNNNN") —
+  // SIEMPRE pisa lo que se acaba de cargar arriba (tanto lo guardado como
+  // lo que haya puesto Servicios y Horarios), a pedido de Enzo: nadie
+  // puede estar "presente en un servicio" y "de licencia" el mismo día.
+  // No se guarda nada solo por esto: recién queda en firme cuando se
+  // aprieta "Guardar carga del día".
+  async function aplicarLicenciasDelDia(fecha) {
+    var res = await supabaseClient.from('licencias_registros')
+      .select('lp,fecha_inicio,fecha_fin,cod_ctr_lic')
+      .lte('fecha_inicio', fecha)
+      .gte('fecha_fin', fecha);
+    if (res.error) {
+      console.warn('No se pudo cruzar con Licencias Anuales (¿esa sección todavía no está migrada a Supabase?): ', res.error);
+      return;
+    }
+    (res.data || []).forEach(function(l) {
+      var tr = document.querySelector('#tbodyCarga tr[data-lp="'+l.lp+'"]');
+      if (!tr) return; // no está en la nómina activa de la División Tiro
+      setEstadoCarga(tr.querySelector('.btn-aus'), 'AUSENTE');
+      var selMotivo = tr.querySelector('.sel-motivo'); if (selMotivo) selMotivo.value = 'LICENCIA ANUAL';
+      var selJustif = tr.querySelector('.sel-justif'); if (selJustif) selJustif.value = 'SI';
+      var inpObs = tr.querySelector('.inp-obs');
+      if (inpObs) inpObs.value = 'Licencia Anual ' + fmtFecha(l.fecha_inicio) + ' al ' + fmtFecha(l.fecha_fin) + (l.cod_ctr_lic ? ' Cod Ctrl ' + l.cod_ctr_lic : '');
+      tr.classList.remove('fila-especial', 'fila-desde-servicio');
+      delete tr.dataset.desdeServicio;
+      var badgeServ = tr.querySelector('.badge-servicio'); if (badgeServ) badgeServ.remove();
+      tr.classList.add('fila-desde-licencia');
+      tr.dataset.desdeLicencia = '1';
+      var celda = tr.querySelector('.persona-cell');
+      if (celda && !celda.querySelector('.badge-licencia')) {
+        celda.insertAdjacentHTML('beforeend', '<div class="badge-licencia" title="Autocompletado desde Licencias Anuales — se vuelve a completar así cada vez que se abre este día">🏅 Licencia asignada</div>');
       }
     });
   }
