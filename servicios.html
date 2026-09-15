@@ -453,7 +453,7 @@
     <div class="form-wrap">
       <div class="form-card">
         <h2 id="horaFormTitle">Nuevo registro de horas</h2>
-        <p>Buscá a la persona por LP, apellido o nombre — se busca en Nómina General, el padrón de toda la fuerza.</p>
+        <p>Buscá a la persona por LP, apellido o nombre — se busca solo en el personal de la División Tiro (los 32 efectivos), no en Nómina General.</p>
         <div class="form-grid">
           <input type="hidden" id="horaEditId">
           <div class="form-group">
@@ -732,8 +732,13 @@
     horas = res.data || [];
   }
 
-  // Trae de Nómina General SOLO los legajos que efectivamente aparecen acá
-  // (en vez de precargar el padrón entero, que tiene más de 46.000 filas).
+  // Trae SOLO los legajos que efectivamente aparecen en los registros ya
+  // cargados (en vez de precargar un padrón entero). Servicios busca en
+  // Nómina General (toda la fuerza), pero Horas ahora busca en
+  // personal_tiro (los 32 de la División) — así que un legajo de Horas
+  // puede no existir en Nómina General. Por eso se busca primero en
+  // Nómina General y, lo que no aparezca ahí, se completa con
+  // personal_tiro (columnas lp/nombres en vez de legajo/nombre).
   async function cargarPersonalUsado() {
     var set = {};
     registros.forEach(function(r){ if (r.legajo) set[r.legajo] = true; });
@@ -748,9 +753,16 @@
       if (res.error) { console.error('Error al traer personal: ', res.error); continue; }
       (res.data || []).forEach(function(p) { personalMapa[p.legajo] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombre || '' }; });
     }
+    var faltantes = legajos.filter(function(l){ return !personalMapa[l]; });
+    for (var j = 0; j < faltantes.length; j += 200) {
+      var tanda2 = faltantes.slice(j, j + 200);
+      var res2 = await supabaseClient.from('personal_tiro').select('lp,grado,apellido,nombres').in('lp', tanda2);
+      if (res2.error) { console.error('Error al traer personal de Tiro: ', res2.error); continue; }
+      (res2.data || []).forEach(function(p) { personalMapa[p.lp] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombres || '' }; });
+    }
   }
 
-  function personaDe(legajo) { return personalMapa[legajo] || { grado: '', apellido: '(no encontrado en Nómina General)', nombre: '' }; }
+  function personaDe(legajo) { return personalMapa[legajo] || { grado: '', apellido: '(no encontrado)', nombre: '' }; }
 
   function poblarSelectsDeConfig() {
     // Select "Servicio" del formulario de Nuevo Servicio: un tipo con
@@ -812,10 +824,15 @@
   }
 
   // ============================================================
-  // BUSCADOR DE PERSONAL (Nómina General) — igual criterio que
-  // Idoneidades: búsqueda con debounce contra el padrón completo de la
-  // fuerza, en vez de precargarlo entero o depender de una planilla
-  // aparte como hacía la versión Apps Script.
+  // BUSCADOR DE PERSONAL — búsqueda con debounce, igual criterio que
+  // Idoneidades. "Servicios" busca en Nómina General (el padrón de toda
+  // la fuerza, hace falta porque a veces cubre servicios gente de otras
+  // dependencias). "Horas" busca SOLO en personal_tiro (los 32 de la
+  // División) — a pedido tuyo, para no mezclar con el resto de la fuerza
+  // acá. Los resultados de las dos fuentes se normalizan al mismo formato
+  // ({legajo, grado, apellido, nombre}) para que el resto del código
+  // (seleccionarPersonaForm, personalMapa, etc.) no tenga que distinguir
+  // de dónde salió cada uno.
   // ============================================================
   function buscarPersonalForm(scope) {
     var q = document.getElementById(scope+'PersonalBusqueda').value.trim();
@@ -830,15 +847,25 @@
     listEl.classList.add('show');
     _personalDebounce[scope] = setTimeout(async function() {
       var qEsc = q.replace(/[%_,]/g, '');
-      var res = await supabaseClient.from('nomina_general')
-        .select('legajo,grado,apellido,nombre')
-        .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
-        .limit(10);
-      if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
-      var matches = res.data || [];
+      var matches;
+      if (scope === 'hora') {
+        var resTiro = await supabaseClient.from('personal_tiro')
+          .select('lp,grado,apellido,nombres')
+          .or('lp.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombres.ilike.%'+qEsc+'%')
+          .limit(10);
+        if (resTiro.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+        matches = (resTiro.data || []).map(function(p) { return { legajo: p.lp, grado: p.grado, apellido: p.apellido, nombre: p.nombres }; });
+      } else {
+        var resNomina = await supabaseClient.from('nomina_general')
+          .select('legajo,grado,apellido,nombre')
+          .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
+          .limit(10);
+        if (resNomina.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+        matches = resNomina.data || [];
+      }
       _personalResultados[scope] = matches;
       if (!matches.length) {
-        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en Nómina General</div>';
+        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias' + (scope === 'hora' ? ' en el personal de la División Tiro' : ' en Nómina General') + '</div>';
       } else {
         // Se guarda cada resultado en _personalResultados y se pasa solo el
         // índice al onmousedown (nada de JSON en el atributo HTML).
