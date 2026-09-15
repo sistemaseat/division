@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAE Personal — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--primary);
+    color: white;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* ── LAYOUT ── */
+  .content { padding: 22px 28px; max-width: 1400px; margin: 0 auto; }
+
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .alert-warning { background: #fff9c4; color: #e65100; border-left: 4px solid #ffd600; }
+
+  .section-label {
+    font-size: 12px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .8px; color: var(--muted); margin: 22px 0 10px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  /* ── KPI GRID (próxima fecha) ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .kpi {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 22px;
+    border-left: 4px solid;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-orange { border-left-color: var(--orange); }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 8px; }
+  .kpi-val   { font-size: 24px; font-weight: 900; line-height: 1.25; color: var(--text); margin-bottom: 4px; }
+  .kpi-val.big { font-size: 32px; }
+  .kpi-sub   { font-size: 12px; color: var(--muted); }
+  .kpi-hint  { font-size: 11px; color: var(--primary); font-weight: 700; margin-top: 8px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 8888;
+    background: rgba(0,0,0,.45);
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box-lg {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 26px;
+    width: 100%; max-width: 720px; max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .modal-title { font-size: 17px; font-weight: 800; color: var(--primary); }
+  .modal-close {
+    background: #f0f0f0; border: none; border-radius: 8px;
+    width: 32px; height: 32px; font-size: 15px; cursor: pointer; color: var(--text);
+  }
+  .modal-close:hover { background: #e0e0e0; }
+
+  /* ── MODAL DE CONFIRMACIÓN ── */
+  #confirmModal { z-index: 9500; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* ── AUTOCOMPLETE (buscador de Personal Tiro) ── */
+  .autocomplete-list {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+    max-height: 220px; overflow-y: auto; z-index: 9200; box-shadow: var(--shadow-lg); margin-top: 4px;
+  }
+  .autocomplete-list.show { display: block; }
+  .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: #f0f2f5; }
+  .autocomplete-item b { color: var(--primary); }
+  .autocomplete-item small { display: block; color: var(--muted); font-size: 11px; }
+  .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+
+  .personal-preview {
+    display: none; background: #e8eaf6; border: 1.5px solid var(--primary);
+    border-radius: 10px; padding: 10px 16px; font-size: 13px; align-items: center; gap: 10px; justify-content: space-between;
+    margin-top: 10px;
+  }
+  .personal-preview.show { display: flex; }
+  .personal-preview b { color: var(--primary); }
+  .personal-preview .pp-quitar { background: none; border: none; color: var(--red); font-weight: 700; cursor: pointer; font-size: 12px; }
+
+  /* ── FORM ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px 16px;
+  }
+  .form-field label {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .4px; color: var(--muted); margin-bottom: 5px;
+  }
+  .form-field input {
+    width: 100%; padding: 9px 10px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--text); outline: none;
+    font-family: inherit;
+  }
+  .form-field input:focus { border-color: var(--primary); }
+  .form-field input:disabled { background: #f5f5f5; color: var(--muted); }
+  .form-field .required-star { color: var(--red); margin-left: 2px; }
+  .form-field.full { grid-column: 1 / -1; position: relative; }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-top: 22px;
+  }
+  .table-toolbar {
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-title { font-size: 14px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .6px; }
+  .search-input {
+    padding: 8px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    min-width: 220px;
+  }
+  .search-input:focus { border-color: var(--primary); }
+
+  .btn-export {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    background: var(--green);
+    color: white;
+    border: none; border-radius: 10px;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: .5px;
+    cursor: pointer; transition: opacity .15s;
+    white-space: nowrap;
+  }
+  .btn-export:hover { opacity: .85; }
+
+  .btn-edit {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    background: #e8eaf6; color: var(--primary);
+    border: none; border-radius: 8px;
+    font-size: 11.5px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-edit:hover { background: #c5cae9; }
+
+  .btn-del {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    background: #ffebee; color: var(--red);
+    border: none; border-radius: 8px;
+    font-size: 11.5px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+    margin-left: 4px;
+  }
+  .btn-del:hover { background: #ffcdd2; }
+
+  .table-scroll { overflow-x: auto; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th {
+    background: #e8eaf6;
+    color: var(--primary);
+    font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .4px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 2px solid #c5cae9;
+    white-space: nowrap;
+  }
+  .tbl td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .tbl tr:hover td { background: #fafbff; }
+  .tbl tr.proxima td { background: #fff9c4; }
+  .tbl tr.proxima:hover td { background: #fff59d; }
+  .tbl tr.pasada td { color: var(--muted); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge.proxima { background: var(--accent); color: var(--primary); }
+  .badge.pasada  { background: #f0f0f0; color: var(--muted); }
+
+  /* ── EMPTY / LOADING ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.55); z-index: 9999;
+    align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .header { padding: 12px 16px; }
+    .header-user { width: 100%; justify-content: flex-start; gap: 6px 10px; }
+    .content { padding: 14px 12px; }
+    .brand-title { font-size: 18px; }
+    .kpi-val.big { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn-edit" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box-lg confirm-modal" style="max-width:420px;">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones" style="display:flex;justify-content:center;gap:10px;margin-top:10px;"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">PAE</div>
+    <div>
+      <div class="brand-title">PAE PERSONAL</div>
+      <div class="brand-sub">DIVISIÓN TIRO — Turnos de preinscripción</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- ═══════════════════ CONTENT ═══════════════════ -->
+<main class="content">
+
+  <div class="alert" id="topAlert"></div>
+
+  <div class="section-label">📅 Próximo turno</div>
+  <div class="kpi-grid" id="proximaKpis">
+    <div class="kpi c-blue" onclick="abrirModalProxima()">
+      <div class="kpi-label">📅 Próxima fecha</div>
+      <div class="kpi-val big" id="kpiFecha">—</div>
+      <div class="kpi-sub" id="kpiFechaSub">Cargando…</div>
+      <div class="kpi-hint">👆 Ver personal y datos</div>
+    </div>
+    <div class="kpi c-orange" onclick="abrirModalProxima()">
+      <div class="kpi-label">🕒 Hora / Turno</div>
+      <div class="kpi-val" id="kpiHora">—</div>
+      <div class="kpi-sub">turnos programados ese día</div>
+      <div class="kpi-hint">👆 Ver personal y datos</div>
+    </div>
+    <div class="kpi c-green" onclick="abrirModalProxima()">
+      <div class="kpi-label">👥 Personal</div>
+      <div class="kpi-val big" id="kpiPersonal">—</div>
+      <div class="kpi-sub" id="kpiPersonalSub">personas anotadas para esa fecha</div>
+      <div class="kpi-hint">👆 Ver personal y datos</div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="table-wrap">
+    <div class="table-toolbar">
+      <div class="table-title">📋 Turnos — los que vienen primero, los que ya pasaron al final</div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <input type="text" class="search-input" id="buscar" placeholder="🔍 Buscar apellido, LP, grado…" oninput="renderTabla()">
+        <button class="btn-export" style="background:var(--primary);" onclick="abrirModalNuevo()">➕ Nueva Entrada</button>
+        <button class="btn-export" onclick="exportarExcel()">⬇️ Exportar Excel</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Grado</th>
+            <th>LP</th>
+            <th>Apellido</th>
+            <th>Nombres</th>
+            <th>Código Preinscripción</th>
+            <th>Fecha</th>
+            <th>Turno</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <div class="icon">📭</div>
+      <p>No hay turnos cargados todavía.</p>
+    </div>
+  </div>
+
+</main>
+
+</div><!-- /appRoot -->
+
+<!-- Modal: Nueva entrada / editar -->
+<div class="modal-overlay" id="editarModal">
+  <div class="modal-box-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="editarModalTitle">Editar</div>
+      <button class="modal-close" onclick="cerrarModalEditar()">✕</button>
+    </div>
+    <div class="alert" id="alertEditar"></div>
+    <div class="form-field full" id="wrapBuscador">
+      <label>Personal (buscá por LP, apellido o nombre — solo los 32 de la División)<span class="required-star">*</span></label>
+      <input type="text" id="edPersonalBusqueda" autocomplete="off" placeholder="Escribí LP, apellido o nombre (mínimo 3 caracteres)…"
+             oninput="buscarPersonal()" onblur="ocultarSugerenciasConDelay()">
+      <div class="autocomplete-list" id="edPersonalSuggest"></div>
+      <div class="personal-preview" id="edPersonalPreview">
+        <div id="edPersonalTexto"></div>
+        <button type="button" class="pp-quitar" onclick="limpiarPersonaForm()">✕ Quitar</button>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:14px;">
+      <div class="form-field"><label>Código Preinscripción</label><input type="text" id="edCodigo"></div>
+      <div class="form-field"><label>Fecha</label><input type="date" id="edFecha"></div>
+      <div class="form-field"><label>Turno</label><input type="text" id="edTurno" placeholder="ej. 12:20 - 14:00"></div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+      <button class="btn-export" style="background:#9e9e9e;" onclick="cerrarModalEditar()">Cancelar</button>
+      <button class="btn-export" onclick="guardarEdicion()">💾 <span id="btnGuardarLabel">Guardar cambios</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Personal del próximo turno -->
+<div class="modal-overlay" id="proximaModal">
+  <div class="modal-box-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="proximaModalTitle">Personal — Próximo turno</div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="btn-export" style="padding:8px 16px; font-size:12px;" onclick="exportarProximaExcel()">⬇️ Exportar Excel</button>
+        <button class="modal-close" onclick="cerrarModalProxima()">✕</button>
+      </div>
+    </div>
+    <div id="proximaModalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var datos = [];              // pae_personal_registros crudo ({id, lp, codigo_preinscripcion, fecha, turno})
+  var personalMapa = {};       // lp -> {grado, apellido, nombres} — de personal_tiro (los 32)
+  var editingId = null;        // id (uuid) en edición, o null si es alta nueva
+  var _personaSel = null;      // persona elegida en el buscador del modal, antes de guardar
+  var _personalDebounce = null;
+  var _personalResultados = [];
+
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // ── Utilidades ────────────────────────────────────────────────
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo === 'success') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn-export';
+    btnCancelar.style.background = '#9e9e9e';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn-export';
+    if (opciones.peligroso) btnOk.style.background = 'var(--red)';
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function hoyISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function fmtFechaCorta(iso) {
+    if (!iso) return '';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+
+  function fmtFechaLarga(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    if (p.length !== 3) return iso;
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    var txt = d.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  }
+
+  function personaDe(lp) { return personalMapa[lp] || { grado: '', apellido: '(no encontrado en Personal Tiro)', nombres: '' }; }
+
+  // ---- Ordena los turnos: primero los que vienen (fecha >= hoy), del
+  // más próximo al más lejano; después los que ya pasaron, del más
+  // reciente al más viejo (al final de todo). Antes se ordenaba todo
+  // ascendente sin distinguir pasado de futuro, así que un turno de hace
+  // un mes aparecía arriba de uno de la semana que viene — ver el
+  // comentario de "Errores que encontré" en la guía de instalación. ----
+  function ordenarDatos(arr) {
+    var hoy = hoyISO();
+    var futuras = arr.filter(function (r) { return r.fecha && r.fecha >= hoy; })
+      .sort(function (a, b) { return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
+    var pasadas = arr.filter(function (r) { return !r.fecha || r.fecha < hoy; })
+      .sort(function (a, b) { return a.fecha < b.fecha ? 1 : (a.fecha > b.fecha ? -1 : 0); });
+    return futuras.concat(pasadas);
+  }
+
+  var proximaFechaActual = null;
+
+  // ---- Calcula la próxima fecha (primera fecha >= hoy) y arma las cajas ----
+  function actualizarCajas() {
+    var hoy = hoyISO();
+    var futuras = datos.filter(function (r) { return r.fecha && r.fecha >= hoy; })
+      .sort(function (a, b) { return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
+    var proxima = futuras.length ? futuras[0].fecha : null;
+    proximaFechaActual = proxima;
+
+    if (!proxima) {
+      document.getElementById('kpiFecha').textContent = '—';
+      document.getElementById('kpiFechaSub').textContent = 'No hay turnos próximos cargados';
+      document.getElementById('kpiHora').textContent = '—';
+      document.getElementById('kpiPersonal').textContent = '—';
+      document.getElementById('kpiPersonalSub').textContent = 'sin datos';
+      return;
+    }
+
+    var delDia = datos.filter(function (r) { return r.fecha === proxima; });
+    var turnos = Array.from(new Set(delDia.map(function (r) { return r.turno; }).filter(Boolean))).sort();
+    var nombres = delDia.map(function (r) { var p = personaDe(r.lp); return [p.apellido, p.nombres].filter(Boolean).join(', '); }).filter(Boolean);
+    var preview = nombres.slice(0, 3).join(' · ');
+    if (nombres.length > 3) preview += ' · +' + (nombres.length - 3) + ' más';
+
+    document.getElementById('kpiFecha').textContent = fmtFechaCorta(proxima);
+    document.getElementById('kpiFechaSub').textContent = fmtFechaLarga(proxima);
+    document.getElementById('kpiHora').textContent = turnos.length ? turnos.join(', ') : '—';
+    document.getElementById('kpiPersonal').textContent = delDia.length;
+    document.getElementById('kpiPersonalSub').textContent = preview || 'personas anotadas para esa fecha';
+  }
+
+  function abrirModalProxima() {
+    if (!proximaFechaActual) { alertShow('topAlert', 'warning', 'No hay un próximo turno con datos.'); return; }
+
+    document.getElementById('proximaModalTitle').textContent = 'Personal — ' + fmtFechaLarga(proximaFechaActual);
+
+    var delDia = datos.filter(function (r) { return r.fecha === proximaFechaActual; })
+      .sort(function (a, b) { return String(a.turno || '').localeCompare(String(b.turno || '')); });
+
+    var body = document.getElementById('proximaModalBody');
+    if (!delDia.length) {
+      body.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin personal para esta fecha.</p></div>';
+    } else {
+      body.innerHTML =
+        '<div class="table-scroll"><table class="tbl"><thead><tr>' +
+        '<th>Grado</th><th>LP</th><th>Apellido</th><th>Nombres</th><th>Código Preinscripción</th><th>Turno</th>' +
+        '</tr></thead><tbody>' +
+        delDia.map(function (r) {
+          var p = personaDe(r.lp);
+          return '<tr>' +
+            '<td>' + esc(p.grado) + '</td>' +
+            '<td>' + esc(r.lp) + '</td>' +
+            '<td>' + esc(p.apellido) + '</td>' +
+            '<td>' + esc(p.nombres) + '</td>' +
+            '<td>' + esc(r.codigo_preinscripcion) + '</td>' +
+            '<td>' + esc(r.turno) + '</td>' +
+            '</tr>';
+        }).join('') +
+        '</tbody></table></div>';
+    }
+    document.getElementById('proximaModal').classList.add('show');
+  }
+
+  function cerrarModalProxima() {
+    document.getElementById('proximaModal').classList.remove('show');
+  }
+
+  // ---- Estilos compartidos para los excels exportados (imitan la planilla) ----
+  var COLOR_HEADER_FILL   = 'FFE8EAF6';
+  var COLOR_HEADER_BORDER = 'FFC5CAE9';
+  var COLOR_CELL_BORDER   = 'FFE0E0E0';
+
+  function estilarFilaHeader(row) {
+    row.height = 20;
+    row.eachCell({ includeEmpty: true }, function (cell) {
+      cell.font = { bold: true, color: { argb: 'FF1A237E' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_FILL } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: COLOR_HEADER_BORDER } },
+        left: { style: 'thin', color: { argb: COLOR_HEADER_BORDER } },
+        bottom: { style: 'medium', color: { argb: COLOR_HEADER_BORDER } },
+        right: { style: 'thin', color: { argb: COLOR_HEADER_BORDER } }
+      };
+    });
+  }
+
+  function estilarFilaDatos(row) {
+    row.eachCell({ includeEmpty: true }, function (cell) {
+      cell.alignment = { vertical: 'middle' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: COLOR_CELL_BORDER } },
+        left: { style: 'thin', color: { argb: COLOR_CELL_BORDER } },
+        bottom: { style: 'thin', color: { argb: COLOR_CELL_BORDER } },
+        right: { style: 'thin', color: { argb: COLOR_CELL_BORDER } }
+      };
+    });
+  }
+
+  function descargarWorkbook(wb, nombreArchivo) {
+    return wb.xlsx.writeBuffer().then(function (buffer) {
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    });
+  }
+
+  function exportarProximaExcel() {
+    if (!proximaFechaActual) { alertShow('topAlert', 'warning', 'No hay datos para exportar.'); return; }
+    var delDia = datos.filter(function (r) { return r.fecha === proximaFechaActual; })
+      .sort(function (a, b) { return String(a.turno || '').localeCompare(String(b.turno || '')); });
+    if (!delDia.length) { alertShow('topAlert', 'warning', 'No hay datos para exportar.'); return; }
+
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('Proximo turno');
+    ws.columns = [ { width: 16 }, { width: 8 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 16 } ];
+    estilarFilaHeader(ws.addRow(['Grado', 'LP', 'Apellido', 'Nombres', 'Codigo Preinscripcion', 'Turno']));
+    delDia.forEach(function (r) {
+      var p = personaDe(r.lp);
+      estilarFilaDatos(ws.addRow([p.grado, r.lp, p.apellido, p.nombres, r.codigo_preinscripcion, r.turno]));
+    });
+    descargarWorkbook(wb, 'PAE_Proximo_' + proximaFechaActual + '.xlsx')
+      .then(function () { alertShow('topAlert', 'success', 'Excel exportado.'); })
+      .catch(function (err) { alertShow('topAlert', 'error', 'No se pudo exportar: ' + err.message); });
+  }
+
+  // ---- Alta / edición de un turno ----
+  function abrirModalNuevo() {
+    editingId = null;
+    _personaSel = null;
+    document.getElementById('editarModalTitle').textContent = '➕ Nueva Entrada — PAE Personal';
+    document.getElementById('btnGuardarLabel').textContent = 'Guardar entrada';
+    document.getElementById('alertEditar').classList.remove('show');
+    document.getElementById('edCodigo').value = '';
+    document.getElementById('edFecha').value = '';
+    document.getElementById('edTurno').value = '';
+    document.getElementById('edPersonalBusqueda').value = '';
+    document.getElementById('edPersonalBusqueda').disabled = false;
+    document.getElementById('edPersonalPreview').classList.remove('show');
+    document.getElementById('wrapBuscador').style.display = '';
+    document.getElementById('editarModal').classList.add('show');
+  }
+
+  function abrirModalEditar(id) {
+    var r = datos.find(function (d) { return d.id === id; });
+    if (!r) { alertShow('topAlert', 'error', 'No se encontró el registro.'); return; }
+    var p = personaDe(r.lp);
+
+    editingId = id;
+    _personaSel = { lp: r.lp, grado: p.grado, apellido: p.apellido, nombres: p.nombres };
+    document.getElementById('alertEditar').classList.remove('show');
+    document.getElementById('editarModalTitle').textContent = 'Editar — ' + [p.apellido, p.nombres].filter(Boolean).join(', ');
+    document.getElementById('btnGuardarLabel').textContent = 'Guardar cambios';
+
+    document.getElementById('edPersonalBusqueda').value = '';
+    document.getElementById('edPersonalBusqueda').disabled = true; // el LP es la clave — no se cambia desde acá
+    document.getElementById('edPersonalTexto').innerHTML = '<b>' + esc(p.grado) + '</b> — LP ' + esc(r.lp) + ' — ' + esc(p.apellido) + ', ' + esc(p.nombres);
+    document.getElementById('edPersonalPreview').classList.add('show');
+
+    document.getElementById('edCodigo').value = r.codigo_preinscripcion || '';
+    document.getElementById('edFecha').value = r.fecha || '';
+    document.getElementById('edTurno').value = r.turno || '';
+
+    document.getElementById('editarModal').classList.add('show');
+  }
+
+  function cerrarModalEditar() {
+    document.getElementById('editarModal').classList.remove('show');
+    editingId = null;
+    _personaSel = null;
+  }
+
+  // ---- Buscador de Personal Tiro (solo los 32) para "Nueva Entrada" ----
+  function buscarPersonal() {
+    var q = document.getElementById('edPersonalBusqueda').value.trim();
+    var listEl = document.getElementById('edPersonalSuggest');
+    clearTimeout(_personalDebounce);
+    if (q.length < 3) {
+      listEl.innerHTML = q.length ? '<div class="autocomplete-empty">Escribí al menos 3 caracteres</div>' : '';
+      listEl.classList.toggle('show', q.length > 0);
+      return;
+    }
+    listEl.innerHTML = '<div class="autocomplete-empty">Buscando…</div>';
+    listEl.classList.add('show');
+    _personalDebounce = setTimeout(async function() {
+      var qEsc = q.replace(/[%_,]/g, '');
+      var res = await supabaseClient.from('personal_tiro')
+        .select('lp,grado,apellido,nombres')
+        .or('lp.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombres.ilike.%'+qEsc+'%')
+        .limit(10);
+      if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+      var matches = res.data || [];
+      _personalResultados = matches;
+      if (!matches.length) {
+        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en el personal de la División Tiro</div>';
+      } else {
+        listEl.innerHTML = matches.map(function(p, i) {
+          return '<div class="autocomplete-item" onmousedown="seleccionarPersona(' + i + ')">' +
+            '<b>' + esc(p.apellido) + ', ' + esc(p.nombres) + '</b><small>LP ' + esc(p.lp) + ' — ' + esc(p.grado) + '</small></div>';
+        }).join('');
+      }
+      listEl.classList.add('show');
+    }, 400);
+  }
+  function seleccionarPersona(idx) {
+    var p = _personalResultados[idx];
+    if (!p) return;
+    _personaSel = p;
+    personalMapa[p.lp] = { grado: p.grado || '', apellido: p.apellido || '', nombres: p.nombres || '' };
+    document.getElementById('edPersonalBusqueda').value = '';
+    document.getElementById('edPersonalSuggest').classList.remove('show');
+    document.getElementById('edPersonalTexto').innerHTML = '<b>' + esc(p.grado) + '</b> — LP ' + esc(p.lp) + ' — ' + esc(p.apellido) + ', ' + esc(p.nombres);
+    document.getElementById('edPersonalPreview').classList.add('show');
+  }
+  function limpiarPersonaForm() {
+    _personaSel = null;
+    document.getElementById('edPersonalPreview').classList.remove('show');
+  }
+  function ocultarSugerenciasConDelay() {
+    setTimeout(function() { var el = document.getElementById('edPersonalSuggest'); if (el) el.classList.remove('show'); }, 150);
+  }
+
+  async function guardarEdicion() {
+    if (!_personaSel) { alertShow('alertEditar', 'warning', 'Elegí a la persona (buscala por LP, apellido o nombre).'); return; }
+
+    var payload = {
+      codigo_preinscripcion: str(document.getElementById('edCodigo').value),
+      fecha: document.getElementById('edFecha').value || null,
+      turno: str(document.getElementById('edTurno').value)
+    };
+    if (!editingId) payload.lp = _personaSel.lp; // en alta nueva el LP viaja en el payload; en edición ya está fijo
+
+    showLoading(editingId ? 'Guardando…' : 'Creando…');
+    try {
+      var res;
+      if (editingId) res = await supabaseClient.from('pae_personal_registros').update(payload).eq('id', editingId);
+      else            res = await supabaseClient.from('pae_personal_registros').insert(payload);
+      if (res.error) throw res.error;
+      cerrarModalEditar();
+      alertShow('topAlert', 'success', editingId ? 'Cambios guardados.' : 'Entrada creada.');
+      await cargarDatos();
+    } catch (e) {
+      console.error(e);
+      var msg = /duplicate key|unique/i.test(e.message || '') ? 'Esa persona ya tiene un turno cargado — abrí su fila y editala en vez de crear una nueva.' : (e.message || e);
+      alertShow('alertEditar', 'error', 'Error al guardar: ' + msg);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminar(id, label) {
+    showConfirm('¿Eliminar el turno de "' + label + '"? Esta acción no se puede deshacer.', async function() {
+      showLoading('Eliminando…');
+      try {
+        var res = await supabaseClient.from('pae_personal_registros').delete().eq('id', id);
+        if (res.error) throw res.error;
+        alertShow('topAlert', 'success', 'Registro eliminado.');
+        await cargarDatos();
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Eliminar' });
+  }
+
+  // ---- Render de la tabla completa (próximos primero, pasados al final) ----
+  function renderTabla() {
+    var q = document.getElementById('buscar').value.trim().toLowerCase();
+    var hoy = hoyISO();
+    var base = ordenarDatos(datos);
+
+    var filtrados = !q ? base : base.filter(function (r) {
+      var p = personaDe(r.lp);
+      return ['grado','apellido','nombres'].map(function(k){ return p[k]; }).concat([r.lp]).some(function (campo) {
+        return String(campo || '').toLowerCase().indexOf(q) !== -1;
+      });
+    });
+
+    var tbody = document.getElementById('tblBody');
+    var empty = document.getElementById('emptyState');
+
+    if (!filtrados.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = filtrados.map(function (r) {
+      var p = personaDe(r.lp);
+      var esProxima = proximaFechaActual && r.fecha === proximaFechaActual;
+      var esPasada = r.fecha && r.fecha < hoy;
+      var cls = esProxima ? 'proxima' : (esPasada ? 'pasada' : '');
+      var badge = esProxima ? ' <span class="badge proxima">Próxima</span>' : (esPasada ? ' <span class="badge pasada">Ya pasó</span>' : '');
+      return '<tr class="' + cls + '">' +
+        '<td>' + esc(p.grado) + '</td>' +
+        '<td>' + esc(r.lp) + '</td>' +
+        '<td>' + esc(p.apellido) + '</td>' +
+        '<td>' + esc(p.nombres) + '</td>' +
+        '<td>' + esc(r.codigo_preinscripcion) + '</td>' +
+        '<td>' + esc(fmtFechaCorta(r.fecha)) + badge + '</td>' +
+        '<td>' + esc(r.turno) + '</td>' +
+        '<td>' +
+          '<button class="btn-edit" onclick="abrirModalEditar(\'' + r.id + '\')">✏️ Editar</button>' +
+          '<button class="btn-del" onclick="confirmarEliminar(\'' + r.id + '\',\'' + esc((p.apellido||'').replace(/'/g,"\\'")) + '\')">🗑️</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ---- Exportar a Excel (todo lo que está cargado, en el mismo orden que la tabla) ----
+  function exportarExcel() {
+    if (!datos.length) { alertShow('topAlert', 'warning', 'No hay datos para exportar.'); return; }
+
+    var ordenados = ordenarDatos(datos);
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('PAE Personal');
+    ws.columns = [ { width: 16 }, { width: 8 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 12 }, { width: 16 } ];
+    estilarFilaHeader(ws.addRow(['Grado', 'LP', 'Apellido', 'Nombres', 'Codigo Preinscripcion', 'Fecha', 'Turno']));
+    ordenados.forEach(function (r) {
+      var p = personaDe(r.lp);
+      estilarFilaDatos(ws.addRow([p.grado, r.lp, p.apellido, p.nombres, r.codigo_preinscripcion, fmtFechaCorta(r.fecha), r.turno]));
+    });
+    descargarWorkbook(wb, 'PAE_Personal_' + hoyISO() + '.xlsx')
+      .then(function () { alertShow('topAlert', 'success', 'Excel exportado.'); })
+      .catch(function (err) { alertShow('topAlert', 'error', 'No se pudo exportar: ' + err.message); });
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que el resto del sitio: el login se
+  // hace en la portada (index.html); acá solo se verifica la sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarDatos();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarPersonalTiro() {
+    var res = await supabaseClient.from('personal_tiro').select('lp,grado,apellido,nombres');
+    if (res.error) { console.error('Error al traer Personal Tiro: ', res.error); return; }
+    personalMapa = {};
+    (res.data || []).forEach(function(p) { personalMapa[p.lp] = { grado: p.grado || '', apellido: p.apellido || '', nombres: p.nombres || '' }; });
+  }
+
+  async function cargarDatos() {
+    showLoading('Cargando datos…');
+    try {
+      await cargarPersonalTiro();
+      var res = await supabaseClient.from('pae_personal_registros').select('*');
+      if (res.error) throw res.error;
+      datos = res.data || [];
+      actualizarCajas();
+      renderTabla();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>
