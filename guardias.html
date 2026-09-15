@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guardias Pasivas y Administrativas — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* HEADER */
+  .header { background: var(--primary); color: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,0.35); flex-wrap: wrap; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo { width: 44px; height: 44px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: var(--primary); }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 14px; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* SEARCH BAR / FORM CONTROLS */
+  .search-bar { background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow); }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; margin-bottom: 4px; display: block; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 2px; }
+  select, input[type="date"], input[type="text"], input[type="number"], textarea {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* TABLE */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+  .section-title .ico { font-size: 16px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { background: var(--primary); color: white; padding: 10px 13px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+  .action-col { white-space: nowrap; text-align: right; }
+  .action-col button { margin-left: 4px; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+  .b-blue   { background: #e3f2fd; color: #0277bd; }
+  .b-gray   { background: #f5f5f5; color: #616161; }
+
+  /* AUTOCOMPLETE */
+  .autocomplete-list {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+    max-height: 240px; overflow-y: auto; z-index: 9200; box-shadow: var(--shadow-lg); margin-top: 4px;
+  }
+  .autocomplete-list.show { display: block; }
+  .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: #f0f2f5; }
+  .autocomplete-item b { color: var(--primary); }
+  .autocomplete-item small { display: block; color: var(--muted); font-size: 11px; }
+  .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+
+  /* FORM */
+  .form-wrap { max-width: 980px; margin: 0 auto 18px; }
+  .form-card { background: var(--card); border-radius: 16px; padding: 26px; box-shadow: var(--shadow-lg); }
+  .form-card h2 { font-size: 17px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .form-card p  { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; }
+  .required-star { color: var(--red); margin-left: 2px; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  /* ALERT */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .alert-warning { background: #fff8e1; color: #8d6e00; border-left: 4px solid #ffca28; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* NO DATA */
+  .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+  .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* MODAL (confirmación) */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 640px; width: 96vw; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* PREVISUALIZACIÓN DEL SORTEO */
+  .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .preview-card { border: 1.5px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .preview-card.grupo-administrativa { border-top: 4px solid var(--blue); }
+  .preview-card.grupo-pasiva { border-top: 4px solid var(--purple); }
+  .preview-funcion { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--text); margin-bottom: 8px; }
+  .preview-select-wrap select { width: 100%; margin-bottom: 6px; }
+  .preview-info { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .preview-info.warn { color: var(--orange); font-weight: 700; }
+  .preview-ultimo { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* PERSONAL — cards por función */
+  .rot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .rot-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .rot-card.grupo-administrativa .section-title .ico { color: var(--blue); }
+  .rot-nro-input { width: 52px; padding: 4px 6px; text-align: center; }
+  .rot-activo-off td { opacity: .5; }
+
+  @media (max-width: 1000px) { .preview-grid, .rot-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .header { padding: 12px 16px; }
+    .content { padding: 16px; }
+    .tabs { padding: 0 10px; }
+    .tab-btn { padding: 11px 14px; font-size: 12px; }
+    .form-card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá (ver mostrarPantalla). -->
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">🛡️</div>
+    <div>
+      <div class="brand-title">GUARDIAS</div>
+      <div class="brand-sub">Guardia Administrativa (Jefe de Servicio + Administrativo) y Guardia Pasiva (Supervisión + Operativo)</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="generar" onclick="switchTab('generar')">🔀 Generar Turno</button>
+  <button class="tab-btn" data-tab="historial" onclick="switchTab('historial')">📋 Historial</button>
+  <button class="tab-btn" data-tab="personal" onclick="switchTab('personal')">👥 Personal</button>
+</nav>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== GENERAR TURNO ==================== -->
+  <div class="tab-pane active" id="pane-generar">
+    <div class="form-wrap">
+      <div class="form-card">
+        <h2 id="turnoFormTitle">Nuevo turno de guardia</h2>
+        <p>Elegí las fechas y sorteá — el sistema sigue el orden de cada función y salta a quien ya tenga un servicio asignado esas fechas o esté cubriendo otra función en este mismo turno.</p>
+        <div class="form-grid">
+          <input type="hidden" id="turnoEditId">
+          <div class="form-group">
+            <label class="form-label">Fecha inicio<span class="required-star">*</span></label>
+            <input type="date" id="turnoFechaInicio">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha fin<span class="required-star">*</span></label>
+            <input type="date" id="turnoFechaFin">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo<span class="required-star">*</span></label>
+            <select id="turnoTipo">
+              <option value="FIN DE SEMANA">FIN DE SEMANA</option>
+              <option value="FERIADO">FERIADO</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Etiqueta</label>
+            <input type="text" id="turnoEtiqueta" placeholder="Opcional — ej. Feriado puente">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="previsualizarTurno()">🔀 Sortear</button>
+          <button class="btn btn-ghost" onclick="limpiarFormTurno()">↺ Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-wrap" id="previewTurnoWrap" style="display:none;">
+      <div class="form-card">
+        <h2>Previsualización — revisá y corregí antes de guardar</h2>
+        <p>Podés cambiar cualquiera de las 4 asignaciones con el desplegable antes de confirmar.</p>
+        <div class="preview-grid" id="previewGrid"></div>
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="guardarTurnoDesdePreview()">💾 Confirmar y guardar</button>
+          <button class="btn btn-ghost" onclick="previsualizarTurno()">🔀 Sortear de nuevo</button>
+          <button class="btn btn-ghost" onclick="cancelarPreviewTurno()">✕ Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== HISTORIAL ==================== -->
+  <div class="tab-pane" id="pane-historial">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Buscar</label>
+        <input type="text" id="histBuscar" placeholder="🔎 Apellido, LP, etiqueta…" oninput="renderHistorial()">
+      </div>
+      <span class="count-pill" id="histCount">0</span>
+    </div>
+    <div class="table-card">
+      <div class="section-title"><span class="ico">📋</span> Turnos generados</div>
+      <div id="tablaHistorialWrap"></div>
+    </div>
+  </div>
+
+  <!-- ==================== PERSONAL (rotación) ==================== -->
+  <div class="tab-pane" id="pane-personal">
+    <div class="form-wrap">
+      <div class="form-card">
+        <h2>Agregar a la rotación</h2>
+        <p>Buscá a la persona dentro del personal de la División (Personal Tiro) y elegí en qué función va a rotar.</p>
+        <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr auto;">
+          <div class="form-group" style="position:relative;">
+            <label class="form-label">Personal<span class="required-star">*</span></label>
+            <input type="text" id="rotBusqueda" autocomplete="off" placeholder="LP, apellido o nombre…"
+                   oninput="buscarPersonalRotacion()" onblur="ocultarSugerenciasConDelay('rotSuggest')">
+            <div class="autocomplete-list" id="rotSuggest"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Función<span class="required-star">*</span></label>
+            <select id="rotFuncion" onchange="onRotFuncionChange()">
+              <option value="JEFE DE SERVICIO">JEFE DE SERVICIO</option>
+              <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
+              <option value="SUPERVISION">SUPERVISION</option>
+              <option value="OPERATIVO">OPERATIVO</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">N° en la cola</label>
+            <input type="number" id="rotNro" min="1" step="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">&nbsp;</label>
+            <button class="btn btn-primary" onclick="agregarARotacion()">➕ Agregar</button>
+          </div>
+        </div>
+        <div id="rotSeleccionTexto" style="font-size:13px; color:var(--muted); margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <div class="rot-grid" id="rotGrid"></div>
+  </div>
+
+</div>
+
+</div><!-- /appRoot -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const COLOR_AZUL_OSC = 'FF1F497D', COLOR_AZUL_CLAR = 'FFDCE6F1';
+
+  // Las 4 funciones, en el orden fijo en que siempre se sortean y se
+  // muestran. "grupo" es solo para la agrupación visual (tarjetas /
+  // Excel) — no se guarda en ningún lado.
+  const FUNCIONES = [
+    { nombre: 'JEFE DE SERVICIO', grupo: 'ADMINISTRATIVA', columna: 'jefe_servicio_lp' },
+    { nombre: 'ADMINISTRATIVO',   grupo: 'ADMINISTRATIVA', columna: 'administrativo_lp' },
+    { nombre: 'SUPERVISION',      grupo: 'PASIVA',          columna: 'supervision_lp' },
+    { nombre: 'OPERATIVO',        grupo: 'PASIVA',          columna: 'operativo_lp' },
+  ];
+  function funcionInfo(nombre) { return FUNCIONES.find(function(f){ return f.nombre === nombre; }); }
+
+  var configPersonal = [];      // guardias_config_personal crudo
+  var turnos = [];              // guardias_turnos crudo (ordenado por fecha_inicio desc)
+  var personalTiro = [];        // personal_tiro crudo (toda la División, ~30 fichas)
+  var personalMapa = {};        // lp -> fila de personal_tiro
+  var serviciosDisponible = true; // si el cruce contra Servicios y Horarios está andando
+  var _avisoServiciosMostrado = false;
+  var _previewAsignaciones = null; // { 'JEFE DE SERVICIO': {lp, motivo}, ... } — lo que se está por guardar
+  var _previewFechas = null;       // { fi, ff, tipo, etiqueta }
+  var _editTurnoId = null;         // id del turno en edición, o null si es alta nueva
+  var _rotSeleccion = null;        // persona elegida en "Agregar a la rotación", antes de guardar
+  var _rotDebounce = null;
+  var _rotResultados = [];
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function fmtRangoFechas(fi, ff) { return fi === ff ? fmtFecha(fi) : fmtFecha(fi) + ' al ' + fmtFecha(ff); }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo === 'success') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+  }
+
+  function ocultarSugerenciasConDelay(listId) {
+    setTimeout(function() { var el = document.getElementById(listId); if (el) el.classList.remove('show'); }, 150);
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual criterio que el resto del sitio: el login se
+  // hace en la portada (index.html); acá solo se verifica la sesión.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarTodo();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarTodo() {
+    showLoading('Cargando datos…');
+    try {
+      await Promise.all([cargarConfigPersonal(), cargarTurnos(), cargarPersonalTiro()]);
+      renderPersonal();
+      renderHistorial();
+      limpiarFormTurno();
+      onRotFuncionChange();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function cargarConfigPersonal() {
+    var res = await supabaseClient.from('guardias_config_personal').select('*').order('funcion').order('nro');
+    if (res.error) throw res.error;
+    configPersonal = res.data || [];
+  }
+
+  async function cargarTurnos() {
+    var res = await supabaseClient.from('guardias_turnos').select('*').order('fecha_inicio', { ascending: false });
+    if (res.error) throw res.error;
+    turnos = res.data || [];
+  }
+
+  async function cargarPersonalTiro() {
+    var res = await supabaseClient.from('personal_tiro')
+      .select('lp,grado,apellido,nombres,telefono_celular,poc,correo_institucional,activo')
+      .order('apellido');
+    if (res.error) throw res.error;
+    personalTiro = res.data || [];
+    personalMapa = {};
+    personalTiro.forEach(function(p) { personalMapa[p.lp] = p; });
+  }
+
+  function personaDe(lp) {
+    return personalMapa[lp] || { grado: '', apellido: '(no encontrado en Personal Tiro)', nombres: '', telefono_celular: '', poc: '', correo_institucional: '' };
+  }
+  function nombreCompleto(lp) {
+    if (!lp) return '—';
+    var p = personaDe(lp);
+    return (p.grado ? p.grado + ' ' : '') + p.apellido + (p.nombres ? ', ' + p.nombres : '');
+  }
+
+  // ============================================================
+  // GENERAR TURNO — sorteo por rotación circular independiente por
+  // función, cruzando contra Servicios y Horarios (si está migrado) y
+  // contra las otras 3 funciones ya asignadas en este mismo turno.
+  // El chequeo contra Licencias Anuales queda pendiente a propósito
+  // hasta que esa sección esté migrada a Supabase (decisión de Enzo).
+  // ============================================================
+  function colaDeFuncion(funcion) {
+    return configPersonal.filter(function(p){ return p.funcion === funcion && p.activo; }).sort(function(a,b){ return a.nro - b.nro; });
+  }
+
+  // Busca en el historial (excluyendo el turno que se está editando, si
+  // hay uno) quién fue la última persona asignada a esta función, para
+  // arrancar la cola justo después.
+  function ultimoAsignadoLp(funcion) {
+    var col = funcionInfo(funcion).columna;
+    for (var i = 0; i < turnos.length; i++) {
+      if (_editTurnoId && turnos[i].id === _editTurnoId) continue;
+      if (turnos[i][col]) return turnos[i][col];
+    }
+    return null;
+  }
+
+  async function personasConServicioEnRango(fi, ff) {
+    if (!serviciosDisponible) return {};
+    try {
+      var res = await supabaseClient.from('servicios_registros').select('legajo').gte('fecha', fi).lte('fecha', ff);
+      if (res.error) throw res.error;
+      var set = {};
+      (res.data || []).forEach(function(r){ set[r.legajo] = true; });
+      return set;
+    } catch (e) {
+      console.warn('No se pudo cruzar con Servicios y Horarios (¿esa sección todavía no está migrada a Supabase?): ', e);
+      serviciosDisponible = false;
+      if (!_avisoServiciosMostrado) {
+        _avisoServiciosMostrado = true;
+        alertShow('topAlert', 'warning', 'No se pudo cruzar con Servicios y Horarios — los sorteos no van a evitar superposición con servicios ya asignados hasta que esa sección esté migrada.');
+      }
+      return {};
+    }
+  }
+
+  function elegirProximo(funcion, yaAsignados, ocupadosServicio) {
+    var cola = colaDeFuncion(funcion);
+    if (!cola.length) return { lp: null, motivo: 'Sin personal activo cargado para esta función', cola: cola };
+    var ultimoLp = ultimoAsignadoLp(funcion);
+    var idx = ultimoLp ? cola.findIndex(function(p){ return p.lp === ultimoLp; }) : -1;
+    var idxInicio = idx >= 0 ? (idx + 1) % cola.length : 0;
+    for (var i = 0; i < cola.length; i++) {
+      var cand = cola[(idxInicio + i) % cola.length];
+      if (yaAsignados.indexOf(cand.lp) !== -1) continue;
+      if (ocupadosServicio[cand.lp]) continue;
+      return { lp: cand.lp, motivo: null, cola: cola };
+    }
+    return { lp: null, motivo: 'Todo el personal activo de esta función ya tiene un servicio asignado esas fechas, o está cubriendo otra función en este mismo turno', cola: cola };
+  }
+
+  async function previsualizarTurno() {
+    var fi = document.getElementById('turnoFechaInicio').value;
+    var ff = document.getElementById('turnoFechaFin').value;
+    var tipo = document.getElementById('turnoTipo').value;
+    var etiqueta = str(document.getElementById('turnoEtiqueta').value);
+    if (!fi || !ff) { alertShow('topAlert', 'error', 'Elegí fecha de inicio y fin.'); return; }
+    if (ff < fi) { alertShow('topAlert', 'error', 'La fecha de fin no puede ser anterior a la de inicio.'); return; }
+    var dup = turnos.find(function(t){ return t.fecha_inicio === fi && t.fecha_fin === ff && t.id !== _editTurnoId; });
+    if (dup) {
+      alertShow('topAlert', 'error', 'Ya existe un turno generado para ese mismo rango de fechas (' + fmtRangoFechas(fi, ff) + '). Si querés cambiarlo, editalo desde Historial.');
+      return;
+    }
+
+    showLoading('Sorteando…');
+    try {
+      var ocupados = await personasConServicioEnRango(fi, ff);
+      var yaAsignados = [];
+      var resultado = {};
+      FUNCIONES.forEach(function(f) {
+        var elegido = elegirProximo(f.nombre, yaAsignados, ocupados);
+        resultado[f.nombre] = elegido;
+        if (elegido.lp) yaAsignados.push(elegido.lp);
+      });
+      _previewAsignaciones = resultado;
+      _previewFechas = { fi: fi, ff: ff, tipo: tipo, etiqueta: etiqueta };
+      renderPreviewTurno();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al sortear: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderPreviewTurno() {
+    var grid = document.getElementById('previewGrid');
+    var html = '';
+    FUNCIONES.forEach(function(f) {
+      var elegido = _previewAsignaciones[f.nombre];
+      var cola = elegido.cola || colaDeFuncion(f.nombre);
+      var opciones = '<option value="">— Sin asignar —</option>' + cola.map(function(p) {
+        var sel = p.lp === elegido.lp ? ' selected' : '';
+        return '<option value="' + esc(p.lp) + '"' + sel + '>' + esc(nombreCompleto(p.lp)) + '</option>';
+      }).join('');
+      var ultimoLp = ultimoAsignadoLp(f.nombre);
+      html += '<div class="preview-card grupo-' + f.grupo.toLowerCase() + '">' +
+        '<div class="preview-funcion">' + esc(f.nombre) + '</div>' +
+        '<div class="preview-select-wrap"><select id="previewSel_' + f.nombre.replace(/\s+/g,'_') + '" onchange="actualizarPreviewAdvertencias()">' + opciones + '</select></div>' +
+        (elegido.lp ? '' : '<div class="preview-info warn">⚠️ ' + esc(elegido.motivo || 'No se pudo asignar automáticamente — elegí manualmente.') + '</div>') +
+        '<div class="preview-ultimo">Última vez en esta función: ' + esc(ultimoLp ? nombreCompleto(ultimoLp) : 'sin antecedentes') + '</div>' +
+        '</div>';
+    });
+    grid.innerHTML = html;
+    document.getElementById('previewTurnoWrap').style.display = '';
+    actualizarPreviewAdvertencias();
+  }
+
+  // Si el usuario elige a mano la misma persona en dos funciones del
+  // mismo turno, se lo marcamos (no lo bloqueamos: puede ser algo que
+  // Enzo decida a propósito en un día flaco de personal).
+  function actualizarPreviewAdvertencias() {
+    var valores = {};
+    FUNCIONES.forEach(function(f) {
+      var sel = document.getElementById('previewSel_' + f.nombre.replace(/\s+/g,'_'));
+      if (sel && sel.value) valores[f.nombre] = sel.value;
+    });
+    var conteo = {};
+    Object.keys(valores).forEach(function(f){ conteo[valores[f]] = (conteo[valores[f]] || 0) + 1; });
+    FUNCIONES.forEach(function(f) {
+      var sel = document.getElementById('previewSel_' + f.nombre.replace(/\s+/g,'_'));
+      if (!sel) return;
+      var repetido = valores[f.nombre] && conteo[valores[f.nombre]] > 1;
+      sel.style.borderColor = repetido ? 'var(--orange)' : '';
+      sel.title = repetido ? 'Esta persona ya está asignada a otra función en este mismo turno' : '';
+    });
+  }
+
+  function cancelarPreviewTurno() {
+    document.getElementById('previewTurnoWrap').style.display = 'none';
+    _previewAsignaciones = null;
+    _previewFechas = null;
+  }
+
+  async function guardarTurnoDesdePreview() {
+    if (!_previewFechas) return;
+    var valores = {};
+    var faltantes = [];
+    FUNCIONES.forEach(function(f) {
+      var sel = document.getElementById('previewSel_' + f.nombre.replace(/\s+/g,'_'));
+      var v = sel ? sel.value : '';
+      valores[f.columna] = v || null;
+      if (!v) faltantes.push(f.nombre);
+    });
+    var proceder = function() { _guardarTurno(valores); };
+    if (faltantes.length) {
+      showConfirm('Quedan sin asignar: ' + faltantes.join(', ') + '. ¿Guardar el turno igual?', proceder, { icon: '⚠️', textoOk: 'Guardar igual' });
+    } else {
+      proceder();
+    }
+  }
+
+  async function _guardarTurno(valores) {
+    showLoading('Guardando…');
+    try {
+      var payload = Object.assign({
+        fecha_inicio: _previewFechas.fi,
+        fecha_fin: _previewFechas.ff,
+        tipo: _previewFechas.tipo,
+        etiqueta: _previewFechas.etiqueta || '',
+      }, valores);
+      var res;
+      if (_editTurnoId) {
+        res = await supabaseClient.from('guardias_turnos').update(payload).eq('id', _editTurnoId).select();
+      } else {
+        res = await supabaseClient.from('guardias_turnos').insert(payload).select();
+      }
+      if (res.error) throw res.error;
+      alertShow('topAlert', 'success', _editTurnoId ? 'Turno actualizado.' : 'Turno generado y guardado.');
+      cancelarPreviewTurno();
+      limpiarFormTurno();
+      await cargarTurnos();
+      renderHistorial();
+      switchTab('historial');
+    } catch (e) {
+      console.error(e);
+      var msg = (e.message || String(e));
+      if (/duplicate key|unique/i.test(msg)) msg = 'Ya existe un turno generado para ese mismo rango de fechas.';
+      alertShow('topAlert', 'error', 'Error al guardar el turno: ' + msg);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function limpiarFormTurno() {
+    _editTurnoId = null;
+    document.getElementById('turnoEditId').value = '';
+    document.getElementById('turnoFormTitle').textContent = 'Nuevo turno de guardia';
+    document.getElementById('turnoFechaInicio').value = '';
+    document.getElementById('turnoFechaFin').value = '';
+    document.getElementById('turnoTipo').value = 'FIN DE SEMANA';
+    document.getElementById('turnoEtiqueta').value = '';
+    cancelarPreviewTurno();
+  }
+
+  // ============================================================
+  // HISTORIAL
+  // ============================================================
+  function renderHistorial() {
+    var q = str(document.getElementById('histBuscar').value).toLowerCase();
+    var filtrados = turnos.filter(function(t) {
+      if (!q) return true;
+      var texto = [t.etiqueta, t.jefe_servicio_lp, t.administrativo_lp, t.supervision_lp, t.operativo_lp]
+        .map(function(lp){ return nombreCompleto(lp); }).concat([t.etiqueta || '']).join(' ').toLowerCase();
+      return texto.indexOf(q) !== -1;
+    });
+    document.getElementById('histCount').textContent = filtrados.length;
+    var wrap = document.getElementById('tablaHistorialWrap');
+    if (!filtrados.length) {
+      wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><div class="no-data-text">No hay turnos generados todavía</div></div>';
+      return;
+    }
+    var h = '<table><thead><tr><th>Fecha(s)</th><th>Tipo</th><th>Jefe de Servicio</th><th>Administrativo</th><th>Supervisión</th><th>Operativo</th><th class="action-col">Acciones</th></tr></thead><tbody>';
+    filtrados.forEach(function(t) {
+      var badge = t.tipo === 'FERIADO' ? 'b-yellow' : 'b-blue';
+      h += '<tr>' +
+        '<td><b>' + esc(fmtRangoFechas(t.fecha_inicio, t.fecha_fin)) + '</b>' + (t.etiqueta ? '<br><small style="color:var(--muted)">' + esc(t.etiqueta) + '</small>' : '') + '</td>' +
+        '<td><span class="badge ' + badge + '">' + esc(t.tipo) + '</span></td>' +
+        '<td>' + esc(nombreCompleto(t.jefe_servicio_lp)) + '</td>' +
+        '<td>' + esc(nombreCompleto(t.administrativo_lp)) + '</td>' +
+        '<td>' + esc(nombreCompleto(t.supervision_lp)) + '</td>' +
+        '<td>' + esc(nombreCompleto(t.operativo_lp)) + '</td>' +
+        '<td class="action-col">' +
+          '<button class="btn btn-ghost btn-sm" onclick="exportarTurnoExcel(\'' + t.id + '\')">📥 Excel</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="editarTurno(\'' + t.id + '\')">✏️ Editar</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarTurno(\'' + t.id + '\')">🗑️</button>' +
+        '</td></tr>';
+    });
+    h += '</tbody></table>';
+    wrap.innerHTML = h;
+  }
+
+  function editarTurno(id) {
+    var t = turnos.find(function(x){ return x.id === id; });
+    if (!t) return;
+    _editTurnoId = id;
+    document.getElementById('turnoEditId').value = id;
+    document.getElementById('turnoFormTitle').textContent = 'Editar turno — ' + fmtRangoFechas(t.fecha_inicio, t.fecha_fin);
+    document.getElementById('turnoFechaInicio').value = t.fecha_inicio;
+    document.getElementById('turnoFechaFin').value = t.fecha_fin;
+    document.getElementById('turnoTipo').value = t.tipo;
+    document.getElementById('turnoEtiqueta').value = t.etiqueta || '';
+    // Se muestra la previsualización directamente con lo que ya tenía
+    // guardado (no se vuelve a sortear solo) — el botón "Sortear de
+    // nuevo" queda disponible por si Enzo quiere una propuesta fresca.
+    _previewFechas = { fi: t.fecha_inicio, ff: t.fecha_fin, tipo: t.tipo, etiqueta: t.etiqueta || '' };
+    _previewAsignaciones = {};
+    FUNCIONES.forEach(function(f) {
+      _previewAsignaciones[f.nombre] = { lp: t[f.columna] || null, motivo: null, cola: colaDeFuncion(f.nombre) };
+    });
+    renderPreviewTurno();
+    switchTab('generar');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function confirmarEliminarTurno(id) {
+    var t = turnos.find(function(x){ return x.id === id; });
+    if (!t) return;
+    showConfirm('¿Eliminar el turno del ' + fmtRangoFechas(t.fecha_inicio, t.fecha_fin) + '? Esta acción no se puede deshacer.', async function() {
+      showLoading('Eliminando…');
+      try {
+        var res = await supabaseClient.from('guardias_turnos').delete().eq('id', id);
+        if (res.error) throw res.error;
+        alertShow('topAlert', 'success', 'Turno eliminado.');
+        await cargarTurnos();
+        renderHistorial();
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Eliminar' });
+  }
+
+  // ============================================================
+  // EXPORTAR EXCEL — parte de notificación del turno, agrupado igual
+  // que la versión anterior: GUARDIA ADMINISTRATIVA (Jefe de Servicio +
+  // Administrativo) y GUARDIA PASIVA (Supervisión + Operativo). El
+  // teléfono/POC/correo salen de personal_tiro (antes venían de una
+  // tercera planilla aparte — ver guardias_schema.sql).
+  // ============================================================
+  async function exportarTurnoExcel(id) {
+    var t = turnos.find(function(x){ return x.id === id; });
+    if (!t) return;
+    showLoading('Generando Excel…');
+    try {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('GUARDIA');
+      ws.columns = [
+        { width: 20 }, { width: 12 }, { width: 10 }, { width: 32 }, { width: 24 }, { width: 30 }
+      ];
+
+      function tituloFila(fila, texto) {
+        ws.mergeCells(fila, 1, fila, 6);
+        var c = ws.getCell(fila, 1);
+        c.value = texto;
+        c.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSC } };
+        c.alignment = { vertical: 'middle' };
+      }
+      function grupoFila(fila, texto) {
+        ws.mergeCells(fila, 1, fila, 6);
+        var c = ws.getCell(fila, 1);
+        c.value = texto;
+        c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_OSC } };
+      }
+      function headerFila(fila) {
+        ['FUNCIÓN','GRADO','L.P.','APELLIDO Y NOMBRE','TEL. / POC','CORREO INSTITUCIONAL'].forEach(function(txt, i) {
+          var c = ws.getCell(fila, i + 1);
+          c.value = txt;
+          c.font = { bold: true };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_AZUL_CLAR } };
+        });
+      }
+      function personaFila(fila, funcion, lp) {
+        var p = personaDe(lp);
+        var vals = [funcion, p.grado, lp || '—', (p.apellido || '') + (p.nombres ? ', ' + p.nombres : ''), [p.telefono_celular, p.poc].filter(Boolean).join(' / '), p.correo_institucional || ''];
+        vals.forEach(function(v, i) { ws.getCell(fila, i + 1).value = v; });
+      }
+
+      var fila = 1;
+      tituloFila(fila, 'PARTE DE GUARDIA — ' + t.tipo + ' — ' + fmtRangoFechas(t.fecha_inicio, t.fecha_fin) + (t.etiqueta ? ' — ' + t.etiqueta : ''));
+      fila += 2;
+
+      grupoFila(fila, 'GUARDIA ADMINISTRATIVA (Jefe de Servicio + Administrativo)'); fila++;
+      headerFila(fila); fila++;
+      personaFila(fila, 'JEFE DE SERVICIO', t.jefe_servicio_lp); fila++;
+      personaFila(fila, 'ADMINISTRATIVO', t.administrativo_lp); fila++;
+      fila++;
+
+      grupoFila(fila, 'GUARDIA PASIVA (Supervisión + Operativo)'); fila++;
+      headerFila(fila); fila++;
+      personaFila(fila, 'SUPERVISION', t.supervision_lp); fila++;
+      personaFila(fila, 'OPERATIVO', t.operativo_lp); fila++;
+
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'Guardia_' + t.fecha_inicio + '_a_' + t.fecha_fin + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al generar el Excel: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // PERSONAL — administración de la rotación (nómina de las 4
+  // funciones). Grado/Apellido/Nombre siempre se muestran leyendo
+  // personal_tiro por LP, nunca se guardan acá.
+  // ============================================================
+  function renderPersonal() {
+    var grid = document.getElementById('rotGrid');
+    var html = '';
+    var grupos = [
+      { titulo: 'Guardia Administrativa', clase: 'administrativa', funciones: ['JEFE DE SERVICIO','ADMINISTRATIVO'] },
+      { titulo: 'Guardia Pasiva', clase: 'pasiva', funciones: ['SUPERVISION','OPERATIVO'] },
+    ];
+    grupos.forEach(function(g) {
+      html += '<div class="rot-card grupo-' + g.clase + '">';
+      html += '<div class="section-title"><span class="ico">' + (g.clase === 'administrativa' ? '🗂️' : '🛡️') + '</span> ' + esc(g.titulo) + '</div>';
+      g.funciones.forEach(function(funcion) {
+        var cola = colaDeFuncion(funcion);
+        var inactivos = configPersonal.filter(function(p){ return p.funcion === funcion && !p.activo; }).sort(function(a,b){ return a.nro-b.nro; });
+        html += '<div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; margin:10px 0 6px; color:var(--muted);">' + esc(funcion) + '</div>';
+        if (!cola.length && !inactivos.length) {
+          html += '<div class="no-data" style="padding:16px;"><div class="no-data-text">Nadie cargado todavía</div></div>';
+        } else {
+          html += '<table><thead><tr><th>N°</th><th>LP</th><th>Grado</th><th>Apellido y Nombre</th><th>Activo</th><th class="action-col"></th></tr></thead><tbody>';
+          cola.concat(inactivos).forEach(function(p) {
+            var per = personaDe(p.lp);
+            html += '<tr' + (p.activo ? '' : ' class="rot-activo-off"') + '>' +
+              '<td><input type="number" class="rot-nro-input" value="' + p.nro + '" min="1" step="1" onchange="cambiarNroRotacion(\'' + esc(p.lp) + '\',\'' + funcion + '\',this.value)"></td>' +
+              '<td>' + esc(p.lp) + '</td><td>' + esc(per.grado) + '</td><td>' + esc(per.apellido) + ', ' + esc(per.nombres) + '</td>' +
+              '<td><input type="checkbox" ' + (p.activo ? 'checked' : '') + ' onchange="toggleActivoRotacion(\'' + esc(p.lp) + '\',\'' + funcion + '\',this.checked)"></td>' +
+              '<td class="action-col"><button class="btn btn-danger btn-sm" onclick="confirmarQuitarRotacion(\'' + esc(p.lp) + '\',\'' + funcion + '\')">🗑️</button></td>' +
+              '</tr>';
+          });
+          html += '</tbody></table>';
+        }
+      });
+      html += '</div>';
+    });
+    grid.innerHTML = html;
+  }
+
+  function onRotFuncionChange() {
+    var funcion = document.getElementById('rotFuncion').value;
+    var cola = colaDeFuncion(funcion);
+    var maxNro = cola.reduce(function(m,p){ return Math.max(m, p.nro); }, 0);
+    document.getElementById('rotNro').value = maxNro + 1;
+  }
+  onRotFuncionChange();
+
+  function buscarPersonalRotacion() {
+    var q = str(document.getElementById('rotBusqueda').value).toLowerCase();
+    var listEl = document.getElementById('rotSuggest');
+    if (q.length < 2) { listEl.innerHTML = ''; listEl.classList.remove('show'); return; }
+    var matches = personalTiro.filter(function(p) {
+      return (p.lp || '').toLowerCase().indexOf(q) !== -1 ||
+             (p.apellido || '').toLowerCase().indexOf(q) !== -1 ||
+             (p.nombres || '').toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 10);
+    _rotResultados = matches;
+    if (!matches.length) {
+      listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en Personal Tiro</div>';
+    } else {
+      listEl.innerHTML = matches.map(function(p, i) {
+        return '<div class="autocomplete-item" onmousedown="seleccionarPersonaRotacion(' + i + ')">' +
+          '<b>' + esc(p.apellido) + ', ' + esc(p.nombres) + '</b><small>LP ' + esc(p.lp) + ' — ' + esc(p.grado) + '</small></div>';
+      }).join('');
+    }
+    listEl.classList.add('show');
+  }
+  function seleccionarPersonaRotacion(idx) {
+    var p = _rotResultados[idx];
+    if (!p) return;
+    _rotSeleccion = p;
+    document.getElementById('rotBusqueda').value = '';
+    document.getElementById('rotSuggest').classList.remove('show');
+    document.getElementById('rotSeleccionTexto').innerHTML = 'Elegido: <b>' + esc(p.grado) + ' ' + esc(p.apellido) + ', ' + esc(p.nombres) + '</b> (LP ' + esc(p.lp) + ') — <button type="button" style="border:none;background:none;color:var(--red);cursor:pointer;font-weight:700;" onclick="_rotSeleccion=null;document.getElementById(\'rotSeleccionTexto\').innerHTML=\'\';">✕ Quitar</button>';
+  }
+
+  async function agregarARotacion() {
+    if (!_rotSeleccion) { alertShow('topAlert', 'error', 'Buscá y elegí una persona primero.'); return; }
+    var funcion = document.getElementById('rotFuncion').value;
+    var nro = parseInt(document.getElementById('rotNro').value, 10) || 1;
+    showLoading('Guardando…');
+    try {
+      var res = await supabaseClient.from('guardias_config_personal').insert({ lp: _rotSeleccion.lp, funcion: funcion, nro: nro, activo: true });
+      if (res.error) throw res.error;
+      alertShow('topAlert', 'success', 'Se agregó a ' + _rotSeleccion.apellido + ' a ' + funcion + '.');
+      _rotSeleccion = null;
+      document.getElementById('rotSeleccionTexto').innerHTML = '';
+      await cargarConfigPersonal();
+      renderPersonal();
+      onRotFuncionChange();
+    } catch (e) {
+      console.error(e);
+      var msg = /duplicate key|unique/i.test(e.message || '') ? 'Esa persona ya está cargada en esa función.' : (e.message || e);
+      alertShow('topAlert', 'error', 'Error al agregar: ' + msg);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function cambiarNroRotacion(lp, funcion, valor) {
+    var nro = parseInt(valor, 10);
+    if (!nro || nro < 1) { renderPersonal(); return; }
+    try {
+      var res = await supabaseClient.from('guardias_config_personal').update({ nro: nro }).eq('lp', lp).eq('funcion', funcion);
+      if (res.error) throw res.error;
+      await cargarConfigPersonal();
+      renderPersonal();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cambiar el N°: ' + (e.message || e));
+      renderPersonal();
+    }
+  }
+
+  async function toggleActivoRotacion(lp, funcion, activo) {
+    try {
+      var res = await supabaseClient.from('guardias_config_personal').update({ activo: activo }).eq('lp', lp).eq('funcion', funcion);
+      if (res.error) throw res.error;
+      await cargarConfigPersonal();
+      renderPersonal();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al actualizar: ' + (e.message || e));
+      renderPersonal();
+    }
+  }
+
+  function confirmarQuitarRotacion(lp, funcion) {
+    var p = personaDe(lp);
+    showConfirm('¿Quitar a ' + p.apellido + ', ' + p.nombres + ' de la rotación de ' + funcion + '? Se borra su posición en la cola — si vuelve a entrar más adelante, va a arrancar de cero.', async function() {
+      showLoading('Quitando…');
+      try {
+        var res = await supabaseClient.from('guardias_config_personal').delete().eq('lp', lp).eq('funcion', funcion);
+        if (res.error) throw res.error;
+        alertShow('topAlert', 'success', 'Se quitó de la rotación.');
+        await cargarConfigPersonal();
+        renderPersonal();
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Quitar' });
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>
