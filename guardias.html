@@ -402,6 +402,8 @@
   var personalMapa = {};        // lp -> fila de personal_tiro
   var serviciosDisponible = true; // si el cruce contra Servicios y Horarios está andando
   var _avisoServiciosMostrado = false;
+  var licenciasDisponible = true; // si el cruce contra Licencias Anuales está andando
+  var _avisoLicenciasMostrado = false;
   var _previewAsignaciones = null; // { 'JEFE DE SERVICIO': {lp, motivo}, ... } — lo que se está por guardar
   var _previewFechas = null;       // { fi, ff, tipo, etiqueta }
   var _editTurnoId = null;         // id del turno en edición, o null si es alta nueva
@@ -555,10 +557,9 @@
 
   // ============================================================
   // GENERAR TURNO — sorteo por rotación circular independiente por
-  // función, cruzando contra Servicios y Horarios (si está migrado) y
-  // contra las otras 3 funciones ya asignadas en este mismo turno.
-  // El chequeo contra Licencias Anuales queda pendiente a propósito
-  // hasta que esa sección esté migrada a Supabase (decisión de Enzo).
+  // función, cruzando contra Servicios y Horarios (si está migrado),
+  // contra Licencias Anuales (si está migrado) y contra las otras 3
+  // funciones ya asignadas en este mismo turno.
   // ============================================================
   function colaDeFuncion(funcion) {
     return configPersonal.filter(function(p){ return p.funcion === funcion && p.activo; }).sort(function(a,b){ return a.nro - b.nro; });
@@ -595,7 +596,31 @@
     }
   }
 
-  function elegirProximo(funcion, yaAsignados, ocupadosServicio) {
+  // Igual criterio que personasConServicioEnRango, pero contra Licencias
+  // Anuales: cualquier licencia cuyo rango se superponga con el del turno
+  // (fecha_inicio <= fin del turno Y fecha_fin >= inicio del turno) cuenta
+  // como "ocupado" para esa función, sin importar si arranca o termina
+  // exactamente en esos días.
+  async function personasConLicenciaEnRango(fi, ff) {
+    if (!licenciasDisponible) return {};
+    try {
+      var res = await supabaseClient.from('licencias_registros').select('lp').lte('fecha_inicio', ff).gte('fecha_fin', fi);
+      if (res.error) throw res.error;
+      var set = {};
+      (res.data || []).forEach(function(r){ if (r.lp) set[r.lp] = true; });
+      return set;
+    } catch (e) {
+      console.warn('No se pudo cruzar con Licencias Anuales (¿esa sección todavía no está migrada a Supabase?): ', e);
+      licenciasDisponible = false;
+      if (!_avisoLicenciasMostrado) {
+        _avisoLicenciasMostrado = true;
+        alertShow('topAlert', 'warning', 'No se pudo cruzar con Licencias Anuales — los sorteos no van a evitar asignarle una guardia a alguien de licencia esas fechas hasta que esa sección esté migrada.');
+      }
+      return {};
+    }
+  }
+
+  function elegirProximo(funcion, yaAsignados, ocupadosServicio, ocupadosLicencia) {
     var cola = colaDeFuncion(funcion);
     if (!cola.length) return { lp: null, motivo: 'Sin personal activo cargado para esta función', cola: cola };
     var ultimoLp = ultimoAsignadoLp(funcion);
@@ -605,9 +630,10 @@
       var cand = cola[(idxInicio + i) % cola.length];
       if (yaAsignados.indexOf(cand.lp) !== -1) continue;
       if (ocupadosServicio[cand.lp]) continue;
+      if (ocupadosLicencia && ocupadosLicencia[cand.lp]) continue;
       return { lp: cand.lp, motivo: null, cola: cola };
     }
-    return { lp: null, motivo: 'Todo el personal activo de esta función ya tiene un servicio asignado esas fechas, o está cubriendo otra función en este mismo turno', cola: cola };
+    return { lp: null, motivo: 'Todo el personal activo de esta función ya tiene un servicio o una licencia asignada esas fechas, o está cubriendo otra función en este mismo turno', cola: cola };
   }
 
   async function previsualizarTurno() {
@@ -626,10 +652,11 @@
     showLoading('Sorteando…');
     try {
       var ocupados = await personasConServicioEnRango(fi, ff);
+      var ocupadosLicencia = await personasConLicenciaEnRango(fi, ff);
       var yaAsignados = [];
       var resultado = {};
       FUNCIONES.forEach(function(f) {
-        var elegido = elegirProximo(f.nombre, yaAsignados, ocupados);
+        var elegido = elegirProximo(f.nombre, yaAsignados, ocupados, ocupadosLicencia);
         resultado[f.nombre] = elegido;
         if (elegido.lp) yaAsignados.push(elegido.lp);
       });
