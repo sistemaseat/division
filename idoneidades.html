@@ -56,7 +56,7 @@
     font-family: monospace; font-size: 13px; color: #333;
     margin: 4px 0 16px; display: inline-block;
   }
-  .header-user { display: flex; align-items: center; gap: 14px; }
+  .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
   .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
   .btn-cerrar-sesion {
     background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
@@ -70,6 +70,7 @@
     background: var(--primary); color: white; padding: 14px 28px;
     display: flex; align-items: center; justify-content: space-between;
     box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    flex-wrap: wrap; row-gap: 8px;
   }
   .brand { display: flex; align-items: center; gap: 14px; }
   .brand-logo {
@@ -308,6 +309,7 @@
     .form-grid { grid-template-columns: 1fr; }
     .form-group.half { grid-column: 1; }
     .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+    .header-user { width: 100%; justify-content: flex-start; gap: 6px 10px; }
     .content { padding: 16px; }
   }
 </style>
