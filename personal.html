@@ -1040,7 +1040,7 @@
             <div class="form-grid">
               <div class="form-group">
                 <label class="form-label">Frente</label>
-                <input type="file" id="fLicMunFrente" accept="image/*" onchange="subirImagenGenerica('fLicMunFrente','fLicMunFrenteDriveId','fLicMunFrentePreview','fLicMunFrentePreviewWrap','LICENCIAS','la licencia municipal (frente)')">
+                <input type="file" id="fLicMunFrente" accept="image/*" onchange="subirImagenGenerica('fLicMunFrente','fLicMunFrenteDriveId','fLicMunFrentePreview','fLicMunFrentePreviewWrap','LICENCIAS','la licencia municipal (frente)', ASPECT_DNI)">
                 <div class="mini-preview-wrap" id="fLicMunFrentePreviewWrap" style="display:none;">
                   <img id="fLicMunFrentePreview" alt="Licencia municipal frente">
                   <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicMunFrenteDriveId','fLicMunFrentePreview','fLicMunFrentePreviewWrap','fLicMunFrente','la licencia municipal (frente)')">🗑️</button>
@@ -1049,7 +1049,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Dorso</label>
-                <input type="file" id="fLicMunDorso" accept="image/*" onchange="subirImagenGenerica('fLicMunDorso','fLicMunDorsoDriveId','fLicMunDorsoPreview','fLicMunDorsoPreviewWrap','LICENCIAS','la licencia municipal (dorso)')">
+                <input type="file" id="fLicMunDorso" accept="image/*" onchange="subirImagenGenerica('fLicMunDorso','fLicMunDorsoDriveId','fLicMunDorsoPreview','fLicMunDorsoPreviewWrap','LICENCIAS','la licencia municipal (dorso)', ASPECT_DNI)">
                 <div class="mini-preview-wrap" id="fLicMunDorsoPreviewWrap" style="display:none;">
                   <img id="fLicMunDorsoPreview" alt="Licencia municipal dorso">
                   <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicMunDorsoDriveId','fLicMunDorsoPreview','fLicMunDorsoPreviewWrap','fLicMunDorso','la licencia municipal (dorso)')">🗑️</button>
@@ -1063,7 +1063,7 @@
             <div class="form-grid">
               <div class="form-group">
                 <label class="form-label">Frente</label>
-                <input type="file" id="fLicPolFrente" accept="image/*" onchange="subirImagenGenerica('fLicPolFrente','fLicPolFrenteDriveId','fLicPolFrentePreview','fLicPolFrentePreviewWrap','LICENCIAS','la licencia policial (frente)')">
+                <input type="file" id="fLicPolFrente" accept="image/*" onchange="subirImagenGenerica('fLicPolFrente','fLicPolFrenteDriveId','fLicPolFrentePreview','fLicPolFrentePreviewWrap','LICENCIAS','la licencia policial (frente)', ASPECT_DNI)">
                 <div class="mini-preview-wrap" id="fLicPolFrentePreviewWrap" style="display:none;">
                   <img id="fLicPolFrentePreview" alt="Licencia policial frente">
                   <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicPolFrenteDriveId','fLicPolFrentePreview','fLicPolFrentePreviewWrap','fLicPolFrente','la licencia policial (frente)')">🗑️</button>
@@ -1072,7 +1072,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Dorso</label>
-                <input type="file" id="fLicPolDorso" accept="image/*" onchange="subirImagenGenerica('fLicPolDorso','fLicPolDorsoDriveId','fLicPolDorsoPreview','fLicPolDorsoPreviewWrap','LICENCIAS','la licencia policial (dorso)')">
+                <input type="file" id="fLicPolDorso" accept="image/*" onchange="subirImagenGenerica('fLicPolDorso','fLicPolDorsoDriveId','fLicPolDorsoPreview','fLicPolDorsoPreviewWrap','LICENCIAS','la licencia policial (dorso)', ASPECT_DNI)">
                 <div class="mini-preview-wrap" id="fLicPolDorsoPreviewWrap" style="display:none;">
                   <img id="fLicPolDorsoPreview" alt="Licencia policial dorso">
                   <button type="button" class="btn-eliminar-img" title="Eliminar imagen" onclick="eliminarImagenCampo('fLicPolDorsoDriveId','fLicPolDorsoPreview','fLicPolDorsoPreviewWrap','fLicPolDorso','la licencia policial (dorso)')">🗑️</button>
@@ -2174,8 +2174,10 @@
     }, { peligroso: true, textoOk: 'Eliminar' });
   }
 
-  // ---- Subida genérica de una imagen suelta (sin OCR): DNI frente/dorso, licencias frente/dorso, foto de personal ----
-  async function subirImagenGenerica(inputId, driveIdFieldId, previewImgId, previewWrapId, subcarpeta, etiqueta) {
+  // ---- Subida genérica de una imagen suelta (sin OCR): licencias frente/dorso, foto de personal ----
+  // Igual que el DNI: primero se encuadra/recorta (Cropper.js) y recién después se sube.
+  // aspectRatio: ASPECT_DNI para credenciales tipo tarjeta, o NaN/undefined para recorte libre (foto de personal).
+  async function subirImagenGenerica(inputId, driveIdFieldId, previewImgId, previewWrapId, subcarpeta, etiqueta, aspectRatio) {
     var input = document.getElementById(inputId);
     var file = input.files && input.files[0];
     if (!file) return;
@@ -2185,10 +2187,18 @@
       input.value = '';
       return;
     }
+
+    var croppedDataUrl;
+    try {
+      croppedDataUrl = await abrirRecorte(file, aspectRatio);
+    } catch (err) {
+      input.value = '';
+      return; // el usuario canceló el recorte
+    }
+
     showLoading('Subiendo ' + etiqueta + '…');
     try {
-      var dataUrl = await fileToDataURL(file);
-      var fileId = await subirImagenDrivePromise(dataUrl, file.type, inputId + '_' + lp, subcarpeta);
+      var fileId = await subirImagenDrivePromise(croppedDataUrl, 'image/jpeg', inputId + '_' + lp, subcarpeta);
       document.getElementById(driveIdFieldId).value = fileId;
       await mostrarPreviewFoto(previewImgId, previewWrapId, fileId);
       alertShow('formAlert', 'success', 'Imagen subida correctamente. Guardá la ficha para dejarla asociada.');
@@ -2200,7 +2210,7 @@
   }
 
   function subirFotoPersonal() {
-    subirImagenGenerica('fFotoPersonal', 'fFotoDriveId', 'fFotoPersonalPreview', 'fFotoPersonalPreviewWrap', 'FOTOS_PERSONAL', 'la foto');
+    subirImagenGenerica('fFotoPersonal', 'fFotoDriveId', 'fFotoPersonalPreview', 'fFotoPersonalPreviewWrap', 'FOTOS_PERSONAL', 'la foto', NaN);
   }
 
   // sufijo = '' para la CLU N° 1, '2' para la CLU N° 2
@@ -2209,18 +2219,18 @@
     var file = input.files && input.files[0];
     if (!file) return;
 
-    mostrarEstadoCLU(sufijo, 'success', '🔎 Leyendo la credencial… puede tardar unos segundos.');
-
     var dataUrl;
     try {
-      dataUrl = await fileToDataURL(file);
+      dataUrl = await abrirRecorte(file, ASPECT_DNI);
     } catch (err) {
-      mostrarEstadoCLU(sufijo, 'error', 'No se pudo leer el archivo: ' + err.message);
-      return;
+      input.value = '';
+      return; // el usuario canceló el recorte
     }
 
+    mostrarEstadoCLU(sufijo, 'success', '🔎 Leyendo la credencial… puede tardar unos segundos.');
+
     var lpParaNombre = document.getElementById('fLP').value.trim() || 'sinlp';
-    var subidaPromise = subirImagenDrivePromise(dataUrl, file.type, 'clu' + (sufijo || '') + '_' + lpParaNombre, 'CLU')
+    var subidaPromise = subirImagenDrivePromise(dataUrl, 'image/jpeg', 'clu' + (sufijo || '') + '_' + lpParaNombre, 'CLU')
       .catch(function(err){ console.error('No se pudo subir la imagen de la CLU: ', err); return null; });
 
     var datos = { dni: '', nombre: '', tipo: '', numero: '', estado: '', vencimiento: '' };
