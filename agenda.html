@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --pink:          #ad1457;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* HEADER */
+  .header { background: var(--primary); color: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,0.35); flex-wrap: wrap; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo { width: 44px; height: 44px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: var(--primary); }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .alert-warning { background: #fff9c4; color: #e65100; border-left: 4px solid #ffd600; }
+
+  .section-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 22px 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .section-label:first-child { margin-top: 0; }
+
+  /* ── DASHBOARD: tarjetas Hoy / Mañana ── */
+  .hoy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .hoy-card { background: var(--card); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); border-top: 4px solid var(--primary); }
+  .hoy-card.manana { border-top-color: var(--orange); }
+  .hoy-card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  .hoy-card-titulo { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--primary); }
+  .hoy-card.manana .hoy-card-titulo { color: var(--orange); }
+  .hoy-card-fecha { font-size: 11.5px; color: var(--muted); }
+  .hoy-lista { display: flex; flex-direction: column; gap: 7px; max-height: 260px; overflow-y: auto; }
+  .hoy-item {
+    display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+    background: #fafbff; border-radius: 8px; cursor: pointer; font-size: 12.5px;
+    border-left: 3px solid var(--border); transition: background .1s;
+  }
+  .hoy-item:hover { background: #eef0fb; }
+  .hoy-item .txt { flex: 1; }
+  .hoy-item .txt b { display: block; font-size: 12.5px; }
+  .hoy-item .txt span { color: var(--muted); font-size: 11px; }
+  .hoy-vacio { color: var(--muted); font-size: 12.5px; padding: 14px 4px; text-align: center; }
+
+  /* ── FILTRO DE CATEGORÍAS ── */
+  .cat-filtros { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cat-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
+    cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--muted);
+    user-select: none; transition: all .12s;
+  }
+  .cat-chip .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .cat-chip.active { color: white; border-color: transparent; }
+
+  /* ── PRÓXIMOS EVENTOS ── */
+  .prox-lista { display: flex; flex-direction: column; gap: 8px; }
+  .prox-item {
+    display: flex; align-items: center; gap: 12px; background: var(--card);
+    border-radius: 10px; padding: 12px 16px; box-shadow: var(--shadow); cursor: pointer;
+    border-left: 4px solid var(--border); transition: transform .1s;
+  }
+  .prox-item:hover { transform: translateX(3px); }
+  .prox-fecha { min-width: 62px; text-align: center; }
+  .prox-fecha .dia { font-size: 20px; font-weight: 900; color: var(--primary); line-height: 1; }
+  .prox-fecha .mes { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+  .prox-body { flex: 1; min-width: 0; }
+  .prox-titulo { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prox-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prox-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 3px 9px; border-radius: 10px; color: white; white-space: nowrap; }
+
+  /* ── CALENDARIO ── */
+  .cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .cal-nav { display: flex; align-items: center; gap: 10px; }
+  .cal-nav button { background: var(--card); border: 1.5px solid var(--border); border-radius: 8px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; color: var(--primary); font-weight: 700; }
+  .cal-nav button:hover { background: #eef0fb; }
+  .cal-mes-label { font-size: 17px; font-weight: 800; color: var(--primary); min-width: 190px; text-align: center; text-transform: capitalize; }
+  .btn-hoy { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-dow { text-align: center; font-size: 10.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; padding-bottom: 4px; }
+  .cal-day {
+    background: var(--card); border-radius: 10px; padding: 6px 6px 8px; min-height: 88px;
+    box-shadow: var(--shadow); cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+    border: 2px solid transparent; transition: border-color .12s;
+  }
+  .cal-day:hover { border-color: var(--primary-light); }
+  .cal-day.otro-mes { opacity: .35; }
+  .cal-day.hoy { border-color: var(--accent); background: #fffde7; }
+  .cal-day-num { font-size: 12px; font-weight: 800; color: var(--text); }
+  .cal-day-dots { display: flex; flex-wrap: wrap; gap: 3px; }
+  .cal-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .cal-day-mas { font-size: 9.5px; color: var(--muted); font-weight: 700; }
+
+  @media (max-width: 700px) {
+    .cal-grid { gap: 4px; }
+    .cal-day { min-height: 56px; padding: 4px; }
+    .cal-dow { font-size: 9px; }
+  }
+
+  /* ── KPI GRID (config / genérico) ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border-radius: 12px; padding: 18px 20px; border-left: 4px solid; box-shadow: var(--shadow); }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 8px; }
+  .kpi-val { font-size: 26px; font-weight: 900; line-height: 1.2; color: var(--text); }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── MODAL ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; z-index: 8888; background: rgba(0,0,0,.45); align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal-box-lg { background: white; border-radius: 16px; padding: 24px 26px; width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,.25); }
+  .modal-box-lg.wide { max-width: 900px; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .modal-title { font-size: 17px; font-weight: 800; color: var(--primary); }
+  .modal-close { background: #f0f0f0; border: none; border-radius: 8px; width: 32px; height: 32px; font-size: 15px; cursor: pointer; color: var(--text); }
+  .modal-close:hover { background: #e0e0e0; }
+
+  #confirmModal { z-index: 9500; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 16px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-bottom: 5px; }
+  .form-field input, .form-field select, .form-field textarea {
+    width: 100%; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--text); outline: none; font-family: inherit;
+  }
+  .form-field textarea { resize: vertical; min-height: 70px; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--primary); }
+  .form-field .required-star { color: var(--red); margin-left: 2px; }
+
+  .btn-export { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-size: 12.5px; font-weight: 700; letter-spacing: .3px; cursor: pointer; transition: opacity .15s; white-space: nowrap; }
+  .btn-export:hover { opacity: .85; }
+  .btn-primary2 { background: var(--primary) !important; }
+  .btn-grey { background: #9e9e9e !important; }
+  .btn-red { background: var(--red) !important; }
+
+  .badge-origen { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: white; }
+  .badge-manual { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: 800; text-transform: uppercase; background: #eeeeee; color: var(--text); }
+
+  .detalle-info-row { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  .detalle-info-row .lbl { min-width: 110px; font-weight: 700; color: var(--muted); font-size: 11.5px; text-transform: uppercase; }
+  .detalle-info-row .val { flex: 1; white-space: pre-line; }
+  .nota-auto { background: #eef0fb; color: var(--primary); border-radius: 8px; padding: 10px 14px; font-size: 12px; margin-top: 14px; }
+
+  .drop-adjunto { border: 2px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+  .drop-adjunto:hover { border-color: var(--primary); background: #fafbff; }
+  .adjunto-actual { display: flex; align-items: center; gap: 10px; background: #fafbff; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-top: 8px; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 42px; margin-bottom: 10px; }
+
+  .destinatarios-lista { display: flex; flex-direction: column; gap: 8px; max-width: 480px; }
+  .destinatario-row { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 8px; padding: 8px 12px; box-shadow: var(--shadow); font-size: 13px; }
+  .destinatario-row input[type=email] { flex: 1; border: none; outline: none; font-size: 13px; }
+  .destinatario-row.inactivo { opacity: .5; }
+
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .header { padding: 12px 16px; }
+    .header-user { width: 100%; justify-content: flex-start; gap: 6px 10px; }
+    .content { padding: 14px 12px; }
+    .brand-title { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()" style="color:var(--primary);background:#e8eaf6;border-color:#e8eaf6;">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box-lg confirm-modal" style="max-width:420px;">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones" style="display:flex;justify-content:center;gap:10px;margin-top:10px;"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">📅</div>
+    <div>
+      <div class="brand-title">AGENDA</div>
+      <div class="brand-sub">DIVISIÓN TIRO — Todo cruzado en un solo lugar</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="calendario" onclick="switchTab('calendario')">🗓️ Calendario</button>
+  <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Configuración</button>
+</nav>
+
+<main class="content">
+
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+  <div class="tab-pane active" id="pane-dashboard">
+
+    <div class="section-label">
+      <span>🎯 Categorías — tocá para mostrar/ocultar</span>
+      <button class="btn-export btn-primary2" onclick="abrirModalNuevo()">➕ Nuevo evento</button>
+    </div>
+    <div class="cat-filtros" id="catFiltros"></div>
+
+    <div class="section-label" style="margin-top:20px;">📅 Hoy y mañana</div>
+    <div class="hoy-grid">
+      <div class="hoy-card">
+        <div class="hoy-card-head">
+          <div class="hoy-card-titulo">🔵 Hoy</div>
+          <div class="hoy-card-fecha" id="hoyFechaTxt"></div>
+        </div>
+        <div class="hoy-lista" id="hoyLista"></div>
+      </div>
+      <div class="hoy-card manana">
+        <div class="hoy-card-head">
+          <div class="hoy-card-titulo">🟠 Mañana</div>
+          <div class="hoy-card-fecha" id="mananaFechaTxt"></div>
+        </div>
+        <div class="hoy-lista" id="mananaLista"></div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:22px;">
+      <span>📋 Próximos eventos (14 días)</span>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input type="text" class="search-input" id="buscarProx" placeholder="🔍 Buscar…" oninput="renderProximos()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;min-width:180px;">
+        <button class="btn-export" onclick="exportarExcelProximos()">⬇️ Excel</button>
+      </div>
+    </div>
+    <div class="prox-lista" id="proximosLista"></div>
+    <div class="empty-state" id="proximosVacio" style="display:none;">
+      <div class="icon">📭</div>
+      <p>No hay eventos próximos con las categorías elegidas.</p>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════ CALENDARIO ═══════════════════ -->
+  <div class="tab-pane" id="pane-calendario">
+
+    <div class="section-label">
+      <span>🎯 Categorías</span>
+      <button class="btn-export btn-primary2" onclick="abrirModalNuevo()">➕ Nuevo evento</button>
+    </div>
+    <div class="cat-filtros" id="catFiltrosCal"></div>
+
+    <div class="cal-toolbar" style="margin-top:18px;">
+      <div class="cal-nav">
+        <button onclick="calMes(-1)">‹</button>
+        <div class="cal-mes-label" id="calMesLabel"></div>
+        <button onclick="calMes(1)">›</button>
+      </div>
+      <button class="btn-hoy" onclick="calHoy()">Ir a hoy</button>
+    </div>
+
+    <div class="cal-grid" id="calGrid"></div>
+
+  </div>
+
+  <!-- ═══════════════════ CONFIGURACIÓN ═══════════════════ -->
+  <div class="tab-pane" id="pane-config">
+
+    <div class="section-label">📧 Resumen diario por email</div>
+    <p style="font-size:13px; color:var(--muted); max-width:640px; margin-bottom:14px; line-height:1.5;">
+      Todos los días a la mañana se manda un correo con los eventos del día a esta lista. Agregá o sacá
+      direcciones cuando quieras — no hace falta tocar nada más. (La primera vez hay que desplegar la
+      función que manda el correo — ver la sección "Agenda" de la guía de instalación.)
+    </p>
+    <div class="destinatarios-lista" id="destinatariosLista"></div>
+    <div style="display:flex; gap:8px; margin-top:10px; max-width:480px;">
+      <input type="email" id="nuevoDestinatario" placeholder="nuevo@email.com" style="flex:1; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13px;">
+      <button class="btn-export btn-primary2" onclick="agregarDestinatario()">➕ Agregar</button>
+    </div>
+
+    <div class="section-label" style="margin-top:30px;">ℹ️ Cómo funciona esta Agenda</div>
+    <div class="kpi-grid">
+      <div class="kpi" style="border-left-color:var(--pink);"><div class="kpi-label">🎂 Cumpleaños</div><div class="kpi-sub">Personal Tiro (32) — fecha de nacimiento</div></div>
+      <div class="kpi" style="border-left-color:var(--blue);"><div class="kpi-label">🚓 Servicios</div><div class="kpi-sub">Servicios y Horarios</div></div>
+      <div class="kpi" style="border-left-color:var(--teal);"><div class="kpi-label">🎯 PAE</div><div class="kpi-sub">PAE Personal</div></div>
+      <div class="kpi" style="border-left-color:var(--orange);"><div class="kpi-label">🏖️ Licencias</div><div class="kpi-sub">Licencias Anuales</div></div>
+      <div class="kpi" style="border-left-color:var(--purple);"><div class="kpi-label">🛡️ Guardias</div><div class="kpi-sub">Guardias Pasivas y Administrativas</div></div>
+      <div class="kpi" style="border-left-color:var(--green);"><div class="kpi-label">🎖️ Ascensos</div><div class="kpi-sub">PEP / Curso / Examen</div></div>
+      <div class="kpi" style="border-left-color:var(--muted);"><div class="kpi-label">📌 Manuales</div><div class="kpi-sub">Cargados acá mismo</div></div>
+    </div>
+    <p style="font-size:12px; color:var(--muted); max-width:640px; margin-top:14px; line-height:1.5;">
+      Todas las categorías salvo "Manuales" se calculan en vivo desde su propia sección — no se guardan
+      acá, así que siempre están al día. Un evento automático no se puede editar ni borrar desde la
+      Agenda: hacelo desde su sección de origen.
+    </p>
+
+  </div>
+
+</main>
+
+</div><!-- /appRoot -->
+
+<!-- Modal: detalle de un evento -->
+<div class="modal-overlay" id="detalleModal">
+  <div class="modal-box-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="detalleTitulo">Evento</div>
+      <button class="modal-close" onclick="cerrarDetalle()">✕</button>
+    </div>
+    <div id="detalleBody"></div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;" id="detalleAcciones"></div>
+  </div>
+</div>
+
+<!-- Modal: nuevo / editar evento manual -->
+<div class="modal-overlay" id="editarModal">
+  <div class="modal-box-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="editarModalTitle">Nuevo evento</div>
+      <button class="modal-close" onclick="cerrarModalEditar()">✕</button>
+    </div>
+    <div class="alert" id="alertEditar"></div>
+    <div class="form-grid">
+      <div class="form-field full"><label>Título <span class="required-star">*</span></label><input type="text" id="edTitulo" placeholder="Ej: Reunión de coordinación"></div>
+      <div class="form-field">
+        <label>Tipo</label>
+        <input type="text" id="edTipo" list="tiposList" placeholder="Ej: Reunión">
+        <datalist id="tiposList">
+          <option value="Reunión"><option value="Capacitación"><option value="Recordatorio"><option value="Trámite"><option value="Otro">
+        </datalist>
+      </div>
+      <div class="form-field">
+        <label>Estado</label>
+        <select id="edEstado">
+          <option value="Confirmado">Confirmado</option>
+          <option value="Tentativo">Tentativo</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Fecha <span class="required-star">*</span></label><input type="date" id="edFecha"></div>
+      <div class="form-field"><label>Hora</label><input type="text" id="edHora" placeholder="Ej: 09:00"></div>
+      <div class="form-field"><label>Fecha fin (opcional)</label><input type="date" id="edFechaFin"></div>
+      <div class="form-field"><label>Hora fin</label><input type="text" id="edHoraFin" placeholder="Ej: 11:00"></div>
+      <div class="form-field full"><label>Lugar</label><input type="text" id="edLugar" placeholder="Ej: Sala de reuniones"></div>
+      <div class="form-field full"><label>Descripción</label><textarea id="edDescripcion" placeholder="Detalle del evento…"></textarea></div>
+      <div class="form-field full">
+        <label>Adjunto (PDF o imagen, opcional)</label>
+        <div id="adjuntoActualBox"></div>
+        <div class="drop-adjunto" onclick="document.getElementById('edAdjuntoInput').click()">
+          📎 Tocá para elegir un archivo (PDF o imagen)
+          <div id="edAdjuntoNombre" style="margin-top:6px; font-weight:700; color:var(--primary);"></div>
+        </div>
+        <input type="file" id="edAdjuntoInput" accept="application/pdf,image/*" style="display:none;" onchange="onAdjuntoElegido()">
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+      <button class="btn-export btn-grey" onclick="cerrarModalEditar()">Cancelar</button>
+      <button class="btn-export btn-primary2" onclick="guardarEvento()">💾 <span id="btnGuardarLabel">Guardar evento</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: detalle de un día del calendario -->
+<div class="modal-overlay" id="diaModal">
+  <div class="modal-box-lg wide">
+    <div class="modal-header">
+      <div class="modal-title" id="diaModalTitle">Día</div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="btn-export btn-primary2" style="padding:8px 16px; font-size:12px;" onclick="abrirModalNuevoDesdeDia()">➕ Nuevo acá</button>
+        <button class="modal-close" onclick="cerrarModalDia()">✕</button>
+      </div>
+    </div>
+    <div id="diaModalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const STORAGE_BUCKET = 'adjuntos';
+
+  // ============================================================
+  // AVISO DE MANTENIMIENTO DE SUPABASE
+  // ============================================================
+  function mostrarModalMantenimiento(texto) {
+    var t = document.getElementById('mantenimientoModalTexto');
+    var m = document.getElementById('mantenimientoModal');
+    if (!t || !m) return;
+    t.textContent = texto;
+    m.classList.add('show');
+  }
+
+  async function verificarMantenimientoSupabase() {
+    try {
+      var ctrl = new AbortController();
+      var timeoutId = setTimeout(function() { ctrl.abort(); }, 5000);
+      var res = await fetch('https://status.supabase.com/api/v2/summary.json', { signal: ctrl.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) return;
+      var data = await res.json();
+      var mant = (data.scheduled_maintenances || []).find(function(m) { return m.status === 'in_progress'; });
+      if (!mant) return;
+      var fmt = function(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+      };
+      var inicio = fmt(mant.scheduled_for);
+      var fin = fmt(mant.scheduled_until);
+      var rango = (inicio && fin) ? (' de ' + inicio + ' a ' + fin + '.') : '.';
+      mostrarModalMantenimiento('Supabase está en mantenimiento programado' + rango + ' Durante este lapso la carga o el guardado de datos puede fallar. Podés cerrar este aviso y probar igual.');
+    } catch (e) { /* sin acceso al status público: no se avisa acá */ }
+  }
+  verificarMantenimientoSupabase();
+
+  // ============================================================
+  // UTILIDADES
+  // ============================================================
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function orNull(v) { v = str(v); return v === '' ? null : v; }
+  function n(v) { var x = Number(v); return isNaN(x) ? 0 : x; }
+
+  function showLoading(msg) { document.getElementById('loadingMsg').textContent = msg || 'Cargando…'; document.getElementById('loading').classList.add('show'); }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo === 'success') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn-export btn-grey';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn-export' + (opciones.peligroso ? ' btn-red' : ' btn-primary2');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function hoyISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function sumarDiasISO(iso, dias) {
+    var p = iso.split('-'); var d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+    d.setDate(d.getDate() + dias);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fmtFechaCorta(iso) { if (!iso) return ''; var p = iso.split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
+  function fmtFechaLarga(iso) {
+    if (!iso) return '—';
+    var p = iso.split('-'); if (p.length !== 3) return iso;
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    var txt = d.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  }
+
+  // ---- Extrae una fecha comparable (ISO) de un campo de texto libre ----
+  // Igual función que usa ascenso.html — fecha_pep/fecha_curso/fecha_examen
+  // casi nunca son una fecha "pura": vienen como texto compuesto (ej.
+  // "11/06 - 15:20 - GRUPO A") o "NO". Ver el comentario en ascenso.html.
+  function extraerFechaISO(texto) {
+    if (!texto) return null;
+    var s = String(texto).trim();
+    if (!s || /^no$/i.test(s)) return null;
+    var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+    m = s.match(/(\d{1,2})\/(\d{1,2})/);
+    if (m) { var anio = new Date().getFullYear(); return anio + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0'); }
+    return null;
+  }
+
+  function descargarWorkbook(wb, nombreArchivo) {
+    return wb.xlsx.writeBuffer().then(function (buffer) {
+      var blob = new Blob([buffer], { type: 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    });
+  }
+
+  // ============================================================
+  // CATEGORÍAS — definición central (color, ícono, si es editable)
+  // ============================================================
+  var CATEGORIAS = {
+    cumpleanos: { label: 'Cumpleaños', icon: '🎂', color: '#ad1457', origen: 'Personal Tiro',        link: 'personal.html' },
+    servicio:   { label: 'Servicios',  icon: '🚓', color: '#0277bd', origen: 'Servicios y Horarios',  link: 'servicios.html' },
+    pae:        { label: 'PAE',        icon: '🎯', color: '#00695c', origen: 'PAE Personal',          link: 'pae-personal.html' },
+    licencia:   { label: 'Licencias',  icon: '🏖️', color: '#e65100', origen: 'Licencias Anuales',     link: 'licencias.html' },
+    guardia:    { label: 'Guardias',   icon: '🛡️', color: '#6a1b9a', origen: 'Guardias',              link: 'guardias.html' },
+    ascenso:    { label: 'Ascensos',   icon: '🎖️', color: '#2e7d32', origen: 'Ascensos',              link: 'ascenso.html' },
+    manual:     { label: 'Manuales',   icon: '📌', color: '#616161', origen: null,                    link: null }
+  };
+  var filtroCategorias = {}; // { cumpleanos: true, ... } — todas activas por defecto
+  Object.keys(CATEGORIAS).forEach(function(k){ filtroCategorias[k] = true; });
+
+  // ============================================================
+  // DATOS CRUDOS DE CADA SECCIÓN
+  // ============================================================
+  var personalTiro = [];
+  var serviciosRegistros = [];
+  var serviciosConfigHorarios = [];
+  var paeRegistros = [];
+  var licenciasRegistros = [];
+  var licenciasEstimados = [];
+  var guardiasTurnos = [];
+  var ascensoRegistros = [];
+  var agendaEventos = [];
+
+  async function cargarTodo() {
+    showLoading('Cargando y cruzando todas las secciones…');
+    try {
+      var results = await Promise.all([
+        supabaseClient.from('personal_tiro').select('lp,grado,apellido,nombres,fecha_nacimiento').eq('activo', true),
+        supabaseClient.from('servicios_registros').select('id,fecha,legajo,tipo,turno,estado,observaciones'),
+        supabaseClient.from('servicios_config_horarios').select('tipo,turno,horario'),
+        supabaseClient.from('pae_personal_registros').select('id,lp,fecha,turno,codigo_preinscripcion'),
+        supabaseClient.from('licencias_registros').select('id,lp,fecha_inicio,fecha_fin,reintegro'),
+        supabaseClient.from('licencias_estimados').select('id,lp,nombre,jerarquia,fecha_inicio,fecha_fin,nota'),
+        supabaseClient.from('guardias_turnos').select('id,fecha_inicio,fecha_fin,tipo,etiqueta,jefe_servicio_lp,administrativo_lp,supervision_lp,operativo_lp'),
+        supabaseClient.from('ascenso_registros').select('id,lp,jerarquia,apellido,nombres,fecha_pep,fecha_curso,fecha_examen'),
+        supabaseClient.from('agenda_eventos').select('*').order('fecha')
+      ]);
+
+      // Cada tabla es opcional: si una sección todavía no está migrada,
+      // la consulta viene con error (tabla inexistente) y simplemente esa
+      // categoría queda vacía — el resto de la Agenda funciona igual.
+      personalTiro            = results[0].error ? [] : (results[0].data || []);
+      serviciosRegistros      = results[1].error ? [] : (results[1].data || []);
+      serviciosConfigHorarios = results[2].error ? [] : (results[2].data || []);
+      paeRegistros            = results[3].error ? [] : (results[3].data || []);
+      licenciasRegistros      = results[4].error ? [] : (results[4].data || []);
+      licenciasEstimados      = results[5].error ? [] : (results[5].data || []);
+      guardiasTurnos          = results[6].error ? [] : (results[6].data || []);
+      ascensoRegistros        = results[7].error ? [] : (results[7].data || []);
+      if (results[8].error) throw results[8].error; // esta sí es propia de la Agenda, tiene que existir
+      agendaEventos           = results[8].data || [];
+
+      construirEventos();
+      renderCatFiltros();
+      renderDashboard();
+      renderCalendario();
+      renderDestinatarios();
+    } catch (e) {
+      console.error(e);
+      alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function personaDe(lp) { return personalTiro.find(function(p){ return String(p.lp) === String(lp); }) || {}; }
+  function nombreCompleto(p) { return [p.apellido, p.nombres].filter(Boolean).join(', '); }
+
+  // ============================================================
+  // CONSTRUCCIÓN DE EVENTOS — el corazón de la Agenda.
+  // Nada de esto se guarda: se recalcula cada vez que se cargan los
+  // datos, así que siempre refleja el estado actual de cada sección.
+  // ============================================================
+  var eventos = []; // lista plana de eventos ya "normalizados"
+
+  function agregarEvento(cat, o) {
+    eventos.push(Object.assign({
+      cat: cat,
+      manual: cat === 'manual',
+      hora: '', horaFin: '', fechaFin: null, lugar: '', descripcion: ''
+    }, o));
+  }
+
+  function construirEventos() {
+    eventos = [];
+
+    // ---- Cumpleaños (personal_tiro.fecha_nacimiento) ----
+    // Se generan ocurrencias para el año pasado, actual y el que viene,
+    // así el calendario y "próximos 14 días" siempre encuentran la más
+    // cercana sin importar en qué mes del año se esté mirando.
+    var hoyAno = new Date().getFullYear();
+    personalTiro.forEach(function(p) {
+      if (!p.fecha_nacimiento) return;
+      var partes = p.fecha_nacimiento.split('-');
+      if (partes.length !== 3) return;
+      var anioNac = Number(partes[0]), mes = partes[1], dia = partes[2];
+      [hoyAno - 1, hoyAno, hoyAno + 1].forEach(function(anio) {
+        var diaNum = Number(dia), mesNum = Number(mes);
+        // 29/feb en un año no bisiesto: lo mostramos el 28/feb.
+        var esBisiesto = (anio % 4 === 0 && anio % 100 !== 0) || (anio % 400 === 0);
+        if (mesNum === 2 && diaNum === 29 && !esBisiesto) diaNum = 28;
+        var iso = anio + '-' + mes + '-' + String(diaNum).padStart(2, '0');
+        var edad = anio - anioNac;
+        agregarEvento('cumpleanos', {
+          id: 'cump|' + p.lp + '|' + anio,
+          fecha: iso,
+          titulo: nombreCompleto(p) + ' cumple ' + edad,
+          descripcion: (p.grado || '') + ' — LP ' + p.lp,
+          origenDetalle: 'Cumpleaños de personal de la División Tiro.'
+        });
+      });
+    });
+
+    // ---- Servicios (agrupados por fecha + tipo + turno) ----
+    function horarioDeServicio(tipo, turno) {
+      var h = serviciosConfigHorarios.find(function(x){ return x.tipo === tipo && x.turno === (turno || ''); });
+      return h ? h.horario : '';
+    }
+    var gruposServicios = {};
+    serviciosRegistros.forEach(function(r) {
+      if (r.estado === 'NO REALIZADO') return; // no llegó a pasar
+      var clave = r.fecha + '|' + r.tipo + '|' + (r.turno || '');
+      if (!gruposServicios[clave]) gruposServicios[clave] = { fecha: r.fecha, tipo: r.tipo, turno: r.turno || '', personas: [] };
+      gruposServicios[clave].personas.push(r.legajo);
+    });
+    Object.keys(gruposServicios).forEach(function(clave) {
+      var g = gruposServicios[clave];
+      var nombres = g.personas.map(function(lp){ var p = personaDe(lp); return p.apellido ? (p.apellido + ' (LP ' + lp + ')') : ('LP ' + lp); });
+      var horario = horarioDeServicio(g.tipo, g.turno);
+      agregarEvento('servicio', {
+        id: 'serv|' + clave,
+        fecha: g.fecha,
+        hora: horario,
+        titulo: g.tipo + (g.turno ? ' (' + g.turno + ')' : '') + ' — ' + g.personas.length + ' persona(s)',
+        descripcion: nombres.join('\n'),
+        origenDetalle: 'Servicio asignado en Servicios y Horarios.'
+      });
+    });
+
+    // ---- PAE Personal (agrupados por fecha + turno) ----
+    var gruposPae = {};
+    paeRegistros.forEach(function(r) {
+      if (!r.fecha) return;
+      var clave = r.fecha + '|' + (r.turno || '');
+      if (!gruposPae[clave]) gruposPae[clave] = { fecha: r.fecha, turno: r.turno || '', personas: [] };
+      gruposPae[clave].personas.push(r.lp);
+    });
+    Object.keys(gruposPae).forEach(function(clave) {
+      var g = gruposPae[clave];
+      var nombres = g.personas.map(function(lp){ var p = personaDe(lp); return p.apellido ? (p.apellido + ' (LP ' + lp + ')') : ('LP ' + lp); });
+      agregarEvento('pae', {
+        id: 'pae|' + clave,
+        fecha: g.fecha,
+        hora: g.turno,
+        titulo: 'PAE — ' + g.turno + ' — ' + g.personas.length + ' persona(s)',
+        descripcion: nombres.join('\n'),
+        origenDetalle: 'Turno de preinscripción de PAE Personal.'
+      });
+    });
+
+    // ---- Licencias Anuales (rango fecha_inicio → fecha_fin) ----
+    licenciasRegistros.forEach(function(r) {
+      var p = personaDe(r.lp);
+      agregarEvento('licencia', {
+        id: 'lic|' + r.id,
+        fecha: r.fecha_inicio,
+        fechaFin: r.fecha_fin,
+        titulo: 'Licencia — ' + (nombreCompleto(p) || ('LP ' + r.lp)),
+        descripcion: (p.grado || '') + ' — LP ' + r.lp + '\nDesde ' + fmtFechaCorta(r.fecha_inicio) + ' hasta ' + fmtFechaCorta(r.fecha_fin) + (r.reintegro ? '\nReintegro: ' + fmtFechaCorta(r.reintegro) : ''),
+        origenDetalle: 'Licencia anual otorgada.'
+      });
+    });
+    licenciasEstimados.forEach(function(r) {
+      agregarEvento('licencia', {
+        id: 'licest|' + r.id,
+        fecha: r.fecha_inicio,
+        fechaFin: r.fecha_fin,
+        titulo: 'Licencia (estimada) — ' + (r.nombre || ('LP ' + r.lp)),
+        descripcion: (r.jerarquia || '') + (r.nota ? '\n' + r.nota : '') + '\nDesde ' + fmtFechaCorta(r.fecha_inicio) + ' hasta ' + fmtFechaCorta(r.fecha_fin),
+        origenDetalle: 'Fecha proyectada a futuro, todavía no es una licencia real otorgada.'
+      });
+    });
+
+    // ---- Guardias (rango fecha_inicio → fecha_fin) ----
+    guardiasTurnos.forEach(function(r) {
+      var roles = [
+        ['Jefe de Servicio', r.jefe_servicio_lp],
+        ['Administrativo', r.administrativo_lp],
+        ['Supervisión', r.supervision_lp],
+        ['Operativo', r.operativo_lp]
+      ];
+      var desc = roles.filter(function(x){ return x[1]; }).map(function(x) {
+        var p = personaDe(x[1]);
+        return x[0] + ': ' + (nombreCompleto(p) || ('LP ' + x[1]));
+      }).join('\n');
+      agregarEvento('guardia', {
+        id: 'guar|' + r.id,
+        fecha: r.fecha_inicio,
+        fechaFin: r.fecha_fin,
+        titulo: 'Guardia — ' + r.tipo + (r.etiqueta ? ' (' + r.etiqueta + ')' : ''),
+        descripcion: desc,
+        origenDetalle: 'Turno de guardia asignado.'
+      });
+    });
+
+    // ---- Ascensos (fecha_pep / fecha_curso / fecha_examen, texto libre) ----
+    ascensoRegistros.forEach(function(r) {
+      [['PEP', r.fecha_pep], ['Curso', r.fecha_curso], ['Examen', r.fecha_examen]].forEach(function(x) {
+        var iso = extraerFechaISO(x[1]);
+        if (!iso) return;
+        agregarEvento('ascenso', {
+          id: 'asc|' + r.id + '|' + x[0],
+          fecha: iso,
+          titulo: 'Ascenso (' + x[0] + ') — ' + (nombreCompleto(r) || ('LP ' + r.lp)),
+          descripcion: (r.jerarquia || '') + ' — LP ' + r.lp + '\nFecha original cargada: "' + x[1] + '"',
+          origenDetalle: 'Requerimiento de ' + x[0] + ' para el ascenso.'
+        });
+      });
+    });
+
+    // ---- Eventos manuales ----
+    agendaEventos.forEach(function(r) {
+      agregarEvento('manual', {
+        id: 'man|' + r.id,
+        rawId: r.id,
+        fecha: r.fecha,
+        fechaFin: r.fecha_fin,
+        hora: r.hora || '',
+        horaFin: r.hora_fin || '',
+        titulo: r.titulo,
+        tipo: r.tipo,
+        lugar: r.lugar || '',
+        estado: r.estado,
+        descripcion: r.descripcion || '',
+        adjuntoPath: r.adjunto_path,
+        adjuntoNombre: r.adjunto_nombre,
+        adjuntoTipo: r.adjunto_tipo,
+        origenDetalle: null
+      });
+    });
+  }
+
+  // Expande un evento (que puede durar varios días) a la lista de fechas
+  // ISO en las que "aparece" — para el calendario y para hoy/mañana.
+  function fechasDeEvento(ev) {
+    if (!ev.fechaFin || ev.fechaFin === ev.fecha) return [ev.fecha];
+    var out = []; var cur = ev.fecha; var guard = 0;
+    while (cur <= ev.fechaFin && guard < 400) { out.push(cur); cur = sumarDiasISO(cur, 1); guard++; }
+    return out;
+  }
+
+  function eventosVisibles() { return eventos.filter(function(e){ return filtroCategorias[e.cat]; }); }
+  function eventosEnFecha(iso) { return eventosVisibles().filter(function(e){ return fechasDeEvento(e).indexOf(iso) !== -1; }); }
+
+  // ============================================================
+  // FILTROS DE CATEGORÍA
+  // ============================================================
+  function renderCatFiltros() {
+    var html = Object.keys(CATEGORIAS).map(function(k) {
+      var c = CATEGORIAS[k];
+      var activo = filtroCategorias[k];
+      var count = eventos.filter(function(e){ return e.cat === k; }).length;
+      return '<div class="cat-chip' + (activo ? ' active' : '') + '" style="' + (activo ? 'background:' + c.color + ';' : '') + '" onclick="toggleCategoria(\'' + k + '\')">' +
+        '<span class="dot" style="background:' + c.color + ';"></span>' + c.icon + ' ' + c.label + ' (' + count + ')' +
+        '</div>';
+    }).join('');
+    document.getElementById('catFiltros').innerHTML = html;
+    document.getElementById('catFiltrosCal').innerHTML = html.replace(/toggleCategoria/g, 'toggleCategoriaAmbos');
+  }
+  function toggleCategoria(k) { filtroCategorias[k] = !filtroCategorias[k]; renderCatFiltros(); renderDashboard(); renderCalendario(); }
+  function toggleCategoriaAmbos(k) { toggleCategoria(k); }
+
+  // ============================================================
+  // TABS
+  // ============================================================
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-' + tab); });
+  }
+
+  // ============================================================
+  // DASHBOARD
+  // ============================================================
+  function renderDashboard() {
+    var hoy = hoyISO();
+    var manana = sumarDiasISO(hoy, 1);
+    document.getElementById('hoyFechaTxt').textContent = fmtFechaLarga(hoy);
+    document.getElementById('mananaFechaTxt').textContent = fmtFechaLarga(manana);
+
+    function pintarLista(elId, iso) {
+      var evs = eventosEnFecha(iso).sort(function(a,b){ return (a.hora||'').localeCompare(b.hora||''); });
+      var el = document.getElementById(elId);
+      if (!evs.length) { el.innerHTML = '<div class="hoy-vacio">Sin eventos.</div>'; return; }
+      el.innerHTML = evs.map(function(e) {
+        var c = CATEGORIAS[e.cat];
+        return '<div class="hoy-item" style="border-left-color:' + c.color + ';" onclick="abrirDetalle(\'' + e.id + '\')">' +
+          '<div class="txt"><b>' + c.icon + ' ' + esc(e.titulo) + '</b><span>' + esc(e.hora || c.label) + '</span></div>' +
+          '</div>';
+      }).join('');
+    }
+    pintarLista('hoyLista', hoy);
+    pintarLista('mananaLista', manana);
+
+    renderProximos();
+  }
+
+  function renderProximos() {
+    var hoy = hoyISO();
+    var limite = sumarDiasISO(hoy, 14);
+    var q = str(document.getElementById('buscarProx').value).toLowerCase();
+
+    var vistos = {};
+    var lista = [];
+    eventosVisibles().forEach(function(e) {
+      var fechas = fechasDeEvento(e).filter(function(f){ return f >= hoy && f <= limite; });
+      if (!fechas.length) return;
+      var claveVista = e.id;
+      if (vistos[claveVista]) return;
+      vistos[claveVista] = true;
+      lista.push(Object.assign({}, e, { fechaMostrar: fechas[0] }));
+    });
+    if (q) lista = lista.filter(function(e){ return (e.titulo + ' ' + (e.descripcion||'')).toLowerCase().indexOf(q) !== -1; });
+    lista.sort(function(a,b){ return a.fechaMostrar < b.fechaMostrar ? -1 : (a.fechaMostrar > b.fechaMostrar ? 1 : 0); });
+
+    var cont = document.getElementById('proximosLista');
+    var vacio = document.getElementById('proximosVacio');
+    if (!lista.length) { cont.innerHTML = ''; vacio.style.display = 'block'; return; }
+    vacio.style.display = 'none';
+
+    var MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+    cont.innerHTML = lista.map(function(e) {
+      var c = CATEGORIAS[e.cat];
+      var p = e.fechaMostrar.split('-');
+      return '<div class="prox-item" style="border-left-color:' + c.color + ';" onclick="abrirDetalle(\'' + e.id + '\')">' +
+        '<div class="prox-fecha"><div class="dia">' + p[2] + '</div><div class="mes">' + MESES[Number(p[1])-1] + '</div></div>' +
+        '<div class="prox-body"><div class="prox-titulo">' + esc(e.titulo) + '</div><div class="prox-sub">' + esc(e.hora || '') + (e.lugar ? ' · ' + esc(e.lugar) : '') + '</div></div>' +
+        '<div class="prox-badge" style="background:' + c.color + ';">' + c.icon + ' ' + c.label + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function exportarExcelProximos() {
+    var hoy = hoyISO(); var limite = sumarDiasISO(hoy, 14);
+    var vistos = {}; var lista = [];
+    eventosVisibles().forEach(function(e) {
+      var fechas = fechasDeEvento(e).filter(function(f){ return f >= hoy && f <= limite; });
+      if (!fechas.length || vistos[e.id]) return;
+      vistos[e.id] = true;
+      lista.push(Object.assign({}, e, { fechaMostrar: fechas[0] }));
+    });
+    if (!lista.length) { alertShow('topAlert', 'warning', 'No hay eventos para exportar.'); return; }
+    lista.sort(function(a,b){ return a.fechaMostrar < b.fechaMostrar ? -1 : 1; });
+
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('Proximos eventos');
+    ws.columns = [{width:12},{width:14},{width:34},{width:10},{width:20},{width:50}];
+    var header = ws.addRow(['Fecha','Categoria','Titulo','Hora','Lugar','Descripcion']);
+    header.font = { bold: true };
+    lista.forEach(function(e) { ws.addRow([fmtFechaCorta(e.fechaMostrar), CATEGORIAS[e.cat].label, e.titulo, e.hora||'', e.lugar||'', (e.descripcion||'').replace(/\n/g,' | ')]); });
+    descargarWorkbook(wb, 'AGENDA_proximos_' + hoy + '.xlsx')
+      .then(function(){ alertShow('topAlert','success','Excel exportado.'); })
+      .catch(function(err){ alertShow('topAlert','error','No se pudo exportar: ' + err.message); });
+  }
+
+  // ============================================================
+  // CALENDARIO
+  // ============================================================
+  var calAnio, calMesActual;
+  (function initCal() { var h = new Date(); calAnio = h.getFullYear(); calMesActual = h.getMonth(); })();
+
+  function calMes(delta) {
+    calMesActual += delta;
+    if (calMesActual < 0) { calMesActual = 11; calAnio--; }
+    if (calMesActual > 11) { calMesActual = 0; calAnio++; }
+    renderCalendario();
+  }
+  function calHoy() { var h = new Date(); calAnio = h.getFullYear(); calMesActual = h.getMonth(); renderCalendario(); }
+
+  function renderCalendario() {
+    var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    document.getElementById('calMesLabel').textContent = MESES[calMesActual] + ' ' + calAnio;
+
+    var primerDia = new Date(calAnio, calMesActual, 1);
+    var arranqueDow = (primerDia.getDay() + 6) % 7; // lunes=0
+    var diasEnMes = new Date(calAnio, calMesActual + 1, 0).getDate();
+    var diasMesAnterior = new Date(calAnio, calMesActual, 0).getDate();
+    var hoy = hoyISO();
+
+    var celdas = [];
+    for (var i = 0; i < arranqueDow; i++) {
+      var diaAnt = diasMesAnterior - arranqueDow + i + 1;
+      celdas.push({ dia: diaAnt, otroMes: true, iso: null });
+    }
+    for (var d = 1; d <= diasEnMes; d++) {
+      var iso = calAnio + '-' + String(calMesActual+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      celdas.push({ dia: d, otroMes: false, iso: iso });
+    }
+    while (celdas.length % 7 !== 0) {
+      var extra = celdas.length - (arranqueDow + diasEnMes) + 1;
+      celdas.push({ dia: extra, otroMes: true, iso: null });
+    }
+
+    var dows = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
+    var html = dows.map(function(x){ return '<div class="cal-dow">' + x + '</div>'; }).join('');
+
+    celdas.forEach(function(c) {
+      var evsDia = c.iso ? eventosEnFecha(c.iso) : [];
+      var dots = evsDia.slice(0, 6).map(function(e){ return '<span class="cal-dot" style="background:' + CATEGORIAS[e.cat].color + ';" title="' + esc(e.titulo) + '"></span>'; }).join('');
+      var mas = evsDia.length > 6 ? '<span class="cal-day-mas">+' + (evsDia.length - 6) + '</span>' : '';
+      html += '<div class="cal-day' + (c.otroMes ? ' otro-mes' : '') + (c.iso === hoy ? ' hoy' : '') + '"' + (c.iso ? ' onclick="abrirModalDia(\'' + c.iso + '\')"' : '') + '>' +
+        '<div class="cal-day-num">' + c.dia + '</div>' +
+        '<div class="cal-day-dots">' + dots + mas + '</div>' +
+        '</div>';
+    });
+    document.getElementById('calGrid').innerHTML = html;
+  }
+
+  var diaSeleccionadoActual = null;
+  function abrirModalDia(iso) {
+    diaSeleccionadoActual = iso;
+    document.getElementById('diaModalTitle').textContent = fmtFechaLarga(iso);
+    var evs = eventosEnFecha(iso).sort(function(a,b){ return (a.hora||'').localeCompare(b.hora||''); });
+    var body = document.getElementById('diaModalBody');
+    if (!evs.length) {
+      body.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin eventos este día.</p></div>';
+    } else {
+      body.innerHTML = evs.map(function(e) {
+        var c = CATEGORIAS[e.cat];
+        return '<div class="prox-item" style="border-left-color:' + c.color + '; margin-bottom:8px;" onclick="abrirDetalle(\'' + e.id + '\')">' +
+          '<div class="prox-body"><div class="prox-titulo">' + esc(e.titulo) + '</div><div class="prox-sub">' + esc(e.hora || '') + (e.lugar ? ' · ' + esc(e.lugar) : '') + '</div></div>' +
+          '<div class="prox-badge" style="background:' + c.color + ';">' + c.icon + ' ' + c.label + '</div>' +
+          '</div>';
+      }).join('');
+    }
+    document.getElementById('diaModal').classList.add('show');
+  }
+  function cerrarModalDia() { document.getElementById('diaModal').classList.remove('show'); }
+  function abrirModalNuevoDesdeDia() { cerrarModalDia(); abrirModalNuevo(diaSeleccionadoActual); }
+
+  // ============================================================
+  // DETALLE DE UN EVENTO
+  // ============================================================
+  function abrirDetalle(id) {
+    var e = eventos.find(function(x){ return x.id === id; });
+    if (!e) { alertShow('topAlert', 'error', 'No se encontró el evento.'); return; }
+    var c = CATEGORIAS[e.cat];
+    document.getElementById('detalleTitulo').textContent = c.icon + ' ' + e.titulo;
+
+    var filas = '';
+    filas += '<div class="detalle-info-row"><div class="lbl">Categoría</div><div class="val"><span class="badge-origen" style="background:' + c.color + ';">' + c.icon + ' ' + c.label + '</span></div></div>';
+    filas += '<div class="detalle-info-row"><div class="lbl">Fecha</div><div class="val">' + fmtFechaLarga(e.fecha) + (e.fechaFin && e.fechaFin !== e.fecha ? ' → ' + fmtFechaLarga(e.fechaFin) : '') + '</div></div>';
+    if (e.hora) filas += '<div class="detalle-info-row"><div class="lbl">Hora</div><div class="val">' + esc(e.hora) + (e.horaFin ? ' — ' + esc(e.horaFin) : '') + '</div></div>';
+    if (e.lugar) filas += '<div class="detalle-info-row"><div class="lbl">Lugar</div><div class="val">' + esc(e.lugar) + '</div></div>';
+    if (e.estado) filas += '<div class="detalle-info-row"><div class="lbl">Estado</div><div class="val">' + esc(e.estado) + '</div></div>';
+    if (e.descripcion) filas += '<div class="detalle-info-row"><div class="lbl">Detalle</div><div class="val">' + esc(e.descripcion) + '</div></div>';
+    if (e.manual && e.adjuntoPath) filas += '<div class="detalle-info-row"><div class="lbl">Adjunto</div><div class="val"><a href="#" onclick="verAdjunto(\'' + e.adjuntoPath + '\'); return false;">📎 ' + esc(e.adjuntoNombre || 'ver archivo') + '</a></div></div>';
+
+    if (!e.manual) {
+      filas += '<div class="nota-auto">ℹ️ ' + esc(e.origenDetalle || '') + ' Este evento se generó automáticamente desde <b>' + c.origen + '</b> — no se puede editar ni borrar desde acá.' + (c.link ? ' <a href="' + c.link + '" style="color:var(--primary);font-weight:700;">Ir a ' + c.origen + ' →</a>' : '') + '</div>';
+    }
+
+    document.getElementById('detalleBody').innerHTML = filas;
+
+    var acciones = document.getElementById('detalleAcciones');
+    acciones.innerHTML = '';
+    if (e.manual) {
+      var btnEd = document.createElement('button'); btnEd.className = 'btn-export btn-primary2'; btnEd.textContent = '✏️ Editar';
+      btnEd.onclick = function() { cerrarDetalle(); abrirModalEditar(e.rawId); };
+      var btnDel = document.createElement('button'); btnDel.className = 'btn-export btn-red'; btnDel.textContent = '🗑️ Eliminar';
+      btnDel.onclick = function() { confirmarEliminarEvento(e.rawId, e.titulo); };
+      acciones.appendChild(btnEd); acciones.appendChild(btnDel);
+    }
+    var btnCerrar = document.createElement('button'); btnCerrar.className = 'btn-export btn-grey'; btnCerrar.textContent = 'Cerrar';
+    btnCerrar.onclick = cerrarDetalle;
+    acciones.appendChild(btnCerrar);
+
+    document.getElementById('detalleModal').classList.add('show');
+  }
+  function cerrarDetalle() { document.getElementById('detalleModal').classList.remove('show'); }
+
+  async function verAdjunto(path) {
+    if (!path) return;
+    try {
+      var res = await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrl(path, 3600);
+      if (res.error || !res.data) { alertShow('topAlert', 'error', 'No se pudo generar el link del adjunto.'); return; }
+      window.open(res.data.signedUrl, '_blank');
+    } catch (e) { alertShow('topAlert', 'error', 'Error al abrir el adjunto: ' + (e.message||e)); }
+  }
+
+  // ============================================================
+  // ALTA / EDICIÓN DE EVENTO MANUAL
+  // ============================================================
+  var editingEventoId = null;
+  var edAdjuntoArchivo = null;
+  var edAdjuntoBorrar = false;
+
+  function limpiarFormEditar() {
+    ['edTitulo','edTipo','edHora','edFechaFin','edHoraFin','edLugar','edDescripcion'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('edEstado').value = 'Confirmado';
+    document.getElementById('edFecha').value = hoyISO();
+    document.getElementById('edAdjuntoNombre').textContent = '';
+    document.getElementById('adjuntoActualBox').innerHTML = '';
+    edAdjuntoArchivo = null; edAdjuntoBorrar = false;
+  }
+
+  function abrirModalNuevo(fechaSugerida) {
+    editingEventoId = null;
+    limpiarFormEditar();
+    if (fechaSugerida) document.getElementById('edFecha').value = fechaSugerida;
+    document.getElementById('editarModalTitle').textContent = '➕ Nuevo evento';
+    document.getElementById('btnGuardarLabel').textContent = 'Guardar evento';
+    document.getElementById('alertEditar').classList.remove('show');
+    document.getElementById('editarModal').classList.add('show');
+  }
+
+  function abrirModalEditar(id) {
+    var r = agendaEventos.find(function(x){ return x.id === id; });
+    if (!r) { alertShow('topAlert', 'error', 'No se encontró el evento.'); return; }
+    editingEventoId = id;
+    limpiarFormEditar();
+    document.getElementById('editarModalTitle').textContent = 'Editar evento';
+    document.getElementById('btnGuardarLabel').textContent = 'Guardar cambios';
+    document.getElementById('alertEditar').classList.remove('show');
+    document.getElementById('edTitulo').value = r.titulo || '';
+    document.getElementById('edTipo').value = r.tipo || '';
+    document.getElementById('edEstado').value = r.estado || 'Confirmado';
+    document.getElementById('edFecha').value = r.fecha || '';
+    document.getElementById('edHora').value = r.hora || '';
+    document.getElementById('edFechaFin').value = r.fecha_fin || '';
+    document.getElementById('edHoraFin').value = r.hora_fin || '';
+    document.getElementById('edLugar').value = r.lugar || '';
+    document.getElementById('edDescripcion').value = r.descripcion || '';
+    if (r.adjunto_path) {
+      document.getElementById('adjuntoActualBox').innerHTML =
+        '<div class="adjunto-actual">📎 ' + esc(r.adjunto_nombre || 'archivo adjunto') +
+        ' <button type="button" class="btn-export" style="padding:3px 10px;font-size:11px;" onclick="verAdjunto(\'' + r.adjunto_path + '\')">Ver</button>' +
+        ' <button type="button" class="btn-export btn-red" style="padding:3px 10px;font-size:11px;" onclick="marcarBorrarAdjunto()">Quitar</button></div>';
+    }
+    document.getElementById('editarModal').classList.add('show');
+  }
+  function marcarBorrarAdjunto() { edAdjuntoBorrar = true; document.getElementById('adjuntoActualBox').innerHTML = '<div class="adjunto-actual">Se va a quitar el adjunto al guardar.</div>'; }
+
+  function cerrarModalEditar() { document.getElementById('editarModal').classList.remove('show'); editingEventoId = null; }
+
+  function onAdjuntoElegido() {
+    var input = document.getElementById('edAdjuntoInput');
+    edAdjuntoArchivo = input.files[0] || null;
+    document.getElementById('edAdjuntoNombre').textContent = edAdjuntoArchivo ? edAdjuntoArchivo.name : '';
+    if (edAdjuntoArchivo) edAdjuntoBorrar = false;
+  }
+
+  async function guardarEvento() {
+    var titulo = str(document.getElementById('edTitulo').value);
+    var fecha = str(document.getElementById('edFecha').value);
+    if (!titulo) { alertShow('alertEditar', 'warning', 'El título es obligatorio.'); return; }
+    if (!fecha)  { alertShow('alertEditar', 'warning', 'La fecha es obligatoria.'); return; }
+    var fechaFin = orNull(document.getElementById('edFechaFin').value);
+    if (fechaFin && fechaFin < fecha) { alertShow('alertEditar', 'warning', 'La fecha de fin no puede ser anterior a la fecha de inicio.'); return; }
+
+    var payload = {
+      titulo: titulo,
+      tipo: str(document.getElementById('edTipo').value) || 'Evento',
+      estado: document.getElementById('edEstado').value,
+      fecha: fecha,
+      hora: str(document.getElementById('edHora').value),
+      fecha_fin: fechaFin,
+      hora_fin: str(document.getElementById('edHoraFin').value),
+      lugar: str(document.getElementById('edLugar').value),
+      descripcion: str(document.getElementById('edDescripcion').value)
+    };
+
+    showLoading(editingEventoId ? 'Guardando…' : 'Creando…');
+    try {
+      if (edAdjuntoBorrar && editingEventoId) {
+        var actual = agendaEventos.find(function(x){ return x.id === editingEventoId; });
+        if (actual && actual.adjunto_path) await supabaseClient.storage.from(STORAGE_BUCKET).remove([actual.adjunto_path]);
+        payload.adjunto_path = null; payload.adjunto_nombre = null; payload.adjunto_tipo = null;
+      }
+
+      var res;
+      if (editingEventoId) res = await supabaseClient.from('agenda_eventos').update(payload).eq('id', editingEventoId).select().single();
+      else                 res = await supabaseClient.from('agenda_eventos').insert(payload).select().single();
+      if (res.error) throw res.error;
+
+      var filaId = res.data.id;
+
+      if (edAdjuntoArchivo) {
+        var ext = (edAdjuntoArchivo.name.split('.').pop() || 'dat').toLowerCase();
+        var ruta = 'AGENDA/' + filaId + '.' + ext;
+        // Si ya tenía un adjunto con otro nombre de archivo (otra extensión),
+        // lo borramos primero para no dejar un archivo huérfano en el bucket.
+        var previo = editingEventoId ? agendaEventos.find(function(x){ return x.id === editingEventoId; }) : null;
+        if (previo && previo.adjunto_path && previo.adjunto_path !== ruta) {
+          await supabaseClient.storage.from(STORAGE_BUCKET).remove([previo.adjunto_path]);
+        }
+        var up = await supabaseClient.storage.from(STORAGE_BUCKET).upload(ruta, edAdjuntoArchivo, { upsert: true, contentType: edAdjuntoArchivo.type || 'application/octet-stream' });
+        if (up.error) { console.error(up.error); alertShow('topAlert', 'warning', 'El evento se guardó, pero el adjunto no se pudo subir: ' + up.error.message); }
+        else {
+          await supabaseClient.from('agenda_eventos').update({ adjunto_path: ruta, adjunto_nombre: edAdjuntoArchivo.name, adjunto_tipo: edAdjuntoArchivo.type || '' }).eq('id', filaId);
+        }
+      }
+
+      cerrarModalEditar();
+      alertShow('topAlert', 'success', editingEventoId ? 'Evento actualizado.' : 'Evento creado.');
+      await cargarTodo();
+    } catch (e) {
+      console.error(e);
+      alertShow('alertEditar', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function confirmarEliminarEvento(id, titulo) {
+    showConfirm('¿Eliminar el evento "' + titulo + '"? Esta acción no se puede deshacer.', async function() {
+      showLoading('Eliminando…');
+      try {
+        var actual = agendaEventos.find(function(x){ return x.id === id; });
+        if (actual && actual.adjunto_path) await supabaseClient.storage.from(STORAGE_BUCKET).remove([actual.adjunto_path]);
+        var res = await supabaseClient.from('agenda_eventos').delete().eq('id', id);
+        if (res.error) throw res.error;
+        cerrarDetalle();
+        alertShow('topAlert', 'success', 'Evento eliminado.');
+        await cargarTodo();
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Eliminar' });
+  }
+
+  // ============================================================
+  // CONFIGURACIÓN — destinatarios del resumen diario
+  // ============================================================
+  var destinatarios = [];
+  async function renderDestinatarios() {
+    var res = await supabaseClient.from('agenda_config_destinatarios').select('*').order('email');
+    if (res.error) { console.error(res.error); return; }
+    destinatarios = res.data || [];
+    var cont = document.getElementById('destinatariosLista');
+    if (!destinatarios.length) { cont.innerHTML = '<div class="hoy-vacio">No hay destinatarios cargados todavía.</div>'; return; }
+    cont.innerHTML = destinatarios.map(function(d) {
+      return '<div class="destinatario-row' + (d.activo ? '' : ' inactivo') + '">' +
+        '<span>' + (d.activo ? '✅' : '⏸️') + '</span>' +
+        '<span style="flex:1;">' + esc(d.email) + '</span>' +
+        '<button class="btn-export" style="padding:4px 10px;font-size:11px;" onclick="toggleDestinatario(\'' + esc(d.email).replace(/'/g,"\\'") + '\', ' + (!d.activo) + ')">' + (d.activo ? 'Pausar' : 'Activar') + '</button>' +
+        '<button class="btn-export btn-red" style="padding:4px 10px;font-size:11px;" onclick="eliminarDestinatario(\'' + esc(d.email).replace(/'/g,"\\'") + '\')">🗑️</button>' +
+        '</div>';
+    }).join('');
+  }
+
+  async function agregarDestinatario() {
+    var email = str(document.getElementById('nuevoDestinatario').value).toLowerCase();
+    if (!email || email.indexOf('@') === -1) { alertShow('topAlert', 'warning', 'Ingresá un email válido.'); return; }
+    var res = await supabaseClient.from('agenda_config_destinatarios').upsert({ email: email, activo: true });
+    if (res.error) { alertShow('topAlert', 'error', 'Error: ' + res.error.message); return; }
+    document.getElementById('nuevoDestinatario').value = '';
+    alertShow('topAlert', 'success', 'Destinatario agregado.');
+    renderDestinatarios();
+  }
+  async function toggleDestinatario(email, activo) {
+    var res = await supabaseClient.from('agenda_config_destinatarios').update({ activo: activo }).eq('email', email);
+    if (res.error) { alertShow('topAlert', 'error', 'Error: ' + res.error.message); return; }
+    renderDestinatarios();
+  }
+  function eliminarDestinatario(email) {
+    showConfirm('¿Quitar "' + email + '" de la lista del resumen diario?', async function() {
+      var res = await supabaseClient.from('agenda_config_destinatarios').delete().eq('email', email);
+      if (res.error) { alertShow('topAlert', 'error', 'Error: ' + res.error.message); return; }
+      alertShow('topAlert', 'success', 'Destinatario eliminado.');
+      renderDestinatarios();
+    }, { icon: '🗑️', peligroso: true, textoOk: 'Quitar' });
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error);
+      if (!document.getElementById('mantenimientoModal').classList.contains('show')) { mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.'); } mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarTodo();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+  initAuth();
+
+</script>
+
+<!-- Aviso de mantenimiento de Supabase (status público / error de red) -->
+<div class="modal-overlay" id="mantenimientoModal">
+  <div class="modal-box-lg" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title">⚠️ Aviso de Supabase</div>
+      <button class="modal-close" onclick="document.getElementById('mantenimientoModal').classList.remove('show')">✕</button>
+    </div>
+    <p id="mantenimientoModalTexto" style="line-height:1.5; color:var(--text, #333);"></p>
+  </div>
+</div>
+
+</body>
+</html>
