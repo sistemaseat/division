@@ -852,17 +852,10 @@
         return;
       }
 
-      // Agrupado en 4 secciones (Vencimientos / Licencias Anuales /
-      // Servicios / Eventos) en vez de una sola lista mezclada — cada
-      // grupo respeta el orden por fecha ya aplicado arriba, y un grupo
-      // sin novedades para hoy/mañana directamente no se muestra.
-      var porGrupo = {};
-      eventos.forEach(function(e) {
-        var g = GRUPOS_NOTICIAS[e.cat] || 'Eventos';
-        if (!porGrupo[g]) porGrupo[g] = [];
-        porGrupo[g].push(e);
-      });
-
+      // Primero TODO lo de hoy, después TODO lo de mañana -- y dentro de
+      // cada día, agrupado en las mismas 4 secciones de siempre
+      // (Vencimientos / Licencias Anuales / Servicios / Eventos). Un
+      // grupo sin novedades ese día directamente no se muestra.
       function filaNoticia(e) {
         var c = CATEGORIAS_NOTICIAS[e.cat];
         var etiquetaFecha = e.fecha === hoy ? 'HOY' : 'MAÑANA';
@@ -872,9 +865,21 @@
           '</a>';
       }
 
-      var itemsHtml = ORDEN_GRUPOS_NOTICIAS.filter(function(g){ return porGrupo[g] && porGrupo[g].length; }).map(function(g) {
-        return '<div class="noticia-grupo"><div class="noticia-grupo-titulo">' + esc2(g) + '</div>' +
-          porGrupo[g].map(filaNoticia).join('') + '</div>';
+      function bloqueGrupos(evsDia) {
+        var porGrupo = {};
+        evsDia.forEach(function(e) {
+          var g = GRUPOS_NOTICIAS[e.cat] || 'Eventos';
+          if (!porGrupo[g]) porGrupo[g] = [];
+          porGrupo[g].push(e);
+        });
+        return ORDEN_GRUPOS_NOTICIAS.filter(function(g){ return porGrupo[g] && porGrupo[g].length; }).map(function(g) {
+          return '<div class="noticia-grupo"><div class="noticia-grupo-titulo">' + esc2(g) + '</div>' +
+            porGrupo[g].map(filaNoticia).join('') + '</div>';
+        }).join('');
+      }
+
+      var itemsHtml = [hoy, limite].map(function(fecha) {
+        return bloqueGrupos(eventos.filter(function(e){ return e.fecha === fecha; }));
       }).join('');
 
       cont.innerHTML = itemsHtml;
