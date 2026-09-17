@@ -1358,7 +1358,7 @@
     _personalDebounce = setTimeout(async function() {
       var qEsc = q.replace(/[%_,]/g, '');
       var res = await supabaseClient.from('nomina_general')
-        .select('lp:legajo,grado,apellido,nombre,dependencia,sexo')
+        .select('lp:legajo,grado,apellido,nombre,dependencia,sexo,dni')
         .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
         .limit(10);
       if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
@@ -1385,11 +1385,14 @@
     document.getElementById('nPersonalSeleccionado').classList.add('show');
     var g = str(p.sexo).toUpperCase();
     document.getElementById('nGenero').value = (g === 'M' || g === 'F') ? g : '';
+    document.getElementById('nDni').value = str(p.dni);
   }
   function limpiarPersonalSeleccionado() {
     personalSeleccionado = null;
     document.getElementById('nPersonalSeleccionado').classList.remove('show');
     document.getElementById('nPersonalBusqueda').value = '';
+    document.getElementById('nDni').value = '';
+    document.getElementById('nGenero').value = '';
   }
   function ocultarSugerenciasConDelay(listId) {
     setTimeout(function() { document.getElementById(listId).classList.remove('show'); }, 150);
