@@ -659,10 +659,14 @@
           <div class="form-grid" style="grid-template-columns:1fr 1fr;">
             <div class="form-group full">
               <label class="form-label">Curso<span class="required-star">*</span></label>
-              <select id="txdCurso" onchange="autocompletarEdicionDiario()"></select>
+              <select id="txdCurso" onchange="autocompletarEdicionDiario(); aplicarResolucionSegunCurso('txd');"></select>
             </div>
             <div class="form-group full"><label class="form-label">Fecha<span class="required-star">*</span></label><input type="date" id="txdFecha" onchange="autocompletarEdicionDiario()"></div>
-            <div class="form-group full"><label class="form-label">Resolución Nro.</label><input type="text" id="txdResolucion" placeholder="286/ISSP/2023"></div>
+            <div class="form-group full">
+              <label class="form-label">Resolución Nro.</label>
+              <input type="text" id="txdResolucion" placeholder="286/ISSP/2023">
+              <div class="field-hint">Se completa sola según el curso elegido (se edita en la pestaña Configuración). La podés cambiar acá si esta vez es distinta.</div>
+            </div>
             <div class="form-group full"><label class="form-label">Edición nro.</label><input type="text" id="txdEdicion" placeholder="06"></div>
             <div class="form-group full"><label class="form-label">Horario desde</label><input type="time" id="txdHorarioDesde"></div>
             <div class="form-group full"><label class="form-label">Horario hasta</label><input type="time" id="txdHorarioHasta"></div>
@@ -691,11 +695,15 @@
           <div class="form-grid" style="grid-template-columns:1fr 1fr;">
             <div class="form-group full">
               <label class="form-label">Curso<span class="required-star">*</span></label>
-              <select id="txsCurso"></select>
+              <select id="txsCurso" onchange="aplicarResolucionSegunCurso('txs')"></select>
             </div>
             <div class="form-group"><label class="form-label">Desde<span class="required-star">*</span></label><input type="date" id="txsDesde"></div>
             <div class="form-group"><label class="form-label">Hasta<span class="required-star">*</span></label><input type="date" id="txsHasta"></div>
-            <div class="form-group full"><label class="form-label">Resolución Nro.</label><input type="text" id="txsResolucion" placeholder="286/ISSP/2023"></div>
+            <div class="form-group full">
+              <label class="form-label">Resolución Nro.</label>
+              <input type="text" id="txsResolucion" placeholder="286/ISSP/2023">
+              <div class="field-hint">Se completa sola según el curso elegido (se edita en la pestaña Configuración). La podés cambiar acá si esta vez es distinta.</div>
+            </div>
             <div class="form-group full"><label class="form-label">Horario desde</label><input type="time" id="txsHorarioDesde"></div>
             <div class="form-group full"><label class="form-label">Horario hasta</label><input type="time" id="txsHorarioHasta"></div>
             <div class="form-group full"><label class="form-label">Iniciales de quien redacta</label><input type="text" id="txsIniciales" placeholder="npp - DT"></div>
@@ -725,10 +733,11 @@
   <div class="tab-pane" id="pane-config">
     <div class="table-card">
       <div class="section-title"><span class="ico">🎓</span> Cursos disponibles</div>
-      <div class="field-hint" style="margin-bottom:12px;">Esta lista es la que aparece en los desplegables de "Nueva Curso" y los filtros. Agregar o sacar un curso de acá no borra ni modifica los registros históricos ya cargados con ese nombre.</div>
+      <div class="field-hint" style="margin-bottom:12px;">Esta lista es la que aparece en los desplegables de "Nueva Curso" y los filtros. Agregar o sacar un curso de acá no borra ni modifica los registros históricos ya cargados con ese nombre. La "Resolución Nro." de cada curso se completa sola en Generar Texto (se edita ahí abajo, al lado de cada curso).</div>
       <ul class="config-list" id="listaCursosConfig"></ul>
       <div class="btn-row" style="margin-top:14px;">
         <input type="text" id="nuevoCursoNombre" placeholder="Nombre del curso nuevo…" style="flex:1; min-width:260px;">
+        <input type="text" id="nuevoCursoResolucion" placeholder="Resol Nro. (ej: 286/ISSP/2023)" style="flex:0 0 220px;">
         <button class="btn btn-primary" onclick="agregarCursoConfig()">+ Agregar curso</button>
       </div>
     </div>
@@ -788,6 +797,7 @@
 
   var CALIFICACIONES = ['Pendiente','Aprobado','Desaprobado','Ausente'];
   var CURSOS_DISPONIBLES = []; // nombres, cargados desde cursos_config
+  var CURSOS_RESOLUCION = {};  // nombre -> resolucion (misma tabla cursos_config)
 
   // Mismo orden de jerarquía que usa personal.html para ordenar por Grado.
   var ORDEN_GRADO = ['Comisario', 'Subcomisario', 'Principal', 'Inspector', 'Oficial Mayor', 'Oficial Primero', 'Oficial'];
@@ -898,7 +908,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarCalificacion', 'eliminarRegistro', 'guardarCurso', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'agregarCursoConfig', 'confirmarEliminarCursoConfig', 'eliminarCursoConfig']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarCalificacion', 'eliminarRegistro', 'guardarCurso', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'agregarCursoConfig', 'confirmarEliminarCursoConfig', 'eliminarCursoConfig', 'actualizarResolucionCursoConfig']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await cargarCursosConfig();
@@ -974,11 +984,25 @@
   // todos los desplegables de Curso del resto de las pestañas.
   // ============================================================
   async function cargarCursosConfig() {
-    var res = await supabaseClient.from('cursos_config').select('nombre').order('nombre');
+    var res = await supabaseClient.from('cursos_config').select('nombre,resolucion').order('nombre');
     if (res.error) { console.error(res.error); return; }
     CURSOS_DISPONIBLES = (res.data || []).map(function(r){ return r.nombre; });
+    CURSOS_RESOLUCION = {};
+    (res.data || []).forEach(function(r){ CURSOS_RESOLUCION[r.nombre] = r.resolucion || ''; });
     poblarSelectsCursos();
     renderListaCursosConfig();
+    aplicarResolucionSegunCurso('txd');
+    aplicarResolucionSegunCurso('txs');
+  }
+
+  // Completa el campo "Resolución Nro." de Generar Texto según el curso
+  // elegido (viene de cursos_config) -- se puede seguir editando a mano
+  // si esta vez la resolución es distinta a la habitual.
+  function aplicarResolucionSegunCurso(prefijo) {
+    var curso = document.getElementById(prefijo + 'Curso').value;
+    var campo = document.getElementById(prefijo + 'Resolucion');
+    if (!campo) return;
+    if (curso && CURSOS_RESOLUCION[curso] !== undefined) campo.value = CURSOS_RESOLUCION[curso] || '';
   }
 
   function poblarSelectsCursos() {
@@ -1010,22 +1034,48 @@
       return;
     }
     ul.innerHTML = CURSOS_DISPONIBLES.map(function(c) {
-      return '<li class="config-item"><span>🎓 '+esc(c)+'</span>' +
-        '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarCursoConfig('+JSON.stringify(c)+')" title="Quitar de la lista">🗑️</button></li>';
+      var resol = CURSOS_RESOLUCION[c] || '';
+      return '<li class="config-item">' +
+        '<span>🎓 '+esc(c)+'</span>' +
+        '<span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+          '<input type="text" value="'+esc(resol)+'" placeholder="Resol Nro. (ej: 286/ISSP/2023)" style="width:200px;" ' +
+            'onchange="actualizarResolucionCursoConfig('+JSON.stringify(c)+', this.value)">' +
+          '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarCursoConfig('+JSON.stringify(c)+')" title="Quitar de la lista">🗑️</button>' +
+        '</span></li>';
     }).join('');
   }
 
   async function agregarCursoConfig() {
     var input = document.getElementById('nuevoCursoNombre');
+    var inputResol = document.getElementById('nuevoCursoResolucion');
     var nombre = str(input.value);
+    var resolucion = str(inputResol.value);
     if (!nombre) { alertShow('topAlert', 'error', 'Escribí el nombre del curso.'); return; }
     showLoading('Guardando…');
     try {
-      var res = await supabaseClient.from('cursos_config').insert({ nombre: nombre });
+      var res = await supabaseClient.from('cursos_config').insert({ nombre: nombre, resolucion: resolucion });
       if (res.error) throw res.error;
       input.value = '';
+      inputResol.value = '';
       await cargarCursosConfig();
       alertShow('topAlert', 'success', '✅ Curso agregado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function actualizarResolucionCursoConfig(nombre, valor) {
+    valor = str(valor);
+    showLoading('Guardando…');
+    try {
+      var res = await supabaseClient.from('cursos_config').update({ resolucion: valor }).eq('nombre', nombre);
+      if (res.error) throw res.error;
+      CURSOS_RESOLUCION[nombre] = valor;
+      aplicarResolucionSegunCurso('txd');
+      aplicarResolucionSegunCurso('txs');
+      alertShow('topAlert', 'success', '✅ Resolución actualizada.');
     } catch (e) {
       alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
     } finally {
@@ -1676,23 +1726,24 @@
     try { window.localStorage.setItem(LS_PREFIX + key, val == null ? '' : val); } catch (e) { /* localStorage no disponible: no se recuerda, pero no rompe nada */ }
   }
 
+  // La Resolución Nro. YA NO se recuerda acá -- ahora sale de cursos_config
+  // (una por curso, ver aplicarResolucionSegunCurso) porque cada curso
+  // suele tener siempre la misma resolución, y un solo valor "recordado"
+  // global quedaba mal apenas hubiera más de un curso.
   function cargarCamposTexto() {
-    document.getElementById('txdResolucion').value = lsGet('resolucion', '');
     document.getElementById('txdHorarioDesde').value = lsGet('horarioDesde', '');
     document.getElementById('txdHorarioHasta').value = lsGet('horarioHasta', '');
     document.getElementById('txdIniciales').value = lsGet('iniciales', '');
 
-    document.getElementById('txsResolucion').value = lsGet('resolucion', '');
     document.getElementById('txsHorarioDesde').value = lsGet('horarioDesde', '');
     document.getElementById('txsHorarioHasta').value = lsGet('horarioHasta', '');
     document.getElementById('txsIniciales').value = lsGet('iniciales', '');
   }
 
-  // Guarda los campos "comunes" (resolución/horario/iniciales) de cualquiera
-  // de los dos formularios -- se comparten entre Diario y Semanal para no
-  // tener que cargarlos dos veces.
+  // Guarda los campos "comunes" (horario/iniciales) de cualquiera de los
+  // dos formularios -- se comparten entre Diario y Semanal para no tener
+  // que cargarlos dos veces.
   function guardarCamposComunes(prefijo) {
-    lsSet('resolucion', document.getElementById(prefijo + 'Resolucion').value);
     lsSet('horarioDesde', document.getElementById(prefijo + 'HorarioDesde').value);
     lsSet('horarioHasta', document.getElementById(prefijo + 'HorarioHasta').value);
     lsSet('iniciales', document.getElementById(prefijo + 'Iniciales').value);
