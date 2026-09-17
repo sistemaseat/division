@@ -537,20 +537,30 @@
     pae:        { icon: '🎯', color: '#00695c' },
     licencia:   { icon: '🏖️', color: '#e65100' },
     guardia:    { icon: '🛡️', color: '#6a1b9a' },
-    ascenso:    { icon: '🎖️', color: '#2e7d32' }
+    ascenso:    { icon: '🎖️', color: '#2e7d32' },
+    idoneidad:  { icon: '🔫', color: '#5d4037' }
   };
 
   async function cargarNoticias() {
     var cont = document.getElementById('noticiasLista');
     if (!cont) return;
     try {
+      var hoy = hoyISO2();
+      // Solo hoy y mañana — "solo eso", nada de ventana de 14 días.
+      var limite = sumarDiasISO2(hoy, 1);
+
       var results = await Promise.all([
         supabaseClient.from('personal_tiro').select('lp,grado,apellido,nombres,fecha_nacimiento').eq('activo', true),
         supabaseClient.from('servicios_registros').select('fecha,legajo,tipo,turno,estado'),
         supabaseClient.from('pae_personal_registros').select('lp,fecha,turno'),
         supabaseClient.from('licencias_registros').select('id,lp,fecha_inicio,fecha_fin'),
         supabaseClient.from('guardias_turnos').select('id,fecha_inicio,fecha_fin,tipo,etiqueta'),
-        supabaseClient.from('ascenso_registros').select('id,lp,apellido,nombres,fecha_pep,fecha_curso,fecha_examen')
+        supabaseClient.from('ascenso_registros').select('id,lp,apellido,nombres,fecha_pep,fecha_curso,fecha_examen'),
+        // Idoneidades es de toda la institución y tiene 22.000+ registros
+        // históricos, así que acá sí conviene filtrar fecha+estado directo
+        // en la consulta (no traer todo y filtrar en JS como el resto,
+        // que son tablas chicas) — solo pendientes de hoy/mañana.
+        supabaseClient.from('idoneidades').select('fecha,tipo,lp').eq('estado', 'Pendiente').gte('fecha', hoy).lte('fecha', limite)
       ]);
       var personal = results[0].error ? [] : (results[0].data || []);
       var servicios = results[1].error ? [] : (results[1].data || []);
@@ -558,13 +568,11 @@
       var licencias = results[3].error ? [] : (results[3].data || []);
       var guardias = results[4].error ? [] : (results[4].data || []);
       var ascensos = results[5].error ? [] : (results[5].data || []);
+      var idoneidades = results[6].error ? [] : (results[6].data || []);
 
       function personaDe2(lp) { return personal.find(function(p){ return String(p.lp) === String(lp); }) || {}; }
       function nombreDe2(p) { return [p.apellido, p.nombres].filter(Boolean).join(', '); }
 
-      var hoy = hoyISO2();
-      // Solo hoy y mañana — "solo eso", nada de ventana de 14 días.
-      var limite = sumarDiasISO2(hoy, 1);
       var eventos = [];
 
       var hoyAno = new Date().getFullYear();
@@ -625,6 +633,20 @@
           if (!iso || iso < hoy || iso > limite) return;
           eventos.push({ cat: 'ascenso', fecha: iso, titulo: '🎖️ Ascenso (' + x[0] + ') — ' + ([r.apellido, r.nombres].filter(Boolean).join(', ') || ('LP ' + r.lp)) });
         });
+      });
+
+      // Idoneidades — agrupadas por fecha + tipo, mostrando la cantidad de
+      // efectivos citados ese día (ya viene filtrado a hoy/mañana y
+      // Pendiente desde la consulta). Es de toda la institución, no solo
+      // del personal de la Tiro.
+      var gruposIdon = {};
+      idoneidades.forEach(function(r) {
+        var clave = r.fecha + '|' + r.tipo;
+        if (!gruposIdon[clave]) gruposIdon[clave] = { fecha: r.fecha, tipo: r.tipo, n: 0 };
+        gruposIdon[clave].n++;
+      });
+      Object.values(gruposIdon).forEach(function(g) {
+        eventos.push({ cat: 'idoneidad', fecha: g.fecha, titulo: '🔫 ' + g.tipo + ' — ' + g.n + (g.n === 1 ? ' Efectivo' : ' Efectivos') });
       });
 
       eventos.sort(function(a,b){ return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });

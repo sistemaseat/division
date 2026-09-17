@@ -599,13 +599,14 @@
   // CATEGORÍAS — definición central (color, ícono, si es editable)
   // ============================================================
   var CATEGORIAS = {
-    cumpleanos: { label: 'Cumpleaños', icon: '🎂', color: '#ad1457', origen: 'Personal Tiro',        link: 'personal.html' },
-    servicio:   { label: 'Servicios',  icon: '🚓', color: '#0277bd', origen: 'Servicios y Horarios',  link: 'servicios.html' },
-    pae:        { label: 'PAE',        icon: '🎯', color: '#00695c', origen: 'PAE Personal',          link: 'pae-personal.html' },
-    licencia:   { label: 'Licencias',  icon: '🏖️', color: '#e65100', origen: 'Licencias Anuales',     link: 'licencias.html' },
-    guardia:    { label: 'Guardias',   icon: '🛡️', color: '#6a1b9a', origen: 'Guardias',              link: 'guardias.html' },
-    ascenso:    { label: 'Ascensos',   icon: '🎖️', color: '#2e7d32', origen: 'Ascensos',              link: 'ascenso.html' },
-    manual:     { label: 'Manuales',   icon: '📌', color: '#616161', origen: null,                    link: null }
+    cumpleanos: { label: 'Cumpleaños',   icon: '🎂', color: '#ad1457', origen: 'Personal Tiro',        link: 'personal.html' },
+    servicio:   { label: 'Servicios',    icon: '🚓', color: '#0277bd', origen: 'Servicios y Horarios',  link: 'servicios.html' },
+    pae:        { label: 'PAE',          icon: '🎯', color: '#00695c', origen: 'PAE Personal',          link: 'pae-personal.html' },
+    licencia:   { label: 'Licencias',    icon: '🏖️', color: '#e65100', origen: 'Licencias Anuales',     link: 'licencias.html' },
+    guardia:    { label: 'Guardias',     icon: '🛡️', color: '#6a1b9a', origen: 'Guardias',              link: 'guardias.html' },
+    ascenso:    { label: 'Ascensos',     icon: '🎖️', color: '#2e7d32', origen: 'Ascensos',              link: 'ascenso.html' },
+    idoneidad:  { label: 'Idoneidades',  icon: '🔫', color: '#5d4037', origen: 'Idoneidades',           link: 'idoneidades.html' },
+    manual:     { label: 'Manuales',     icon: '📌', color: '#616161', origen: null,                    link: null }
   };
   var filtroCategorias = {}; // { cumpleanos: true, ... } — todas activas por defecto
   Object.keys(CATEGORIAS).forEach(function(k){ filtroCategorias[k] = true; });
@@ -621,6 +622,7 @@
   var licenciasEstimados = [];
   var guardiasTurnos = [];
   var ascensoRegistros = [];
+  var idoneidadesRegistros = [];
   var agendaEventos = [];
 
   async function cargarTodo() {
@@ -635,6 +637,12 @@
         supabaseClient.from('licencias_estimados').select('id,lp,nombre,jerarquia,fecha_inicio,fecha_fin,nota'),
         supabaseClient.from('guardias_turnos').select('id,fecha_inicio,fecha_fin,tipo,etiqueta,jefe_servicio_lp,administrativo_lp,supervision_lp,operativo_lp'),
         supabaseClient.from('ascenso_registros').select('id,lp,jerarquia,apellido,nombres,fecha_pep,fecha_curso,fecha_examen'),
+        // Idoneidades es de TODA la institución (20.000+ legajos, no solo
+        // los ~32 de la Tiro) y tiene más de 22.000 registros históricos —
+        // por eso se filtra "Pendiente" directo en la consulta (evaluaciones
+        // ya tomadas con Aprobado/Desaprobado/Ausente no son "agenda", ya
+        // pasaron) y solo se piden las columnas que hacen falta.
+        supabaseClient.from('idoneidades').select('fecha,tipo,lp,grado,apellido,nombre').eq('estado', 'Pendiente'),
         supabaseClient.from('agenda_eventos').select('*').order('fecha')
       ]);
 
@@ -649,8 +657,9 @@
       licenciasEstimados      = results[5].error ? [] : (results[5].data || []);
       guardiasTurnos          = results[6].error ? [] : (results[6].data || []);
       ascensoRegistros        = results[7].error ? [] : (results[7].data || []);
-      if (results[8].error) throw results[8].error; // esta sí es propia de la Agenda, tiene que existir
-      agendaEventos           = results[8].data || [];
+      idoneidadesRegistros    = results[8].error ? [] : (results[8].data || []);
+      if (results[9].error) throw results[9].error; // esta sí es propia de la Agenda, tiene que existir
+      agendaEventos           = results[9].data || [];
 
       construirEventos();
       renderCatFiltros();
@@ -825,6 +834,35 @@
           descripcion: (r.jerarquia || '') + ' — LP ' + r.lp + '\nFecha original cargada: "' + x[1] + '"',
           origenDetalle: 'Requerimiento de ' + x[0] + ' para el ascenso.'
         });
+      });
+    });
+
+    // ---- Idoneidades (agrupadas por fecha + tipo). A diferencia de las
+    // demás categorías, esto es de TODA la institución (no solo el
+    // personal de la Tiro), así que las personas no salen de personal_tiro
+    // sino de las propias columnas de idoneidades (apellido/nombre/grado
+    // ya vienen cargadas en cada registro). Ya llega filtrado a
+    // estado='Pendiente' desde cargarTodo().
+    var gruposIdoneidad = {};
+    idoneidadesRegistros.forEach(function(r) {
+      if (!r.fecha || !r.tipo) return;
+      var clave = r.fecha + '|' + r.tipo;
+      if (!gruposIdoneidad[clave]) gruposIdoneidad[clave] = { fecha: r.fecha, tipo: r.tipo, personas: [] };
+      gruposIdoneidad[clave].personas.push(r);
+    });
+    Object.keys(gruposIdoneidad).forEach(function(clave) {
+      var g = gruposIdoneidad[clave];
+      var n = g.personas.length;
+      var nombres = g.personas.map(function(p) {
+        var nombre = [p.apellido, p.nombre].filter(Boolean).join(', ');
+        return (p.grado ? p.grado + ' ' : '') + (nombre || ('LP ' + p.lp));
+      });
+      agregarEvento('idoneidad', {
+        id: 'idon|' + clave,
+        fecha: g.fecha,
+        titulo: g.tipo + ' — ' + n + (n === 1 ? ' Efectivo' : ' Efectivos'),
+        descripcion: nombres.join('\n'),
+        origenDetalle: 'Evaluación de idoneidad pendiente (todo el personal de la institución que rinde en la Tiro, no solo el propio).'
       });
     });
 
