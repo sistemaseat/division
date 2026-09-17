@@ -125,6 +125,45 @@
     .intro h1 { font-size: 20px; color: var(--text); margin-bottom: 6px; }
     .intro p  { font-size: 14px; color: var(--muted); }
 
+    /* ── NOTICIAS (barra lateral, de la Agenda) ── */
+    .noticias-panel {
+      position: fixed;
+      top: 96px;
+      right: 22px;
+      width: 300px;
+      max-height: calc(100vh - 130px);
+      background: rgba(255,255,255,.62);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.7);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      padding: 16px 16px 12px;
+      overflow-y: auto;
+      z-index: 400;
+    }
+    .noticias-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .noticias-titulo { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--primary); }
+    .noticias-sub { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+    .noticia-item {
+      display: flex; align-items: flex-start; gap: 9px;
+      padding: 9px 10px; margin-bottom: 6px; border-radius: 10px;
+      background: rgba(255,255,255,.55); border-left: 3px solid var(--border);
+      text-decoration: none; color: inherit; transition: background .12s;
+    }
+    .noticia-item:hover { background: rgba(255,255,255,.9); }
+    .noticia-fecha { font-size: 10px; font-weight: 800; color: var(--primary); min-width: 34px; line-height: 1.2; }
+    .noticia-txt b { display: block; font-size: 12px; font-weight: 700; line-height: 1.3; }
+    .noticia-txt span { font-size: 10.5px; color: var(--muted); }
+    .noticias-vacio { font-size: 12px; color: var(--muted); text-align: center; padding: 14px 4px; }
+    .noticias-footer { text-align: center; margin-top: 8px; }
+    .noticias-footer a { font-size: 11.5px; font-weight: 700; color: var(--primary); text-decoration: none; }
+    .noticias-footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 1400px) {
+      .noticias-panel { display: none; }
+    }
+
     /* GRILLA DE SECCIONES — cada sistema interno es una tarjeta acá. Para
        agregar una nueva sección el día de mañana, solo hace falta copiar un
        bloque <a class="card">...</a> y cambiar el emoji/título/texto/link. */
@@ -233,11 +272,6 @@
 </header>
 
 <div class="content">
-  <div class="intro">
-    <h1>Elegí un sistema</h1>
-    <p>Cada tarjeta es una sección independiente. Con el tiempo se van a ir sumando más acá.</p>
-  </div>
-
   <div class="grid">
     <a class="card" href="personal.html">
       <div class="card-icon">👤</div>
@@ -311,6 +345,21 @@
     </a>
   </div>
 </div>
+
+<!-- NOTICIAS — mismos eventos cruzados que la Agenda (Cumpleaños, Servicios,
+     PAE, Licencias, Guardias, Ascensos), resumidos acá para que se vean sin
+     entrar a la Agenda. Solo aparece en pantallas anchas (ver @media en el
+     CSS) — en una pantalla más chica no entra al lado de las tarjetas. -->
+<aside class="noticias-panel" id="noticiasPanel">
+  <div class="noticias-head">
+    <div>
+      <div class="noticias-titulo">📰 Noticias</div>
+      <div class="noticias-sub">De la Agenda — próximos 14 días</div>
+    </div>
+  </div>
+  <div id="noticiasLista"><div class="noticias-vacio">Cargando…</div></div>
+  <div class="noticias-footer"><a href="agenda.html">Ver Agenda completa →</a></div>
+</aside>
 
 </div><!-- /appRoot -->
 
@@ -424,6 +473,7 @@
       }
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
+      cargarNoticias();
     } finally {
       hideLoading();
       _sesionEnCurso = false;
@@ -431,6 +481,142 @@
   }
 
   supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
+
+  // ============================================================
+  // NOTICIAS — resumen de los próximos 14 días, cruzando las mismas
+  // secciones que la Agenda (agenda.html). Es una versión chica y de
+  // solo lectura de la misma lógica de agenda.html — si el día de
+  // mañana esa lógica cambia ahí, conviene revisar acá también.
+  // ============================================================
+  function esc2(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function hoyISO2() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function sumarDiasISO2(iso, dias) {
+    var p = iso.split('-'); var d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+    d.setDate(d.getDate() + dias);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function extraerFechaISO2(texto) {
+    if (!texto) return null;
+    var s = String(texto).trim();
+    if (!s || /^no$/i.test(s)) return null;
+    var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+    m = s.match(/(\d{1,2})\/(\d{1,2})/);
+    if (m) { var anio = new Date().getFullYear(); return anio + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0'); }
+    return null;
+  }
+
+  var CATEGORIAS_NOTICIAS = {
+    cumpleanos: { icon: '🎂', color: '#ad1457' },
+    servicio:   { icon: '🚓', color: '#0277bd' },
+    pae:        { icon: '🎯', color: '#00695c' },
+    licencia:   { icon: '🏖️', color: '#e65100' },
+    guardia:    { icon: '🛡️', color: '#6a1b9a' },
+    ascenso:    { icon: '🎖️', color: '#2e7d32' }
+  };
+
+  async function cargarNoticias() {
+    var cont = document.getElementById('noticiasLista');
+    if (!cont) return;
+    try {
+      var results = await Promise.all([
+        supabaseClient.from('personal_tiro').select('lp,grado,apellido,nombres,fecha_nacimiento').eq('activo', true),
+        supabaseClient.from('servicios_registros').select('fecha,legajo,tipo,turno,estado'),
+        supabaseClient.from('pae_personal_registros').select('lp,fecha,turno'),
+        supabaseClient.from('licencias_registros').select('id,lp,fecha_inicio,fecha_fin'),
+        supabaseClient.from('guardias_turnos').select('id,fecha_inicio,fecha_fin,tipo,etiqueta'),
+        supabaseClient.from('ascenso_registros').select('id,lp,apellido,nombres,fecha_pep,fecha_curso,fecha_examen')
+      ]);
+      var personal = results[0].error ? [] : (results[0].data || []);
+      var servicios = results[1].error ? [] : (results[1].data || []);
+      var pae = results[2].error ? [] : (results[2].data || []);
+      var licencias = results[3].error ? [] : (results[3].data || []);
+      var guardias = results[4].error ? [] : (results[4].data || []);
+      var ascensos = results[5].error ? [] : (results[5].data || []);
+
+      function personaDe2(lp) { return personal.find(function(p){ return String(p.lp) === String(lp); }) || {}; }
+      function nombreDe2(p) { return [p.apellido, p.nombres].filter(Boolean).join(', '); }
+
+      var hoy = hoyISO2();
+      var limite = sumarDiasISO2(hoy, 14);
+      var eventos = [];
+
+      var hoyAno = new Date().getFullYear();
+      personal.forEach(function(p) {
+        if (!p.fecha_nacimiento) return;
+        var partes = p.fecha_nacimiento.split('-');
+        if (partes.length !== 3) return;
+        [hoyAno, hoyAno + 1].forEach(function(anio) {
+          var diaNum = Number(partes[2]);
+          var esBisiesto = (anio % 4 === 0 && anio % 100 !== 0) || (anio % 400 === 0);
+          if (Number(partes[1]) === 2 && diaNum === 29 && !esBisiesto) diaNum = 28;
+          var iso = anio + '-' + partes[1] + '-' + String(diaNum).padStart(2, '0');
+          eventos.push({ cat: 'cumpleanos', fecha: iso, titulo: '🎂 ' + nombreDe2(p) + ' cumple ' + (anio - Number(partes[0])) });
+        });
+      });
+
+      var gruposServ = {};
+      servicios.forEach(function(r) {
+        if (r.estado === 'NO REALIZADO' || r.fecha < hoy || r.fecha > limite) return;
+        var clave = r.fecha + '|' + r.tipo + '|' + (r.turno || '');
+        if (!gruposServ[clave]) gruposServ[clave] = { fecha: r.fecha, tipo: r.tipo, personas: [] };
+        gruposServ[clave].personas.push(r.legajo);
+      });
+      Object.values(gruposServ).forEach(function(g) {
+        var nombres = g.personas.map(function(lp){ var p = personaDe2(lp); return p.apellido || ('LP ' + lp); });
+        eventos.push({ cat: 'servicio', fecha: g.fecha, titulo: '🚓 ' + g.tipo + ' — ' + nombres.slice(0,2).join(' · ') + (nombres.length > 2 ? ' +' + (nombres.length-2) : '') });
+      });
+
+      var gruposPae = {};
+      pae.forEach(function(r) {
+        if (!r.fecha || r.fecha < hoy || r.fecha > limite) return;
+        var clave = r.fecha + '|' + (r.turno || '');
+        if (!gruposPae[clave]) gruposPae[clave] = { fecha: r.fecha, turno: r.turno || '', personas: [] };
+        gruposPae[clave].personas.push(r.lp);
+      });
+      Object.values(gruposPae).forEach(function(g) {
+        eventos.push({ cat: 'pae', fecha: g.fecha, titulo: '🎯 PAE — ' + g.turno + ' (' + g.personas.length + ')' });
+      });
+
+      licencias.forEach(function(r) {
+        if (r.fecha_inicio > limite || r.fecha_fin < hoy) return;
+        var p = personaDe2(r.lp);
+        eventos.push({ cat: 'licencia', fecha: r.fecha_inicio > hoy ? r.fecha_inicio : hoy, titulo: '🏖️ Licencia — ' + (nombreDe2(p) || ('LP ' + r.lp)) });
+      });
+
+      guardias.forEach(function(r) {
+        if (r.fecha_inicio > limite || r.fecha_fin < hoy) return;
+        eventos.push({ cat: 'guardia', fecha: r.fecha_inicio > hoy ? r.fecha_inicio : hoy, titulo: '🛡️ Guardia — ' + r.tipo + (r.etiqueta ? ' (' + r.etiqueta + ')' : '') });
+      });
+
+      ascensos.forEach(function(r) {
+        [['PEP', r.fecha_pep], ['Curso', r.fecha_curso], ['Examen', r.fecha_examen]].forEach(function(x) {
+          var iso = extraerFechaISO2(x[1]);
+          if (!iso || iso < hoy || iso > limite) return;
+          eventos.push({ cat: 'ascenso', fecha: iso, titulo: '🎖️ Ascenso (' + x[0] + ') — ' + ([r.apellido, r.nombres].filter(Boolean).join(', ') || ('LP ' + r.lp)) });
+        });
+      });
+
+      eventos.sort(function(a,b){ return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
+      eventos = eventos.slice(0, 14);
+
+      if (!eventos.length) { cont.innerHTML = '<div class="noticias-vacio">Sin novedades en los próximos 14 días.</div>'; return; }
+
+      var MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+      cont.innerHTML = eventos.map(function(e) {
+        var c = CATEGORIAS_NOTICIAS[e.cat];
+        var p = e.fecha.split('-');
+        var etiquetaFecha = e.fecha === hoy ? 'HOY' : (p[2] + '/' + MESES[Number(p[1])-1]);
+        return '<a class="noticia-item" href="agenda.html" style="border-left-color:' + c.color + ';">' +
+          '<div class="noticia-fecha">' + etiquetaFecha + '</div>' +
+          '<div class="noticia-txt"><b>' + esc2(e.titulo) + '</b></div>' +
+          '</a>';
+      }).join('');
+    } catch (e) {
+      console.error(e);
+      cont.innerHTML = '<div class="noticias-vacio">No se pudieron cargar las noticias.</div>';
+    }
+  }
 
   document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 </script>
