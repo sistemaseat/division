@@ -829,13 +829,20 @@
   function cerrarSesion() { supabaseClient.auth.signOut(); }
 
   var _sesionEnCurso = false;
+  // Email para el que ya se hizo la carga inicial (cargarTodo(), que resetea las
+  // fechas de todos los filtros a hoy). Supabase dispara onAuthStateChange no solo
+  // al iniciar sesión, sino también cada vez que se vuelve a la pestaña y renueva
+  // el token en silencio — sin este freno, eso repetía cargarTodo() y pisaba la
+  // fecha (u otros datos) que se estuvieran completando a mano en Carga.
+  var _usuarioInicializado = null;
   async function manejarSesion(session) {
     if (_sesionEnCurso) return;
     _sesionEnCurso = true;
     try {
-      if (!session) { mostrarPantalla('login'); return; }
-      showLoading('Verificando acceso…');
+      if (!session) { _usuarioInicializado = null; mostrarPantalla('login'); return; }
       var email = (session.user.email || '').toLowerCase().trim();
+      if (_usuarioInicializado === email) return; // ya está inicializado — esto es solo un refresco de token
+      showLoading('Verificando acceso…');
       var res = await supabaseClient.from('usuarios_autorizados').select('email, rol').eq('email', email).maybeSingle();
       if (res.error) { console.error('Error al verificar el acceso: ', res.error);
       if (!document.getElementById('mantenimientoModal').classList.contains('show')) { mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.'); } mostrarPantalla('login'); return; }
@@ -844,6 +851,7 @@
       window.SOLO_LECTURA = (res.data.rol === 'visual');
       if (window.SOLO_LECTURA) aplicarModoSoloLectura(['agregarConfigMotivo', 'agregarConfigTipo', 'eliminarConfigMotivo', 'eliminarConfigTipo', 'guardarActInterno', 'guardarCarga', 'quitarPlantilla', 'regenerarEDT', 'subirPlantilla', 'toggleConfigMotivo', 'toggleConfigTipo', 'confirmarSelectorPersonal']);
       await cargarTodo();
+      _usuarioInicializado = email;
     } finally {
       hideLoading();
       _sesionEnCurso = false;

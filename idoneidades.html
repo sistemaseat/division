@@ -1008,13 +1008,20 @@
   function cerrarSesion() { supabaseClient.auth.signOut(); }
 
   var _sesionEnCurso = false;
+  // Email para el que ya se hizo la carga inicial (dashboard + reseteo del formulario
+  // "Nueva Idoneidad"). Supabase dispara onAuthStateChange no solo al iniciar sesión,
+  // sino también cada vez que se vuelve a la pestaña y renueva el token en silencio —
+  // sin este freno, eso repetía el reseteo de Fecha/Usuario y pisaba lo que se
+  // estuviera completando a mano en el formulario (o incluso a mitad de carga).
+  var _usuarioInicializado = null;
   async function manejarSesion(session) {
     if (_sesionEnCurso) return;
     _sesionEnCurso = true;
     try {
-      if (!session) { mostrarPantalla('login'); return; }
-      showLoading('Verificando acceso…');
+      if (!session) { _usuarioInicializado = null; mostrarPantalla('login'); return; }
       var email = (session.user.email || '').toLowerCase().trim();
+      if (_usuarioInicializado === email) return; // ya está inicializado — esto es solo un refresco de token
+      showLoading('Verificando acceso…');
       var res = await supabaseClient.from('usuarios_autorizados').select('email, rol').eq('email', email).maybeSingle();
       if (res.error) {
         console.error('Error al verificar el acceso: ', res.error);
@@ -1029,6 +1036,7 @@
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await Promise.all([cargarDashboard(), cargarNice()]);
+      _usuarioInicializado = email;
     } finally {
       hideLoading();
       _sesionEnCurso = false;
