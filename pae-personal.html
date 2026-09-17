@@ -481,6 +481,47 @@
   const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // ============================================================
+  // AVISO DE MANTENIMIENTO DE SUPABASE
+  // Al cargar la página, consulta el status público de Supabase
+  // (status.supabase.com) para avisar si hay un mantenimiento programado
+  // EN CURSO, con el horario real (de/hasta). Si no se puede consultar
+  // (sin conexión, CORS, demora) no muestra nada acá — queda el aviso de
+  // respaldo genérico de más abajo, que salta si una consulta real falla.
+  // ============================================================
+  function mostrarModalMantenimiento(texto) {
+    var t = document.getElementById('mantenimientoModalTexto');
+    var m = document.getElementById('mantenimientoModal');
+    if (!t || !m) return;
+    t.textContent = texto;
+    m.classList.add('show');
+  }
+
+  async function verificarMantenimientoSupabase() {
+    try {
+      var ctrl = new AbortController();
+      var timeoutId = setTimeout(function() { ctrl.abort(); }, 5000);
+      var res = await fetch('https://status.supabase.com/api/v2/summary.json', { signal: ctrl.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) return;
+      var data = await res.json();
+      var mant = (data.scheduled_maintenances || []).find(function(m) { return m.status === 'in_progress'; });
+      if (!mant) return;
+      var fmt = function(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+      };
+      var inicio = fmt(mant.scheduled_for);
+      var fin = fmt(mant.scheduled_until);
+      var rango = (inicio && fin) ? (' de ' + inicio + ' a ' + fin + '.') : '.';
+      mostrarModalMantenimiento('Supabase está en mantenimiento programado' + rango + ' Durante este lapso la carga o el guardado de datos puede fallar. Podés cerrar este aviso y probar igual.');
+    } catch (e) {
+      // Sin acceso al status público (offline, CORS, timeout): no se avisa acá.
+    }
+  }
+  verificarMantenimientoSupabase();
+
+
   var datos = [];              // pae_personal_registros crudo ({id, lp, codigo_preinscripcion, fecha, turno})
   var personalMapa = {};       // lp -> {grado, apellido, nombres} — de personal_tiro (los 32)
   var editingId = null;        // id (uuid) en edición, o null si es alta nueva
@@ -932,7 +973,8 @@
       showLoading('Verificando acceso…');
       var email = (session.user.email || '').toLowerCase().trim();
       var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
-      if (res.error) { console.error('Error al verificar el acceso: ', res.error); mostrarPantalla('login'); return; }
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error);
+      if (!document.getElementById('mantenimientoModal').classList.contains('show')) { mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.'); } mostrarPantalla('login'); return; }
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       await cargarDatos();
@@ -974,5 +1016,17 @@
   initAuth();
 
 </script>
+
+<!-- Aviso de mantenimiento de Supabase (status público / error de red) -->
+<div class="modal-overlay" id="mantenimientoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚠️ Aviso de Supabase</div>
+      <button class="modal-close" onclick="document.getElementById('mantenimientoModal').classList.remove('show')">✕</button>
+    </div>
+    <p id="mantenimientoModalTexto" style="line-height:1.5; color:var(--text, #333);"></p>
+  </div>
+</div>
+
 </body>
 </html>
