@@ -801,8 +801,16 @@
 
   // Mismo orden de jerarquía que usa personal.html para ordenar por Grado.
   var ORDEN_GRADO = ['Comisario', 'Subcomisario', 'Principal', 'Inspector', 'Oficial Mayor', 'Oficial Primero', 'Oficial'];
+  // El grado viene de nomina_general (padrón de toda la institución) con
+  // mayúsculas mezcladas en el histórico -- normalizamos tipo "initcap" para
+  // que "INSPECTOR"/"inspector"/"Inspector" siempre matcheen la misma
+  // posición en ORDEN_GRADO (si no, quedaba último y desordenaba el listado
+  // de Generar Texto).
+  function normalizarGrado(g) {
+    return String(g || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|\s)\S/g, function(c) { return c.toUpperCase(); });
+  }
   function rankGrado(g) {
-    var i = ORDEN_GRADO.indexOf(String(g || '').trim());
+    var i = ORDEN_GRADO.indexOf(normalizarGrado(g));
     return i === -1 ? ORDEN_GRADO.length : i;
   }
   var _textosCamposCargados = false;
