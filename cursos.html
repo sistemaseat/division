@@ -666,13 +666,7 @@
             <div class="form-group full"><label class="form-label">Edición nro.</label><input type="text" id="txdEdicion" placeholder="06"></div>
             <div class="form-group full"><label class="form-label">Horario desde</label><input type="time" id="txdHorarioDesde"></div>
             <div class="form-group full"><label class="form-label">Horario hasta</label><input type="time" id="txdHorarioHasta"></div>
-            <div class="form-group full"><label class="form-label">A:</label><input type="text" id="txdA" placeholder="Nombre Apellido (DCEISSP)"></div>
-            <div class="form-group full"><label class="form-label">Con Copia A:</label><input type="text" id="txdCopia" placeholder="Nombre Apellido (DCEISSP)"></div>
             <div class="form-group full"><label class="form-label">Iniciales de quien redacta</label><input type="text" id="txdIniciales" placeholder="eat - DT"></div>
-            <div class="form-group full">
-              <label class="form-label">Firma</label>
-              <textarea id="txdFirma" style="min-height:90px;"></textarea>
-            </div>
           </div>
 
           <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoDiario()">Generar Texto</button>
@@ -704,13 +698,7 @@
             <div class="form-group full"><label class="form-label">Resolución Nro.</label><input type="text" id="txsResolucion" placeholder="286/ISSP/2023"></div>
             <div class="form-group full"><label class="form-label">Horario desde</label><input type="time" id="txsHorarioDesde"></div>
             <div class="form-group full"><label class="form-label">Horario hasta</label><input type="time" id="txsHorarioHasta"></div>
-            <div class="form-group full"><label class="form-label">A:</label><input type="text" id="txsA" placeholder="Nombre Apellido (DCEISSP)"></div>
-            <div class="form-group full"><label class="form-label">Con Copia A:</label><input type="text" id="txsCopia" placeholder="Nombre Apellido (DCEISSP)"></div>
             <div class="form-group full"><label class="form-label">Iniciales de quien redacta</label><input type="text" id="txsIniciales" placeholder="npp - DT"></div>
-            <div class="form-group full">
-              <label class="form-label">Firma</label>
-              <textarea id="txsFirma" style="min-height:90px;"></textarea>
-            </div>
           </div>
 
           <button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="buscarEdicionesSemana()">🔎 Buscar ediciones de la semana</button>
@@ -1676,7 +1664,6 @@
   // recuerda en este navegador (localStorage) para la próxima vez.
   // ============================================================
   var LS_PREFIX = 'divisionTiroCursos.';
-  var FIRMA_DEFAULT = 'Matías Ezequiel Bailatte\nComisario\nDIRECCION AUTONOMA DE COORDINACION Y ENLACE CON ISSP\nSUBJEFATURA POLICIA DE LA CIUDAD';
 
   function lsGet(key, def) {
     try { var v = window.localStorage.getItem(LS_PREFIX + key); return (v === null || v === undefined) ? def : v; }
@@ -1690,31 +1677,22 @@
     document.getElementById('txdResolucion').value = lsGet('resolucion', '');
     document.getElementById('txdHorarioDesde').value = lsGet('horarioDesde', '');
     document.getElementById('txdHorarioHasta').value = lsGet('horarioHasta', '');
-    document.getElementById('txdA').value = lsGet('a', '');
-    document.getElementById('txdCopia').value = lsGet('copia', '');
     document.getElementById('txdIniciales').value = lsGet('iniciales', '');
-    document.getElementById('txdFirma').value = lsGet('firma', FIRMA_DEFAULT);
 
     document.getElementById('txsResolucion').value = lsGet('resolucion', '');
     document.getElementById('txsHorarioDesde').value = lsGet('horarioDesde', '');
     document.getElementById('txsHorarioHasta').value = lsGet('horarioHasta', '');
-    document.getElementById('txsA').value = lsGet('a', '');
-    document.getElementById('txsCopia').value = lsGet('copia', '');
     document.getElementById('txsIniciales').value = lsGet('iniciales', '');
-    document.getElementById('txsFirma').value = lsGet('firma', FIRMA_DEFAULT);
   }
 
-  // Guarda los campos "comunes" (destinatarios/resolución/horario/firma) de
-  // cualquiera de los dos formularios -- se comparten entre Diario y Semanal
-  // para no tener que cargarlos dos veces.
+  // Guarda los campos "comunes" (resolución/horario/iniciales) de cualquiera
+  // de los dos formularios -- se comparten entre Diario y Semanal para no
+  // tener que cargarlos dos veces.
   function guardarCamposComunes(prefijo) {
     lsSet('resolucion', document.getElementById(prefijo + 'Resolucion').value);
     lsSet('horarioDesde', document.getElementById(prefijo + 'HorarioDesde').value);
     lsSet('horarioHasta', document.getElementById(prefijo + 'HorarioHasta').value);
-    lsSet('a', document.getElementById(prefijo + 'A').value);
-    lsSet('copia', document.getElementById(prefijo + 'Copia').value);
     lsSet('iniciales', document.getElementById(prefijo + 'Iniciales').value);
-    lsSet('firma', document.getElementById(prefijo + 'Firma').value);
   }
 
   function mostrarTextoCurso(sub) {
@@ -1755,10 +1733,7 @@
     var edicion = str(document.getElementById('txdEdicion').value);
     var hDesde = document.getElementById('txdHorarioDesde').value;
     var hHasta = document.getElementById('txdHorarioHasta').value;
-    var a = str(document.getElementById('txdA').value);
-    var copia = str(document.getElementById('txdCopia').value);
     var iniciales = str(document.getElementById('txdIniciales').value);
-    var firma = document.getElementById('txdFirma').value || FIRMA_DEFAULT;
 
     showLoading('Buscando registros…');
     try {
@@ -1783,14 +1758,6 @@
       guardarCamposComunes('txd');
 
       var partes = [];
-      partes.push('Referencia: S/ CURSO ' + curso.toUpperCase());
-      partes.push('');
-      partes.push('A: ' + (a || '—') + ',');
-      partes.push('Con Copia A: ' + (copia || '—') + ',');
-      partes.push('');
-      partes.push('De mi mayor consideración:');
-      partes.push('');
-
       var horarioTxt = (hDesde && hHasta) ? (' en el horario ' + hDesde + ' a ' + hHasta + ' horas') : '';
       var edicionTxt = edicion ? (' Edición nro. ' + edicion + ',') : '';
       partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
@@ -1816,11 +1783,7 @@
 
       partes.push('');
       partes.push('Se eleva la presente para conocimiento y prosecución administrativa.');
-      partes.push('');
-      if (iniciales) { partes.push(iniciales); partes.push(''); }
-      partes.push('Sin otro particular saluda atte.');
-      partes.push('');
-      partes.push(firma);
+      if (iniciales) { partes.push(''); partes.push(iniciales); }
 
       document.getElementById('resultadoDiario').textContent = partes.join('\n');
     } catch (e) {
@@ -1895,10 +1858,7 @@
     var resolucion = str(document.getElementById('txsResolucion').value);
     var hDesde = document.getElementById('txsHorarioDesde').value;
     var hHasta = document.getElementById('txsHorarioHasta').value;
-    var a = str(document.getElementById('txsA').value);
-    var copia = str(document.getElementById('txsCopia').value);
     var iniciales = str(document.getElementById('txsIniciales').value);
-    var firma = document.getElementById('txsFirma').value || FIRMA_DEFAULT;
 
     if (_semanaGrupos.some(function(g){ return !g.edicion; })) {
       alertShow('topAlert', 'success', '⚠️ Falta el número de edición en alguna fecha — se generó el texto igual, con "?" en su lugar.');
@@ -1911,14 +1871,6 @@
     var hayAusentes = _semanaFilas.some(function(f){ return f.calificacion === 'Ausente'; });
 
     var partes = [];
-    partes.push('Referencia: S/ CURSO ' + curso.toUpperCase());
-    partes.push('');
-    partes.push('A: ' + (a || '—') + ',');
-    partes.push('Con Copia A: ' + (copia || '—') + ',');
-    partes.push('');
-    partes.push('De mi mayor consideración:');
-    partes.push('');
-
     var horarioTxt = (hDesde && hHasta) ? (' en el horario ' + hDesde + ' a ' + hHasta + ' horas') : '';
     partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + ' ' + fraseEdicionesSemana(_semanaGrupos) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
     partes.push('');
@@ -1937,11 +1889,7 @@
     }
 
     partes.push('Se eleva la presente para su conocimiento y prosecución administrativa.');
-    partes.push('');
-    if (iniciales) { partes.push(iniciales); partes.push(''); }
-    partes.push('Sin otro particular saluda atte.');
-    partes.push('');
-    partes.push(firma);
+    if (iniciales) { partes.push(''); partes.push(iniciales); }
 
     document.getElementById('resultadoSemanal').textContent = partes.join('\n');
   }
