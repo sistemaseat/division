@@ -343,6 +343,79 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="editarRegistroModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Editar registro</div>
+      <button class="modal-close" onclick="cerrarModalEditarRegistro()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Tipo<span class="required-star">*</span></label>
+        <select id="edRegTipo">
+          <option value="Idoneidad Px4">Idoneidad Px4</option>
+          <option value="Idoneidad Benelli">Idoneidad Benelli</option>
+          <option value="Idoneidad Armas Particulares">Idoneidad Armas Particulares</option>
+          <option value="Idoneidad Halcon">Idoneidad Halcon</option>
+          <option value="Idoneidad FMK3">Idoneidad FMK3</option>
+          <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado<span class="required-star">*</span></label>
+        <select id="edRegEstado">
+          <option value="Pendiente">◷ Pendiente</option>
+          <option value="Aprobado">✓ Aprobado</option>
+          <option value="Desaprobado">✗ Desaprobado</option>
+          <option value="Ausente">– Ausente</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha<span class="required-star">*</span></label>
+        <input type="date" id="edRegFecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hora</label>
+        <input type="time" id="edRegHora">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Grado</label>
+        <input type="text" id="edRegGrado">
+      </div>
+      <div class="form-group">
+        <label class="form-label">LP</label>
+        <input type="text" id="edRegLp">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Apellido</label>
+        <input type="text" id="edRegApellido">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input type="text" id="edRegNombre">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Dependencia</label>
+        <input type="text" id="edRegDependencia">
+      </div>
+      <div class="form-group">
+        <label class="form-label">&nbsp;</label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; padding-top:8px;">
+          <input type="checkbox" id="edRegLactancia" style="width:auto;"> 🍼 Lactancia
+        </label>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Observaciones</label>
+        <textarea id="edRegObservaciones"></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="guardarEdicionRegistro()">💾 Guardar cambios</button>
+      <button class="btn btn-ghost" onclick="cerrarModalEditarRegistro()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="appRoot" style="display:none;">
 
 <header class="header">
@@ -877,6 +950,7 @@
   var regPageSize = 50;
   var regTotal = 0;
   var regDebounceTimer = null;
+  var filasRegistrosActuales = []; // filas de la página actual de Registros, para abrir el modal de edición sin re-consultar
 
   document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
@@ -967,7 +1041,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'cambiarLactancia', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'cambiarLactancia', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await Promise.all([cargarDashboard(), cargarNice()]);
@@ -1631,6 +1705,7 @@
 
       regTotal = res.count || 0;
       var filas = res.data || [];
+      filasRegistrosActuales = filas;
       document.getElementById('regCountPill').textContent = fmtNum(regTotal) + (regTotal === 1 ? ' registro' : ' registros');
       document.getElementById('registrosNoData').style.display = filas.length ? 'none' : 'block';
       document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
@@ -1642,7 +1717,7 @@
             ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
           '<td style="text-align:center;"><input type="checkbox" '+(r.lactancia?'checked':'')+' onchange="cambiarLactancia(\''+r.id+'\',this.checked,this)" title="Lactancia"></td>' +
-          '<td class="action-col"><button class="btn btn-danger btn-sm" onclick="confirmarEliminarRegistro(\''+r.id+'\')">🗑️</button></td></tr>';
+          '<td class="action-col"><button class="btn btn-ghost btn-sm" onclick="abrirModalEditarRegistro(\''+r.id+'\')" title="Editar">✏️</button> <button class="btn btn-danger btn-sm" onclick="confirmarEliminarRegistro(\''+r.id+'\')" title="Eliminar">🗑️</button></td></tr>';
       }).join('');
 
       var totalPages = Math.max(1, Math.ceil(regTotal / regPageSize));
@@ -1710,6 +1785,64 @@
       alertShow('topAlert', 'success', '🗑️ Registro eliminado.');
     } catch (e) {
       alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // EDITAR REGISTRO — corrige un registro ya cargado (por si se
+  // erró algo al cargarlo) sin tener que borrarlo y volver a crearlo.
+  // ============================================================
+  var editandoRegistroId = null;
+  function abrirModalEditarRegistro(id) {
+    var r = filasRegistrosActuales.find(function(x) { return String(x.id) === String(id); });
+    if (!r) { alertShow('topAlert', 'error', 'No se encontró el registro. Volvé a buscar y probá de nuevo.'); return; }
+    editandoRegistroId = r.id;
+    document.getElementById('edRegTipo').value = r.tipo || '';
+    document.getElementById('edRegEstado').value = r.estado || 'Pendiente';
+    document.getElementById('edRegFecha').value = r.fecha || '';
+    document.getElementById('edRegHora').value = r.hora || '';
+    document.getElementById('edRegGrado').value = r.grado || '';
+    document.getElementById('edRegLp').value = r.lp || '';
+    document.getElementById('edRegApellido').value = r.apellido || '';
+    document.getElementById('edRegNombre').value = r.nombre || '';
+    document.getElementById('edRegDependencia').value = r.dependencia || '';
+    document.getElementById('edRegLactancia').checked = !!r.lactancia;
+    document.getElementById('edRegObservaciones').value = r.observaciones || '';
+    document.getElementById('editarRegistroModal').classList.add('show');
+  }
+  function cerrarModalEditarRegistro() {
+    document.getElementById('editarRegistroModal').classList.remove('show');
+    editandoRegistroId = null;
+  }
+  async function guardarEdicionRegistro() {
+    if (!editandoRegistroId) return;
+    var tipo = document.getElementById('edRegTipo').value;
+    var fecha = document.getElementById('edRegFecha').value;
+    if (!tipo || !fecha) { alertShow('topAlert', 'error', 'Completá tipo y fecha.'); return; }
+    showLoading('Guardando cambios…');
+    try {
+      var res = await supabaseClient.from('idoneidades').update({
+        tipo: tipo,
+        estado: document.getElementById('edRegEstado').value,
+        fecha: fecha,
+        hora: document.getElementById('edRegHora').value || null,
+        grado: str(document.getElementById('edRegGrado').value),
+        lp: str(document.getElementById('edRegLp').value),
+        apellido: str(document.getElementById('edRegApellido').value),
+        nombre: str(document.getElementById('edRegNombre').value),
+        dependencia: str(document.getElementById('edRegDependencia').value),
+        lactancia: document.getElementById('edRegLactancia').checked,
+        observaciones: document.getElementById('edRegObservaciones').value || null
+      }).eq('id', editandoRegistroId);
+      if (res.error) throw res.error;
+      cerrarModalEditarRegistro();
+      await recargarRegistros(false);
+      cargarDashboard();
+      alertShow('topAlert', 'success', '✅ Registro actualizado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar los cambios: ' + (e.message || e));
     } finally {
       hideLoading();
     }
