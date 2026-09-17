@@ -957,7 +957,7 @@
       if (!session) { mostrarPantalla('login'); return; }
       showLoading('Verificando acceso…');
       var email = (session.user.email || '').toLowerCase().trim();
-      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email, rol').eq('email', email).maybeSingle();
       if (res.error) {
         console.error('Error al verificar el acceso: ', res.error);
       if (!document.getElementById('mantenimientoModal').classList.contains('show')) { mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.'); }
@@ -966,6 +966,8 @@
       }
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
+      window.SOLO_LECTURA = (res.data.rol === 'visual');
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'cambiarLactancia', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await Promise.all([cargarDashboard(), cargarNice()]);
@@ -973,6 +975,74 @@
       hideLoading();
       _sesionEnCurso = false;
     }
+  }
+
+  // ============================================================
+  // MODO SOLO LECTURA — cuentas con rol='visual' en usuarios_autorizados
+  // (ver schema.sql). El bloqueo real está del lado del servidor: cada
+  // tabla tiene una política RLS "..._write" que exige "not
+  // es_solo_lectura()", así que aunque algo se escape acá y alguien
+  // llegue a tocarlo, Supabase igual rechaza cualquier intento de
+  // guardar/editar/borrar. Esto de acá es solo para que la experiencia
+  // sea prolija: no dejar a la vista botones que de todos modos van a
+  // fallar. "nombresEscritura" es la lista puntual (por nombre de
+  // función) de los controles de ESTA página que disparan una
+  // escritura — se arma buscando qué funciones llaman a
+  // supabase...insert/update/upsert/delete/storage.upload/remove.
+  // Como muchas tablas/botones se arman recién cuando llegan los datos
+  // (después de este mismo login), un MutationObserver vuelve a pasar
+  // el mismo chequeo cada vez que aparece contenido nuevo en la
+  // pantalla, sin depender de tocar cada función de renderizado.
+  // ============================================================
+  function aplicarModoSoloLectura(nombresEscritura) {
+    if (!window.SOLO_LECTURA) return;
+    try {
+      if (!document.getElementById('bannerSoloLectura')) {
+        var banner = document.createElement('div');
+        banner.id = 'bannerSoloLectura';
+        banner.textContent = '👁️ Modo solo lectura — esta cuenta solo puede ver, no puede cargar, editar ni borrar nada.';
+        banner.style.cssText = 'background:#5d4037;color:#fff;text-align:center;font-size:12px;font-weight:700;padding:7px 10px;';
+        document.body.insertBefore(banner, document.body.firstChild);
+      }
+
+      var patrones = (nombresEscritura || []).map(function(n) {
+        return new RegExp('\\b' + n + '\\s*\\(', 'i');
+      });
+
+      function esControlDeEscritura(el) {
+        var fns = [el.onclick, el.onchange, el.onsubmit];
+        for (var i = 0; i < fns.length; i++) {
+          if (typeof fns[i] !== 'function') continue;
+          var src = fns[i].toString();
+          for (var j = 0; j < patrones.length; j++) {
+            if (patrones[j].test(src)) return true;
+          }
+        }
+        return false;
+      }
+
+      function ocultar(el) { el.style.setProperty('display', 'none', 'important'); }
+
+      function procesar(root) {
+        if (!root || root.nodeType !== 1 || !root.querySelectorAll) return;
+        var candidatos = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+        candidatos.forEach(function(el) {
+          if (!el.hasAttribute || el.hasAttribute('data-solo-lectura-visto')) return;
+          el.setAttribute('data-solo-lectura-visto', '1');
+          if (esControlDeEscritura(el)) { ocultar(el); return; }
+          if (el.tagName === 'INPUT' && el.type === 'file') el.disabled = true;
+          else if (el.tagName === 'SELECT' && el.classList && el.classList.contains('estado-inline')) el.disabled = true;
+        });
+      }
+
+      procesar(document.body);
+      var obsSoloLectura = new MutationObserver(function(mutaciones) {
+        mutaciones.forEach(function(m) {
+          m.addedNodes.forEach(function(n) { procesar(n); });
+        });
+      });
+      obsSoloLectura.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { console.error('Error al aplicar modo solo lectura:', e); }
   }
 
   function initAuth() {
