@@ -349,6 +349,10 @@
       <div class="modal-title">✏️ Editar registro</div>
       <button class="modal-close" onclick="cerrarModalEditarRegistro()">✕</button>
     </div>
+    <div class="form-group full" style="margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--muted); font-weight:700; margin-bottom:2px;">PERSONAL</div>
+      <div id="edRegPersonalInfo" style="font-size:14px; font-weight:700;">—</div>
+    </div>
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Tipo<span class="required-star">*</span></label>
@@ -377,26 +381,6 @@
       <div class="form-group">
         <label class="form-label">Hora</label>
         <input type="time" id="edRegHora">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Grado</label>
-        <input type="text" id="edRegGrado">
-      </div>
-      <div class="form-group">
-        <label class="form-label">LP</label>
-        <input type="text" id="edRegLp">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Apellido</label>
-        <input type="text" id="edRegApellido">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Nombre</label>
-        <input type="text" id="edRegNombre">
-      </div>
-      <div class="form-group full">
-        <label class="form-label">Dependencia</label>
-        <input type="text" id="edRegDependencia">
       </div>
       <div class="form-group">
         <label class="form-label">&nbsp;</label>
@@ -1041,7 +1025,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'cambiarLactancia', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await Promise.all([cargarDashboard(), cargarNice()]);
@@ -1716,7 +1700,7 @@
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.estado)+'" onchange="cambiarEstado(\'idoneidades\',\''+r.id+'\',this.value,this)">' +
             ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
-          '<td style="text-align:center;"><input type="checkbox" '+(r.lactancia?'checked':'')+' onchange="cambiarLactancia(\''+r.id+'\',this.checked,this)" title="Lactancia"></td>' +
+          '<td style="text-align:center;"><input type="checkbox" '+(r.lactancia?'checked':'')+' disabled title="Lactancia (se modifica desde ✏️ Editar)"></td>' +
           '<td class="action-col"><button class="btn btn-ghost btn-sm" onclick="abrirModalEditarRegistro(\''+r.id+'\')" title="Editar">✏️</button> <button class="btn btn-danger btn-sm" onclick="confirmarEliminarRegistro(\''+r.id+'\')" title="Eliminar">🗑️</button></td></tr>';
       }).join('');
 
@@ -1759,19 +1743,6 @@
     }
   }
 
-  async function cambiarLactancia(id, checked, checkboxEl) {
-    checkboxEl.disabled = true;
-    try {
-      var res = await supabaseClient.from('idoneidades').update({ lactancia: checked }).eq('id', id);
-      if (res.error) throw res.error;
-    } catch (e) {
-      alertShow('topAlert', 'error', 'Error al actualizar Lactancia: ' + (e.message || e));
-      checkboxEl.checked = !checked;
-    } finally {
-      checkboxEl.disabled = false;
-    }
-  }
-
   function confirmarEliminarRegistro(id) {
     showConfirm('¿Eliminar este registro? No se puede deshacer.', function() { eliminarRegistro(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
   }
@@ -1799,15 +1770,13 @@
     var r = filasRegistrosActuales.find(function(x) { return String(x.id) === String(id); });
     if (!r) { alertShow('topAlert', 'error', 'No se encontró el registro. Volvé a buscar y probá de nuevo.'); return; }
     editandoRegistroId = r.id;
+    document.getElementById('edRegPersonalInfo').textContent =
+      [esc(r.grado), esc(r.apellido) + (r.nombre ? ', ' + esc(r.nombre) : ''), r.lp ? 'LP ' + esc(r.lp) : '', esc(r.dependencia)]
+        .filter(function(x){ return x; }).join(' — ') || '—';
     document.getElementById('edRegTipo').value = r.tipo || '';
     document.getElementById('edRegEstado').value = r.estado || 'Pendiente';
     document.getElementById('edRegFecha').value = r.fecha || '';
     document.getElementById('edRegHora').value = r.hora || '';
-    document.getElementById('edRegGrado').value = r.grado || '';
-    document.getElementById('edRegLp').value = r.lp || '';
-    document.getElementById('edRegApellido').value = r.apellido || '';
-    document.getElementById('edRegNombre').value = r.nombre || '';
-    document.getElementById('edRegDependencia').value = r.dependencia || '';
     document.getElementById('edRegLactancia').checked = !!r.lactancia;
     document.getElementById('edRegObservaciones').value = r.observaciones || '';
     document.getElementById('editarRegistroModal').classList.add('show');
@@ -1823,16 +1792,13 @@
     if (!tipo || !fecha) { alertShow('topAlert', 'error', 'Completá tipo y fecha.'); return; }
     showLoading('Guardando cambios…');
     try {
+      // Solo se editan Tipo/Estado/Fecha/Hora/Observaciones/Lactancia — los datos
+      // de identidad (Grado/LP/Apellido/Nombre/Dependencia) no se tocan acá.
       var res = await supabaseClient.from('idoneidades').update({
         tipo: tipo,
         estado: document.getElementById('edRegEstado').value,
         fecha: fecha,
         hora: document.getElementById('edRegHora').value || null,
-        grado: str(document.getElementById('edRegGrado').value),
-        lp: str(document.getElementById('edRegLp').value),
-        apellido: str(document.getElementById('edRegApellido').value),
-        nombre: str(document.getElementById('edRegNombre').value),
-        dependencia: str(document.getElementById('edRegDependencia').value),
         lactancia: document.getElementById('edRegLactancia').checked,
         observaciones: document.getElementById('edRegObservaciones').value || null
       }).eq('id', editandoRegistroId);
