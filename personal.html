@@ -883,8 +883,12 @@
               <div class="form-group"><label class="form-label">Grado</label><input type="text" id="fGrado" readonly></div>
               <div class="form-group"><label class="form-label">LP</label><input type="text" id="fLP" readonly></div>
               <div class="form-group"><label class="form-label">Apellido</label><input type="text" id="fApellido" readonly></div>
-              <div class="form-group"><label class="form-label">Nombres</label><input type="text" id="fNombres" readonly></div>
-              <div class="form-group"><label class="form-label">DNI</label><input type="text" id="fDNI" placeholder="Documento"></div>
+              <div class="form-group">
+                <label class="form-label">Nombres</label>
+                <input type="text" id="fNombres" readonly>
+                <span class="field-hint">Grado, Apellido, Nombres y DNI se traen de la nómina general (padrón de toda la fuerza). Si hay un error de tipeo, hay que corregirlo ahí — avisale a quien la actualiza.</span>
+              </div>
+              <div class="form-group"><label class="form-label">DNI</label><input type="text" id="fDNI" placeholder="Documento" readonly></div>
               <div class="form-group"><label class="form-label">Dependencia</label><input type="text" id="fDependencia" placeholder="Ej: División Tiro"></div>
               <div class="form-group"><label class="form-label">Fecha de nacimiento</label><input type="date" id="fFechaNacimiento"></div>
               <div class="form-group"><label class="form-label">Sexo</label>
@@ -1255,8 +1259,6 @@
     return payload;
   }
 
-  var personalDirectorio = {}; // LP -> {grado, apellido, nombre} — planilla general
-  var personalArray = [];      // mismo directorio, como lista, para buscar por apellido/nombre
   var fichas = [];             // TODOS los registros (activos + dados de baja) — historial completo
   var fichasActivas = [];      // solo activo=true — lo que ven KPIs, dashboard y exportaciones por defecto
   var lastBoxType = null;      // recuerda qué caja del dashboard se abrió, para el botón "Volver"
@@ -1386,7 +1388,6 @@
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
       if (window.SOLO_LECTURA) aplicarModoSoloLectura(['darDeBajaFicha', 'eliminarArchivoDrive', 'guardarPersonal', 'reactivarFicha', 'subirImagenDrivePromise', 'confirmarRecorte', 'editarDesdeFicha', 'eliminarImagenCampo', 'prepararPersonalNuevo', 'subirFotoPersonal', 'subirImagenGenerica']);
-      cargarDirectorioPersonal();
       cargarFichas();
     } finally {
       hideLoading();
@@ -1517,26 +1518,11 @@
     return res.data.signedUrl;
   }
 
-  // ---- Precarga del directorio general de Personal ----
-  function cargarDirectorioPersonal() {
-    supabaseClient.from('personal_general').select('lp,grado,apellido,nombres').then(function(res) {
-      if (res.error) { console.error('No se pudo precargar el directorio de personal: ', res.error); return; }
-      personalDirectorio = {};
-      (res.data || []).forEach(function(p) {
-        personalDirectorio[p.lp] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombres || '' };
-      });
-      personalArray = Object.keys(personalDirectorio).map(function(lp) {
-        var p = personalDirectorio[lp];
-        return { lp: lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre };
-      });
-    });
-  }
-
   async function buscarPersonalPorLPSupabase(lp) {
-    var res = await supabaseClient.from('personal_general').select('grado,apellido,nombres').eq('lp', lp).maybeSingle();
+    var res = await supabaseClient.from('nomina_general').select('grado,apellido,nombre,dni').eq('legajo', lp).maybeSingle();
     if (res.error) return { success:false, error: res.error.message };
-    if (!res.data) return { success:false, error: 'LP no encontrado en la planilla general de Personal' };
-    return { success:true, data: { grado: res.data.grado || '', apellido: res.data.apellido || '', nombre: res.data.nombres || '' } };
+    if (!res.data) return { success:false, error: 'LP no encontrado en la nómina general' };
+    return { success:true, data: { grado: res.data.grado || '', apellido: res.data.apellido || '', nombre: res.data.nombre || '', dni: str(res.data.dni) } };
   }
 
   async function buscarPersonalTiroPorLPSupabase(lp) {
@@ -1546,11 +1532,18 @@
     return { success:true, data: filaDesdeSupabase(res.data) };
   }
 
-  // ---- Sugerencias por LP / Apellido / Nombre (formulario de Registro) ----
+  // ---- Sugerencias por LP / Apellido / Nombre (formulario de Registro) — se busca en
+  // nomina_general (padrón de TODA la fuerza), igual que el resto del sitio desde la
+  // unificación de septiembre 2026 (ver GUIA_INSTALACION.md), en vez de precargar entera
+  // la planilla propia de Personal. Búsqueda al servidor con debounce (no instantánea en
+  // el cliente) porque nomina_general tiene ~46.000 filas. ----
+  var _personalDebounce = null;
+  var _personalResultados = [];
   function buscarSugerencias() {
     var input  = document.getElementById('fBuscarLP');
     var listEl = document.getElementById('fLPSuggest');
-    var q = input.value.trim().toLowerCase();
+    var q = input.value.trim();
+    clearTimeout(_personalDebounce);
 
     if (!q) {
       listEl.classList.remove('show');
@@ -1558,23 +1551,37 @@
       document.getElementById('fPersonalPreview').classList.remove('show','notfound','existing');
       return;
     }
-
-    var matches = personalArray.filter(function(p) {
-      return String(p.lp).toLowerCase().indexOf(q) !== -1 ||
-             (p.apellido || '').toLowerCase().indexOf(q) !== -1 ||
-             (p.nombre   || '').toLowerCase().indexOf(q) !== -1;
-    }).slice(0, 8);
-
-    if (!matches.length) {
-      listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en la planilla general de Personal</div>';
-    } else {
-      listEl.innerHTML = matches.map(function(p) {
-        return '<div class="autocomplete-item" onmousedown="seleccionarPersona(\''+esc(p.lp)+'\')">' +
-          '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b>' +
-          '<small>LP '+esc(p.lp)+' — '+esc(p.grado)+'</small></div>';
-      }).join('');
+    if (q.length < 3) {
+      listEl.innerHTML = '<div class="autocomplete-empty">Escribí al menos 3 caracteres</div>';
+      listEl.classList.add('show');
+      return;
     }
+
+    listEl.innerHTML = '<div class="autocomplete-empty">Buscando…</div>';
     listEl.classList.add('show');
+    _personalDebounce = setTimeout(async function() {
+      var qEsc = q.replace(/[%_,]/g, '');
+      var res = await supabaseClient.from('nomina_general')
+        .select('lp:legajo,grado,apellido,nombre')
+        .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
+        .limit(10);
+      if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+      var matches = res.data || [];
+      _personalResultados = matches;
+      if (!matches.length) {
+        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en la nómina general</div>';
+      } else {
+        // Se guarda cada resultado en _personalResultados y se pasa solo el índice al
+        // onmousedown (nada de JSON en el atributo HTML, para no romper el handler por
+        // doble escapado de comillas).
+        listEl.innerHTML = matches.map(function(p, i) {
+          return '<div class="autocomplete-item" onmousedown="seleccionarPersona('+i+')">' +
+            '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b>' +
+            '<small>LP '+esc(p.lp)+' — '+esc(p.grado)+'</small></div>';
+        }).join('');
+      }
+      listEl.classList.add('show');
+    }, 400);
   }
 
   function ocultarSugerenciasConDelay() {
@@ -1583,13 +1590,15 @@
     }, 150);
   }
 
-  function seleccionarPersona(lp) {
-    document.getElementById('fBuscarLP').value = lp;
+  function seleccionarPersona(idx) {
+    var p = _personalResultados[idx];
+    if (!p) return;
+    document.getElementById('fBuscarLP').value = p.lp;
     document.getElementById('fLPSuggest').classList.remove('show');
     lookupLP();
   }
 
-  // ---- Lookup de la persona: primero datos base (planilla general), luego ficha propia si ya existe ----
+  // ---- Lookup de la persona: primero datos base (nómina general), luego ficha propia si ya existe ----
   // afterCallback (opcional) se ejecuta recién cuando la ficha terminó de cargarse — lo usa
   // la lectura de CLU para aplicar los datos de la credencial después de que se complete el formulario.
   async function lookupLP(afterCallback) {
@@ -1603,24 +1612,20 @@
       return;
     }
 
-    var base = personalDirectorio[lp];
-    if (!base) {
-      var resBase = await buscarPersonalPorLPSupabase(lp);
-      if (resBase.success) {
-        personalDirectorio[lp] = resBase.data;
-        return lookupLP(afterCallback);
-      } else {
-        preview.className = 'personal-preview show notfound';
-        texto.innerHTML = '⚠️ LP no encontrado en la planilla general de Personal. ' +
-          '<button type="button" class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="prepararPersonalNuevo(\''+esc(lp)+'\')">➕ Cargar como personal nuevo</button>';
-        limpiarDatosBase();
-        if (afterCallback) afterCallback();
-        return;
-      }
+    var resBase = await buscarPersonalPorLPSupabase(lp);
+    if (!resBase.success) {
+      preview.className = 'personal-preview show notfound';
+      texto.innerHTML = '⚠️ LP no encontrado en la nómina general. ' +
+        '<button type="button" class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="prepararPersonalNuevo(\''+esc(lp)+'\')">➕ Cargar como personal nuevo</button>';
+      limpiarDatosBase();
+      if (afterCallback) afterCallback();
+      return;
     }
+    var base = resBase.data;
 
-    // Datos base de alguien ya conocido en la planilla general: quedan de solo lectura
-    // (por si venías del flujo "cargar como nuevo" con los campos desbloqueados).
+    // Grado/Apellido/Nombres vienen de la nómina general (padrón de toda la fuerza):
+    // quedan de solo lectura (por si venías del flujo "cargar como nuevo" con los
+    // campos desbloqueados) — para corregir un error de tipeo hay que hacerlo ahí.
     ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).setAttribute('readonly', true); });
     document.getElementById('fGrado').value = base.grado;
     document.getElementById('fLP').value = lp;
@@ -1637,6 +1642,15 @@
       preview.className = 'personal-preview show';
       texto.innerHTML = '👤 <b>'+esc(base.apellido)+', '+esc(base.nombre)+'</b> ('+esc(base.grado)+') — sin ficha cargada aún, se agregará una nueva.';
     }
+
+    // El DNI de la nómina general pisa lo que haya quedado guardado en la ficha (por si
+    // en algún momento se cargó distinto a mano) y queda de solo lectura. Si la nómina
+    // no tiene DNI cargado para esta persona, se deja el campo editable para completarlo
+    // a mano o leyendo la foto del DNI (frente).
+    var fDNI = document.getElementById('fDNI');
+    if (base.dni) { fDNI.value = base.dni; fDNI.setAttribute('readonly', true); }
+    else { fDNI.removeAttribute('readonly'); }
+
     document.getElementById('formTitle').textContent = 'Ficha de ' + base.apellido + ', ' + base.nombre;
     if (afterCallback) afterCallback();
   }
@@ -1646,21 +1660,26 @@
     document.getElementById('fLP').value = '';
     document.getElementById('fApellido').value = '';
     document.getElementById('fNombres').value = '';
+    document.getElementById('fDNI').value = '';
+    document.getElementById('fDNI').removeAttribute('readonly');
   }
 
-  // Desbloquea Grado/LP/Apellido/Nombres para cargar a alguien que no está en la
-  // planilla general de Personal. Al guardar la ficha (guardarPersonal), esos datos
-  // se dan de alta automáticamente en personal_general — no hace falta ir a otro lado.
+  // Desbloquea Grado/LP/Apellido/Nombres/DNI para cargar a alguien que todavía no está
+  // en la nómina general (por ejemplo, un ingreso muy reciente que no llegó a la
+  // planilla que carga datos_nomina.sql). Se completa a mano y queda guardado en la
+  // ficha de la División Tiro (personal_tiro) — conviene avisarle a quien actualiza la
+  // nómina general para que sumen a la persona ahí también.
   function prepararPersonalNuevo(lp) {
     limpiarCamposExtendidos();
-    ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).removeAttribute('readonly'); });
+    ['fLP','fGrado','fApellido','fNombres','fDNI'].forEach(function(id){ document.getElementById(id).removeAttribute('readonly'); });
     document.getElementById('fLP').value = lp;
     document.getElementById('fGrado').value = '';
     document.getElementById('fApellido').value = '';
     document.getElementById('fNombres').value = '';
+    document.getElementById('fDNI').value = '';
     var preview = document.getElementById('fPersonalPreview');
     preview.className = 'personal-preview show';
-    document.getElementById('fPersonalTexto').innerHTML = '🆕 Cargando <b>LP '+esc(lp)+'</b> como personal nuevo — completá Grado, Apellido y Nombres abajo. Se agrega a la planilla general y a la ficha de la División Tiro al guardar.';
+    document.getElementById('fPersonalTexto').innerHTML = '🆕 Cargando <b>LP '+esc(lp)+'</b> como personal nuevo — no está (todavía) en la nómina general. Completá Grado, Apellido, Nombres y DNI abajo; quedan guardados en la ficha de la División Tiro.';
     document.getElementById('formTitle').textContent = 'Nueva ficha — LP ' + lp;
     document.getElementById('fGrado').focus();
   }
@@ -2299,7 +2318,7 @@
     document.getElementById('fBuscarLP').value = '';
     limpiarDatosBase();
     limpiarCamposExtendidos();
-    ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).setAttribute('readonly', true); });
+    ['fLP','fGrado','fApellido','fNombres','fDNI'].forEach(function(id){ document.getElementById(id).setAttribute('readonly', true); });
     document.getElementById('fPersonalPreview').classList.remove('show','notfound','existing');
     document.getElementById('formTitle').textContent = 'Buscar / cargar personal';
     ['fCluImagen', 'fClu2Imagen', 'fFotoPersonal', 'fDniFrente', 'fDniDorso',
@@ -2314,8 +2333,10 @@
 
   // Guarda (alta o edición, siempre por upsert sobre "lp" — ya no hace falta distinguir
   // entre insertar y actualizar como en la versión Apps Script, que buscaba la fila a mano).
-  // Además sincroniza personal_general: si el LP no existía ahí (flujo "cargar como
-  // personal nuevo"), lo crea; si ya existía, lo mantiene al día con Grado/Apellido/Nombres.
+  // Grado/Apellido/Nombres/DNI vienen de la nómina general (solo lectura acá, salvo el
+  // caso "personal nuevo" que todavía no está en esa nómina) y se guardan también en
+  // personal_tiro como copia — de ahí los usan Servicios/Licencias/Guardias/etc. para
+  // mostrar el nombre sin tener que ir a buscarlo a la nómina cada vez.
   async function guardarPersonal() {
     var lp = document.getElementById('fLP').value.trim();
     var grado = document.getElementById('fGrado').value.trim();
@@ -2334,17 +2355,9 @@
 
     showLoading('Guardando ficha…');
     try {
-      var resGeneral = await supabaseClient.from('personal_general')
-        .upsert({ lp: lp, grado: grado, apellido: apellido, nombres: nombres }, { onConflict: 'lp' });
-      if (resGeneral.error) throw resGeneral.error;
-
       var res = await supabaseClient.from('personal_tiro').upsert(payload, { onConflict: 'lp' }).select().maybeSingle();
       if (res.error) throw res.error;
 
-      personalDirectorio[lp] = { grado: grado, apellido: apellido, nombre: nombres };
-      if (!personalArray.some(function(p){ return p.lp === lp; })) {
-        personalArray.push({ lp: lp, grado: grado, apellido: apellido, nombre: nombres });
-      }
       ['fLP','fGrado','fApellido','fNombres'].forEach(function(id){ document.getElementById(id).setAttribute('readonly', true); });
       alertShow('formAlert','success','Ficha guardada correctamente.');
       document.getElementById('fVencimiento').value = '';
