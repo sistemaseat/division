@@ -282,6 +282,28 @@
   .config-item:last-child { border-bottom: none; }
   .config-item span { flex: 1; }
 
+  /* GENERAR TEXTO */
+  .subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .subnav-btn {
+    padding: 8px 16px; border-radius: 50px; border: 1.5px solid var(--border);
+    background: var(--card); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .subnav-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .subpane { display: none; }
+  .subpane.active { display: block; }
+  .row-2col { display: grid; grid-template-columns: minmax(0,5fr) minmax(0,7fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .row-2col { grid-template-columns: 1fr; } }
+  .output-box {
+    background: #f7f9ff; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 16px; min-height: 220px; font-size: 13px; line-height: 1.75; color: var(--text);
+    white-space: pre-wrap;
+  }
+  .edicion-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .edicion-row:last-child { border-bottom: none; }
+  .edicion-row .ed-fecha { flex: 1; font-weight: 700; }
+  .edicion-row .ed-count { color: var(--muted); font-size: 12px; }
+  .edicion-row input { width: 90px; }
+
   @media (max-width: 900px) {
     .form-grid { grid-template-columns: 1fr 1fr; }
     .form-group.half { grid-column: span 2; }
@@ -392,6 +414,7 @@
   <button class="tab-btn" data-tab="nueva" onclick="switchTab('nueva')">➕ Nueva Curso</button>
   <button class="tab-btn" data-tab="registros" onclick="switchTab('registros')">📋 Registros</button>
   <button class="tab-btn" data-tab="exportar" onclick="switchTab('exportar')">⬇️ Exportar</button>
+  <button class="tab-btn" data-tab="textos" onclick="switchTab('textos')">📝 Generar Texto</button>
   <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Configuración</button>
 </nav>
 
@@ -620,6 +643,96 @@
     <div class="field-hint">Con filtros muy amplios (por ejemplo "Todos" sin fechas) la exportación puede tardar unos segundos.</div>
   </div>
 
+  <!-- ==================== GENERAR TEXTO ==================== -->
+  <div class="tab-pane" id="pane-textos">
+    <div class="subnav">
+      <button class="subnav-btn active" data-sub="diario" onclick="mostrarTextoCurso('diario')">📅 Resultado diario</button>
+      <button class="subnav-btn" data-sub="semanal" onclick="mostrarTextoCurso('semanal')">🗓️ Resumen semanal (viernes)</button>
+    </div>
+
+    <!-- ---- RESULTADO DIARIO ---- -->
+    <div class="subpane active" id="sub-diario">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">📅</span> Resultado diario de un curso</div>
+
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group full">
+              <label class="form-label">Curso<span class="required-star">*</span></label>
+              <select id="txdCurso" onchange="autocompletarEdicionDiario()"></select>
+            </div>
+            <div class="form-group full"><label class="form-label">Fecha<span class="required-star">*</span></label><input type="date" id="txdFecha" onchange="autocompletarEdicionDiario()"></div>
+            <div class="form-group full"><label class="form-label">Resolución Nro.</label><input type="text" id="txdResolucion" placeholder="286/ISSP/2023"></div>
+            <div class="form-group full"><label class="form-label">Edición nro.</label><input type="text" id="txdEdicion" placeholder="06"></div>
+            <div class="form-group full"><label class="form-label">Horario desde</label><input type="time" id="txdHorarioDesde"></div>
+            <div class="form-group full"><label class="form-label">Horario hasta</label><input type="time" id="txdHorarioHasta"></div>
+            <div class="form-group full"><label class="form-label">A:</label><input type="text" id="txdA" placeholder="Nombre Apellido (DCEISSP)"></div>
+            <div class="form-group full"><label class="form-label">Con Copia A:</label><input type="text" id="txdCopia" placeholder="Nombre Apellido (DCEISSP)"></div>
+            <div class="form-group full"><label class="form-label">Iniciales de quien redacta</label><input type="text" id="txdIniciales" placeholder="eat - DT"></div>
+            <div class="form-group full">
+              <label class="form-label">Firma</label>
+              <textarea id="txdFirma" style="min-height:90px;"></textarea>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoDiario()">Generar Texto</button>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoDiario')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoDiario"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- RESUMEN SEMANAL ---- -->
+    <div class="subpane" id="sub-semanal">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">🗓️</span> Resumen semanal (todas las ediciones de la semana)</div>
+
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group full">
+              <label class="form-label">Curso<span class="required-star">*</span></label>
+              <select id="txsCurso"></select>
+            </div>
+            <div class="form-group"><label class="form-label">Desde<span class="required-star">*</span></label><input type="date" id="txsDesde"></div>
+            <div class="form-group"><label class="form-label">Hasta<span class="required-star">*</span></label><input type="date" id="txsHasta"></div>
+            <div class="form-group full"><label class="form-label">Resolución Nro.</label><input type="text" id="txsResolucion" placeholder="286/ISSP/2023"></div>
+            <div class="form-group full"><label class="form-label">Horario desde</label><input type="time" id="txsHorarioDesde"></div>
+            <div class="form-group full"><label class="form-label">Horario hasta</label><input type="time" id="txsHorarioHasta"></div>
+            <div class="form-group full"><label class="form-label">A:</label><input type="text" id="txsA" placeholder="Nombre Apellido (DCEISSP)"></div>
+            <div class="form-group full"><label class="form-label">Con Copia A:</label><input type="text" id="txsCopia" placeholder="Nombre Apellido (DCEISSP)"></div>
+            <div class="form-group full"><label class="form-label">Iniciales de quien redacta</label><input type="text" id="txsIniciales" placeholder="npp - DT"></div>
+            <div class="form-group full">
+              <label class="form-label">Firma</label>
+              <textarea id="txsFirma" style="min-height:90px;"></textarea>
+            </div>
+          </div>
+
+          <button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="buscarEdicionesSemana()">🔎 Buscar ediciones de la semana</button>
+
+          <div id="txsEdicionesWrap" style="margin-top:14px; display:none;">
+            <div class="field-hint" style="margin-bottom:6px;">Completá el número de edición oficial de cada fecha encontrada (se recuerda para la próxima vez que generes el texto de esa misma fecha).</div>
+            <div id="txsEdicionesList"></div>
+            <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoSemanal()">Generar Texto</button>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoSemanal')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoSemanal"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== CONFIGURACIÓN ==================== -->
   <div class="tab-pane" id="pane-config">
     <div class="table-card">
@@ -688,6 +801,14 @@
   var CALIFICACIONES = ['Pendiente','Aprobado','Desaprobado','Ausente'];
   var CURSOS_DISPONIBLES = []; // nombres, cargados desde cursos_config
 
+  // Mismo orden de jerarquía que usa personal.html para ordenar por Grado.
+  var ORDEN_GRADO = ['Comisario', 'Subcomisario', 'Principal', 'Inspector', 'Oficial Mayor', 'Oficial Primero', 'Oficial'];
+  function rankGrado(g) {
+    var i = ORDEN_GRADO.indexOf(String(g || '').trim());
+    return i === -1 ? ORDEN_GRADO.length : i;
+  }
+  var _textosCamposCargados = false;
+
   var personalSeleccionado = null;
   var regPage = 0;             // página actual de Registros (0-indexed)
   var regPageSize = 50;
@@ -749,6 +870,7 @@
     document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
     if (tab === 'registros' && !document.getElementById('tbodyRegistros').children.length) recargarRegistros(true);
     if (tab === 'estadisticas' && !_serieData) cargarEstadisticas();
+    if (tab === 'textos' && !_textosCamposCargados) { cargarCamposTexto(); _textosCamposCargados = true; }
   }
 
   // ============================================================
@@ -876,8 +998,12 @@
       return '<option value="'+esc(c)+'">'+esc(c)+'</option>';
     }).join('');
 
-    var selNueva = document.getElementById('nCurso');
-    selNueva.innerHTML = '<option value="">-- Seleccionar --</option>' + opciones;
+    ['nCurso', 'txdCurso', 'txsCurso'].forEach(function(id) {
+      var el = document.getElementById(id);
+      var actual = el.value;
+      el.innerHTML = '<option value="">-- Seleccionar --</option>' + opciones;
+      if (CURSOS_DISPONIBLES.indexOf(actual) !== -1) el.value = actual;
+    });
 
     ['fRegCurso', 'fExpCurso', 'eCurso'].forEach(function(id) {
       var el = document.getElementById(id);
@@ -1537,6 +1663,320 @@
     } finally {
       hideLoading();
     }
+  }
+
+  // ============================================================
+  // GENERAR TEXTO — nota para elevar por SADE con los resultados de un
+  // curso. Dos modalidades: "Resultado diario" (una fecha/edición) y
+  // "Resumen semanal" (varias ediciones juntas, para el envío de los
+  // viernes). Los datos de personal salen de los propios registros ya
+  // cargados en "Nueva Curso"/el histórico -- no hay que volver a
+  // tipearlos. Lo que NO está en la base (destinatarios, resolución,
+  // número de edición oficial, firma) se pide en el formulario y se
+  // recuerda en este navegador (localStorage) para la próxima vez.
+  // ============================================================
+  var LS_PREFIX = 'divisionTiroCursos.';
+  var FIRMA_DEFAULT = 'Matías Ezequiel Bailatte\nComisario\nDIRECCION AUTONOMA DE COORDINACION Y ENLACE CON ISSP\nSUBJEFATURA POLICIA DE LA CIUDAD';
+
+  function lsGet(key, def) {
+    try { var v = window.localStorage.getItem(LS_PREFIX + key); return (v === null || v === undefined) ? def : v; }
+    catch (e) { return def; }
+  }
+  function lsSet(key, val) {
+    try { window.localStorage.setItem(LS_PREFIX + key, val == null ? '' : val); } catch (e) { /* localStorage no disponible: no se recuerda, pero no rompe nada */ }
+  }
+
+  function cargarCamposTexto() {
+    document.getElementById('txdResolucion').value = lsGet('resolucion', '');
+    document.getElementById('txdHorarioDesde').value = lsGet('horarioDesde', '');
+    document.getElementById('txdHorarioHasta').value = lsGet('horarioHasta', '');
+    document.getElementById('txdA').value = lsGet('a', '');
+    document.getElementById('txdCopia').value = lsGet('copia', '');
+    document.getElementById('txdIniciales').value = lsGet('iniciales', '');
+    document.getElementById('txdFirma').value = lsGet('firma', FIRMA_DEFAULT);
+
+    document.getElementById('txsResolucion').value = lsGet('resolucion', '');
+    document.getElementById('txsHorarioDesde').value = lsGet('horarioDesde', '');
+    document.getElementById('txsHorarioHasta').value = lsGet('horarioHasta', '');
+    document.getElementById('txsA').value = lsGet('a', '');
+    document.getElementById('txsCopia').value = lsGet('copia', '');
+    document.getElementById('txsIniciales').value = lsGet('iniciales', '');
+    document.getElementById('txsFirma').value = lsGet('firma', FIRMA_DEFAULT);
+  }
+
+  // Guarda los campos "comunes" (destinatarios/resolución/horario/firma) de
+  // cualquiera de los dos formularios -- se comparten entre Diario y Semanal
+  // para no tener que cargarlos dos veces.
+  function guardarCamposComunes(prefijo) {
+    lsSet('resolucion', document.getElementById(prefijo + 'Resolucion').value);
+    lsSet('horarioDesde', document.getElementById(prefijo + 'HorarioDesde').value);
+    lsSet('horarioHasta', document.getElementById(prefijo + 'HorarioHasta').value);
+    lsSet('a', document.getElementById(prefijo + 'A').value);
+    lsSet('copia', document.getElementById(prefijo + 'Copia').value);
+    lsSet('iniciales', document.getElementById(prefijo + 'Iniciales').value);
+    lsSet('firma', document.getElementById(prefijo + 'Firma').value);
+  }
+
+  function mostrarTextoCurso(sub) {
+    document.querySelectorAll('.subnav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.sub === sub); });
+    document.querySelectorAll('.subpane').forEach(function(p){ p.classList.toggle('active', p.id === 'sub-'+sub); });
+  }
+
+  function claveEdicion(curso, fecha) { return 'edicion.' + curso + '.' + fecha; }
+
+  function autocompletarEdicionDiario() {
+    var curso = document.getElementById('txdCurso').value;
+    var fecha = document.getElementById('txdFecha').value;
+    if (!curso || !fecha) return;
+    var recordado = lsGet(claveEdicion(curso, fecha), '');
+    if (recordado) document.getElementById('txdEdicion').value = recordado;
+  }
+
+  function ordenarPersonas(filas) {
+    return filas.slice().sort(function(a, b) {
+      var r = rankGrado(a.grado) - rankGrado(b.grado);
+      if (r !== 0) return r;
+      return String(a.apellido||'').localeCompare(String(b.apellido||''), 'es');
+    });
+  }
+
+  function lineaPersona(p, conDni, numero) {
+    var base = str(p.grado) + ' ' + str(p.lp) + ' ' + str(p.apellido) + ' ' + str(p.nombre);
+    if (conDni && p.dni) base += ' ' + str(p.dni);
+    return (numero != null ? (numero + '. ') : '• ') + base;
+  }
+
+  async function generarTextoDiario() {
+    var curso = document.getElementById('txdCurso').value;
+    var fecha = document.getElementById('txdFecha').value;
+    if (!curso || !fecha) { alertShow('topAlert', 'error', 'Completá curso y fecha.'); return; }
+
+    var resolucion = str(document.getElementById('txdResolucion').value);
+    var edicion = str(document.getElementById('txdEdicion').value);
+    var hDesde = document.getElementById('txdHorarioDesde').value;
+    var hHasta = document.getElementById('txdHorarioHasta').value;
+    var a = str(document.getElementById('txdA').value);
+    var copia = str(document.getElementById('txdCopia').value);
+    var iniciales = str(document.getElementById('txdIniciales').value);
+    var firma = document.getElementById('txdFirma').value || FIRMA_DEFAULT;
+
+    showLoading('Buscando registros…');
+    try {
+      var res = await supabaseClient.from('cursos').select('grado,lp,dni,apellido,nombre,calificacion')
+        .eq('curso', curso).lte('fecha', fecha).gte('fecha_hasta', fecha);
+      if (res.error) throw res.error;
+      var filas = res.data || [];
+      var aprobados = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Aprobado'; }));
+      var desaprobados = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Desaprobado'; }));
+      var ausentes = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Ausente'; }));
+      var pendientes = filas.filter(function(f){ return f.calificacion === 'Pendiente'; });
+
+      if (!aprobados.length && !desaprobados.length && !ausentes.length) {
+        alertShow('topAlert', 'error', 'No hay registros con calificación cargada para ese curso en esa fecha.');
+        return;
+      }
+      if (pendientes.length) {
+        alertShow('topAlert', 'success', '⚠️ Hay ' + pendientes.length + ' registro(s) todavía Pendiente para esa fecha — no se incluyen en el texto.');
+      }
+
+      if (edicion) lsSet(claveEdicion(curso, fecha), edicion);
+      guardarCamposComunes('txd');
+
+      var partes = [];
+      partes.push('Referencia: S/ CURSO ' + curso.toUpperCase());
+      partes.push('');
+      partes.push('A: ' + (a || '—') + ',');
+      partes.push('Con Copia A: ' + (copia || '—') + ',');
+      partes.push('');
+      partes.push('De mi mayor consideración:');
+      partes.push('');
+
+      var horarioTxt = (hDesde && hHasta) ? (' en el horario ' + hDesde + ' a ' + hHasta + ' horas') : '';
+      var edicionTxt = edicion ? (' Edición nro. ' + edicion + ',') : '';
+      partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
+      partes.push('');
+      if (aprobados.length) {
+        aprobados.forEach(function(p){ partes.push(lineaPersona(p, false)); });
+      } else {
+        partes.push('(sin aprobados)');
+      }
+
+      if (desaprobados.length) {
+        partes.push('');
+        partes.push('Asimismo, informo que el siguiente personal DESAPROBÓ la citada capacitación:');
+        partes.push('');
+        desaprobados.forEach(function(p){ partes.push(lineaPersona(p, false)); });
+      }
+
+      if (ausentes.length) {
+        partes.push('');
+        partes.push('Ausentes:');
+        ausentes.forEach(function(p){ partes.push(lineaPersona(p, false)); });
+      }
+
+      partes.push('');
+      partes.push('Se eleva la presente para conocimiento y prosecución administrativa.');
+      partes.push('');
+      if (iniciales) { partes.push(iniciales); partes.push(''); }
+      partes.push('Sin otro particular saluda atte.');
+      partes.push('');
+      partes.push(firma);
+
+      document.getElementById('resultadoDiario').textContent = partes.join('\n');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al generar el texto: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  var _semanaGrupos = null;      // [{ fecha, fecha_hasta, edicion }] ordenados cronológicamente
+  var _semanaFilas = null;       // todas las filas (grado,lp,dni,apellido,nombre,calificacion,fecha,fecha_hasta) del rango
+
+  async function buscarEdicionesSemana() {
+    var curso = document.getElementById('txsCurso').value;
+    var desde = document.getElementById('txsDesde').value;
+    var hasta = document.getElementById('txsHasta').value;
+    if (!curso || !desde || !hasta) { alertShow('topAlert', 'error', 'Completá curso, desde y hasta.'); return; }
+
+    showLoading('Buscando ediciones…');
+    try {
+      var res = await supabaseClient.from('cursos').select('grado,lp,dni,apellido,nombre,calificacion,fecha,fecha_hasta')
+        .eq('curso', curso).gte('fecha', desde).lte('fecha', hasta).order('fecha', { ascending: true });
+      if (res.error) throw res.error;
+      _semanaFilas = res.data || [];
+
+      if (!_semanaFilas.length) {
+        alertShow('topAlert', 'error', 'No hay registros de este curso en ese rango de fechas.');
+        document.getElementById('txsEdicionesWrap').style.display = 'none';
+        return;
+      }
+
+      var vistos = {};
+      _semanaGrupos = [];
+      _semanaFilas.forEach(function(f) {
+        var key = f.fecha + '|' + f.fecha_hasta;
+        if (vistos[key]) return;
+        vistos[key] = true;
+        _semanaGrupos.push({ fecha: f.fecha, fecha_hasta: f.fecha_hasta, edicion: lsGet(claveEdicion(curso, f.fecha), '') });
+      });
+      _semanaGrupos.sort(function(a,b){ return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0; });
+
+      document.getElementById('txsEdicionesList').innerHTML = _semanaGrupos.map(function(g, i) {
+        var n = _semanaFilas.filter(function(f){ return f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta; }).length;
+        return '<div class="edicion-row"><span class="ed-fecha">' + fmtRangoFechas(g.fecha, g.fecha_hasta) + '</span>' +
+          '<span class="ed-count">' + n + ' registro(s)</span>' +
+          '<input type="text" placeholder="Edición nro." value="' + esc(g.edicion) + '" data-idx="' + i + '" onchange="_semanaGrupos[' + i + '].edicion = this.value.trim();"></div>';
+      }).join('');
+      document.getElementById('txsEdicionesWrap').style.display = 'block';
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al buscar ediciones: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function bloquePorEdicion(grupos, filas, calificacion, conDni) {
+    var out = [];
+    grupos.forEach(function(g) {
+      var personas = ordenarPersonas(filas.filter(function(f){ return f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta && f.calificacion === calificacion; }));
+      if (!personas.length) return;
+      out.push('EDICIÓN NRO. ' + (g.edicion || '?') + ':');
+      out.push('');
+      personas.forEach(function(p, i){ out.push(lineaPersona(p, conDni, i+1)); });
+      out.push('');
+    });
+    return out;
+  }
+
+  function generarTextoSemanal() {
+    if (!_semanaGrupos || !_semanaFilas) { alertShow('topAlert', 'error', 'Primero tocá "Buscar ediciones de la semana".'); return; }
+    var curso = document.getElementById('txsCurso').value;
+    var resolucion = str(document.getElementById('txsResolucion').value);
+    var hDesde = document.getElementById('txsHorarioDesde').value;
+    var hHasta = document.getElementById('txsHorarioHasta').value;
+    var a = str(document.getElementById('txsA').value);
+    var copia = str(document.getElementById('txsCopia').value);
+    var iniciales = str(document.getElementById('txsIniciales').value);
+    var firma = document.getElementById('txsFirma').value || FIRMA_DEFAULT;
+
+    if (_semanaGrupos.some(function(g){ return !g.edicion; })) {
+      alertShow('topAlert', 'success', '⚠️ Falta el número de edición en alguna fecha — se generó el texto igual, con "?" en su lugar.');
+    }
+
+    _semanaGrupos.forEach(function(g) { if (g.edicion) lsSet(claveEdicion(curso, g.fecha), g.edicion); });
+    guardarCamposComunes('txs');
+
+    var hayDesaprobados = _semanaFilas.some(function(f){ return f.calificacion === 'Desaprobado'; });
+    var hayAusentes = _semanaFilas.some(function(f){ return f.calificacion === 'Ausente'; });
+
+    var partes = [];
+    partes.push('Referencia: S/ CURSO ' + curso.toUpperCase());
+    partes.push('');
+    partes.push('A: ' + (a || '—') + ',');
+    partes.push('Con Copia A: ' + (copia || '—') + ',');
+    partes.push('');
+    partes.push('De mi mayor consideración:');
+    partes.push('');
+
+    var horarioTxt = (hDesde && hHasta) ? (' en el horario ' + hDesde + ' a ' + hHasta + ' horas') : '';
+    partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + ' ' + fraseEdicionesSemana(_semanaGrupos) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
+    partes.push('');
+    partes = partes.concat(bloquePorEdicion(_semanaGrupos, _semanaFilas, 'Aprobado', true));
+
+    if (hayDesaprobados) {
+      partes.push('Asimismo, informo que el siguiente personal DESAPROBÓ la citada capacitación:');
+      partes.push('');
+      partes = partes.concat(bloquePorEdicion(_semanaGrupos, _semanaFilas, 'Desaprobado', true));
+    }
+
+    if (hayAusentes) {
+      partes.push('Asimismo, se informa que el siguiente personal se AUSENTÓ a dicha capacitación:');
+      partes.push('');
+      partes = partes.concat(bloquePorEdicion(_semanaGrupos, _semanaFilas, 'Ausente', true));
+    }
+
+    partes.push('Se eleva la presente para su conocimiento y prosecución administrativa.');
+    partes.push('');
+    if (iniciales) { partes.push(iniciales); partes.push(''); }
+    partes.push('Sin otro particular saluda atte.');
+    partes.push('');
+    partes.push(firma);
+
+    document.getElementById('resultadoSemanal').textContent = partes.join('\n');
+  }
+
+  function fraseEdicionesSemana(grupos) {
+    var partes = grupos.map(function(g, i) {
+      var pref = (i === 0 ? 'Edición nro. ' : 'Edición nro. ') + (g.edicion || '?') + (i === 0 ? ' a llevarse a cabo con fecha ' : ' con fecha ');
+      return pref + fmtFecha(g.fecha);
+    });
+    if (partes.length === 1) return partes[0];
+    var ultima = 'la ' + partes[partes.length - 1];
+    return partes.slice(0, -1).join(', ') + ' y ' + ultima;
+  }
+
+  function copiarTexto(id) {
+    var el = document.getElementById(id);
+    var txt = el.innerText.trim();
+    if (!txt || txt.includes('El texto aparecerá')) {
+      alertShow('topAlert', 'error', 'No hay texto para copiar.');
+      return;
+    }
+    var tmp = document.createElement('textarea');
+    tmp.value = txt;
+    tmp.style.position = 'fixed';
+    tmp.style.opacity = '0';
+    document.body.appendChild(tmp);
+    tmp.focus();
+    tmp.select();
+    try {
+      document.execCommand('copy');
+      alertShow('topAlert', 'success', '✅ Texto copiado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al copiar.');
+    }
+    document.body.removeChild(tmp);
   }
 
   initAuth();
