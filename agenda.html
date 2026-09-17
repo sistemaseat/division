@@ -729,11 +729,19 @@
       var g = gruposServicios[clave];
       var nombres = g.personas.map(function(lp){ var p = personaDe(lp); return p.apellido ? (p.apellido + ' (LP ' + lp + ')') : ('LP ' + lp); });
       var horario = horarioDeServicio(g.tipo, g.turno);
+      // Igual criterio que Licencias: mostrar Apellido, Nombres en el título en
+      // vez de solo la cantidad. Si es más de una persona, se listan los
+      // nombres completos separados por " · " (con un tope para no hacer el
+      // título eterno si un día se carga un servicio con mucha gente).
+      var nombresCompletos = g.personas.map(function(lp){ var p = personaDe(lp); return nombreCompleto(p) || ('LP ' + lp); });
+      var nombresTitulo = nombresCompletos.length <= 2
+        ? nombresCompletos.join(' · ')
+        : nombresCompletos.slice(0, 2).join(' · ') + ' +' + (nombresCompletos.length - 2);
       agregarEvento('servicio', {
         id: 'serv|' + clave,
         fecha: g.fecha,
         hora: horario,
-        titulo: g.tipo + (g.turno ? ' (' + g.turno + ')' : '') + ' — ' + g.personas.length + ' persona(s)',
+        titulo: g.tipo + (g.turno ? ' (' + g.turno + ')' : '') + ' — ' + nombresTitulo,
         descripcion: nombres.join('\n'),
         origenDetalle: 'Servicio asignado en Servicios y Horarios.'
       });
