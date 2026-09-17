@@ -177,6 +177,13 @@
     .noticia-txt b { display: block; font-size: 12px; font-weight: 700; line-height: 1.3; }
     .noticia-txt span { font-size: 10.5px; color: var(--muted); }
     .noticias-vacio { font-size: 12px; color: var(--muted); text-align: center; padding: 14px 4px; }
+    .noticia-grupo { margin-bottom: 4px; }
+    .noticia-grupo:last-child { margin-bottom: 0; }
+    .noticia-grupo-titulo {
+      font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+      color: var(--muted); margin: 10px 2px 4px;
+    }
+    .noticia-grupo:first-child .noticia-grupo-titulo { margin-top: 0; }
     .noticias-footer { text-align: center; margin-top: 8px; flex-shrink: 0; }
     .noticias-footer a { font-size: 11.5px; font-weight: 700; color: var(--primary); text-decoration: none; }
     .noticias-footer a:hover { text-decoration: underline; }
@@ -677,14 +684,31 @@
   }
 
   var CATEGORIAS_NOTICIAS = {
-    cumpleanos: { icon: '🎂', color: '#ad1457' },
-    servicio:   { icon: '🚓', color: '#0277bd' },
-    pae:        { icon: '🎯', color: '#00695c' },
-    licencia:   { icon: '🏖️', color: '#e65100' },
-    guardia:    { icon: '🛡️', color: '#6a1b9a' },
-    ascenso:    { icon: '🎖️', color: '#2e7d32' },
-    idoneidad:  { icon: '🔫', color: '#5d4037' }
+    cumpleanos:  { icon: '🎂', color: '#ad1457' },
+    servicio:    { icon: '🚓', color: '#0277bd' },
+    pae:         { icon: '🎯', color: '#00695c' },
+    licencia:    { icon: '🏖️', color: '#e65100' },
+    guardia:     { icon: '🛡️', color: '#6a1b9a' },
+    ascenso:     { icon: '🎖️', color: '#2e7d32' },
+    idoneidad:   { icon: '🔫', color: '#5d4037' },
+    vencimiento: { icon: '⏰', color: '#c62828' }
   };
+
+  // Agrupa las noticias en 4 secciones (a pedido de Enzo): Vencimientos,
+  // Licencias Anuales y Servicios tienen su propio grupo por ser las que
+  // más se consultan a diario; todo lo demás (Cumpleaños, PAE, Guardias,
+  // Ascensos, Idoneidades) cae en "Eventos".
+  var GRUPOS_NOTICIAS = {
+    vencimiento: 'Vencimientos',
+    licencia:    'Licencias Anuales',
+    servicio:    'Servicios',
+    cumpleanos:  'Eventos',
+    pae:         'Eventos',
+    guardia:     'Eventos',
+    ascenso:     'Eventos',
+    idoneidad:   'Eventos'
+  };
+  var ORDEN_GRUPOS_NOTICIAS = ['Vencimientos', 'Licencias Anuales', 'Servicios', 'Eventos'];
 
   async function cargarNoticias() {
     var cont = document.getElementById('noticiasLista');
@@ -705,7 +729,8 @@
         // históricos, así que acá sí conviene filtrar fecha+estado directo
         // en la consulta (no traer todo y filtrar en JS como el resto,
         // que son tablas chicas) — solo pendientes de hoy/mañana.
-        supabaseClient.from('idoneidades').select('fecha,tipo,lp').eq('estado', 'Pendiente').gte('fecha', hoy).lte('fecha', limite)
+        supabaseClient.from('idoneidades').select('fecha,tipo,lp').eq('estado', 'Pendiente').gte('fecha', hoy).lte('fecha', limite),
+        supabaseClient.from('vencimientos').select('titulo,tipo,dia_semana,fecha')
       ]);
       var personal = results[0].error ? [] : (results[0].data || []);
       var servicios = results[1].error ? [] : (results[1].data || []);
@@ -714,6 +739,7 @@
       var guardias = results[4].error ? [] : (results[4].data || []);
       var ascensos = results[5].error ? [] : (results[5].data || []);
       var idoneidades = results[6].error ? [] : (results[6].data || []);
+      var vencimientos = results[7].error ? [] : (results[7].data || []);
 
       function personaDe2(lp) { return personal.find(function(p){ return String(p.lp) === String(lp); }) || {}; }
       function nombreDe2(p) { return [p.apellido, p.nombres].filter(Boolean).join(', '); }
@@ -794,6 +820,28 @@
         eventos.push({ cat: 'idoneidad', fecha: g.fecha, titulo: '🔫 ' + g.tipo + ' — ' + g.n + (g.n === 1 ? ' Efectivo' : ' Efectivos') });
       });
 
+      // Vencimientos — "Recurrente" se repite todas las semanas en
+      // dia_semana, así que acá (ventana angosta de hoy/mañana nada más)
+      // alcanza con chequear si hoy o mañana caen en ese día de semana;
+      // "Puntual" es una fecha exacta, se muestra si cae en la ventana.
+      var DIA_SEMANA_JS2 = { LUNES: 1, MARTES: 2, MIERCOLES: 3, JUEVES: 4, VIERNES: 5 };
+      function diaSemanaDeFecha2(iso) {
+        var p = iso.split('-');
+        return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getDay();
+      }
+      vencimientos.forEach(function(r) {
+        if (r.tipo === 'Puntual') {
+          if (!r.fecha || r.fecha < hoy || r.fecha > limite) return;
+          eventos.push({ cat: 'vencimiento', fecha: r.fecha, titulo: '⏰ ' + r.titulo });
+          return;
+        }
+        var diaJs = DIA_SEMANA_JS2[r.dia_semana];
+        if (diaJs === undefined) return;
+        [hoy, limite].forEach(function(iso) {
+          if (diaSemanaDeFecha2(iso) === diaJs) eventos.push({ cat: 'vencimiento', fecha: iso, titulo: '⏰ ' + r.titulo });
+        });
+      });
+
       eventos.sort(function(a,b){ return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
 
       cont.classList.remove('is-scrolling');
@@ -804,13 +852,29 @@
         return;
       }
 
-      var itemsHtml = eventos.map(function(e) {
+      // Agrupado en 4 secciones (Vencimientos / Licencias Anuales /
+      // Servicios / Eventos) en vez de una sola lista mezclada — cada
+      // grupo respeta el orden por fecha ya aplicado arriba, y un grupo
+      // sin novedades para hoy/mañana directamente no se muestra.
+      var porGrupo = {};
+      eventos.forEach(function(e) {
+        var g = GRUPOS_NOTICIAS[e.cat] || 'Eventos';
+        if (!porGrupo[g]) porGrupo[g] = [];
+        porGrupo[g].push(e);
+      });
+
+      function filaNoticia(e) {
         var c = CATEGORIAS_NOTICIAS[e.cat];
         var etiquetaFecha = e.fecha === hoy ? 'HOY' : 'MAÑANA';
         return '<a class="noticia-item" href="agenda.html" style="border-left-color:' + c.color + ';">' +
           '<div class="noticia-fecha">' + etiquetaFecha + '</div>' +
           '<div class="noticia-txt"><b>' + esc2(e.titulo) + '</b></div>' +
           '</a>';
+      }
+
+      var itemsHtml = ORDEN_GRUPOS_NOTICIAS.filter(function(g){ return porGrupo[g] && porGrupo[g].length; }).map(function(g) {
+        return '<div class="noticia-grupo"><div class="noticia-grupo-titulo">' + esc2(g) + '</div>' +
+          porGrupo[g].map(filaNoticia).join('') + '</div>';
       }).join('');
 
       cont.innerHTML = itemsHtml;
