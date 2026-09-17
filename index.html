@@ -185,6 +185,43 @@
       .noticias-panel { display: none; }
     }
 
+    /* ── ACCESOS DIRECTOS (barra lateral opuesta a Noticias) ──
+       Links externos a sistemas que se consultan seguido (SADE, SIRHU, CAE,
+       SILOL, SIGENO). Para sumar uno nuevo, alcanza con copiar un bloque
+       <a class="acceso-item"> en el HTML de más abajo. */
+    .accesos-panel {
+      position: fixed;
+      top: 96px;
+      left: 22px;
+      width: 250px;
+      max-height: calc(100vh - 130px);
+      background: rgba(255,255,255,.62);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.7);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      padding: 16px 16px 14px;
+      overflow-y: auto;
+      z-index: 400;
+    }
+    .accesos-titulo { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--primary); margin-bottom: 10px; }
+    .acceso-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 10px; margin-bottom: 6px; border-radius: 10px;
+      background: rgba(255,255,255,.55); border-left: 3px solid var(--primary);
+      text-decoration: none; color: inherit; transition: background .12s;
+    }
+    .acceso-item:last-child { margin-bottom: 0; }
+    .acceso-item:hover { background: rgba(255,255,255,.9); }
+    .acceso-ico { font-size: 15px; flex-shrink: 0; }
+    .acceso-txt b { display: block; font-size: 12px; font-weight: 700; line-height: 1.3; }
+    .acceso-txt span { font-size: 10px; color: var(--muted); line-height: 1.3; }
+
+    @media (max-width: 1400px) {
+      .accesos-panel { display: none; }
+    }
+
     /* GRILLA DE SECCIONES — cada sistema interno es una tarjeta acá. Para
        agregar una nueva sección el día de mañana, solo hace falta copiar un
        bloque <a class="card">...</a> y cambiar el emoji/título/texto/link. */
@@ -366,6 +403,34 @@
     </a>
   </div>
 </div>
+
+<!-- ACCESOS DIRECTOS — enlaces externos a sistemas que se consultan seguido.
+     Para sumar uno nuevo más adelante, alcanza con copiar un bloque
+     <a class="acceso-item">. Solo aparece en pantallas anchas (ver @media
+     en el CSS), igual que Noticias. -->
+<aside class="accesos-panel" id="accesosPanel">
+  <div class="accesos-titulo">🔗 Accesos directos</div>
+  <a class="acceso-item" href="https://cas.buenosaires.gob.ar/acceso/login/login.zul" target="_blank" rel="noopener">
+    <div class="acceso-ico">🗂️</div>
+    <div class="acceso-txt"><b>SADE</b><span>Sistema de Administración de Documentos Electrónicos</span></div>
+  </a>
+  <a class="acceso-item" href="https://sirhu.seguridadciudad.gob.ar/personal/" target="_blank" rel="noopener">
+    <div class="acceso-ico">👥</div>
+    <div class="acceso-txt"><b>SIRHU</b><span>Sistema Integrado de Recursos Humanos</span></div>
+  </a>
+  <a class="acceso-item" href="https://sistemas.seguridadciudad.gob.ar/cae/" target="_blank" rel="noopener">
+    <div class="acceso-ico">📋</div>
+    <div class="acceso-txt"><b>CAE</b><span>Sistema de Convocatorias Anuales</span></div>
+  </a>
+  <a class="acceso-item" href="https://personal.seguridadciudad.gob.ar/licencias/" target="_blank" rel="noopener">
+    <div class="acceso-ico">🏖️</div>
+    <div class="acceso-txt"><b>SILOL</b><span>Sistema de Licencia OnLine</span></div>
+  </a>
+  <a class="acceso-item" href="https://sistemas.seguridadciudad.gob.ar/sigeno/" target="_blank" rel="noopener">
+    <div class="acceso-ico">🔔</div>
+    <div class="acceso-txt"><b>SIGENO</b><span>Sistema de Gestión de Novedades</span></div>
+  </a>
+</aside>
 
 <!-- NOTICIAS — mismos eventos cruzados que la Agenda (Cumpleaños, Servicios,
      PAE, Licencias, Guardias, Ascensos), pero solo de HOY y MAÑANA, resumidos
