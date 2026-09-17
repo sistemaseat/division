@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan de Entrenamiento Progresivo PEP — División Tiro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLA: acceso denegado (el login del sitio se hace en index.html) */
+  .pantalla-auth {
+    display: none; position: fixed; inset: 0; background: var(--bg);
+    align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; width: 100%; }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--primary); color: white; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35); flex-wrap: wrap; gap: 10px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px; background: var(--accent); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-block;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .alert-warning { background: #fff9c4; color: #e65100; border-left: 4px solid #ffd600; }
+
+  /* ── DASHBOARD CONTROLS ── */
+  .dash-controls {
+    background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; box-shadow: var(--shadow);
+  }
+  .ctrl-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  select, input[type="date"], input[type="number"], input[type="text"], input[type="file"] {
+    padding: 7px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; transition: border-color .2s; font-family: inherit;
+  }
+  select:focus, input:focus { border-color: var(--primary); }
+  .date-pill { margin-left: auto; background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+  .btn-nueva {
+    display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; background: var(--green);
+    color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .btn-nueva:hover { opacity: .88; }
+
+  .period-toggle { display:flex; background:var(--bg); border-radius:8px; padding:3px; gap:2px; }
+  .period-btn { background:none; border:none; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:700; color:var(--muted); transition:all .15s; text-transform:uppercase; letter-spacing:.4px; }
+  .period-btn:hover { color:var(--primary); }
+  .period-btn.active { background:white; color:var(--primary); box-shadow:0 1px 5px rgba(0,0,0,0.15); }
+
+  /* ── KPI GRID ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { background: var(--card); border-radius: 12px; padding: 18px 20px; border-left: 4px solid; box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s; }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .kpi.c-blue   { border-left-color: var(--blue); }
+  .kpi.c-green  { border-left-color: var(--green-light); }
+  .kpi.c-red    { border-left-color: var(--red-light); }
+  .kpi.c-orange { border-left-color: var(--accent); }
+  .kpi.c-purple { border-left-color: var(--purple); }
+  .kpi.c-teal   { border-left-color: var(--teal); }
+  .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val   { font-size: 34px; font-weight: 900; line-height: 1; color: var(--text); margin-bottom: 4px; }
+  .kpi-sub   { font-size: 12px; color: var(--muted); }
+  .pct-bar   { height: 6px; background: var(--border); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .pct-fill  { height: 100%; border-radius: 3px; transition: width .4s; }
+  .pct-fill.g { background: var(--green-light); }
+
+  /* ── ACUMULADO BANNER ── */
+  .acum-banner { background: linear-gradient(135deg, var(--primary) 0%, #283593 100%); border-radius: 14px; padding: 22px 28px; margin-bottom: 16px; box-shadow: var(--shadow-lg); color: white; }
+  .acum-title { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; opacity: .75; margin-bottom: 16px; }
+  .acum-grid  { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .acum-item  { text-align: center; }
+  .acum-val   { font-size: 24px; font-weight: 900; color: var(--accent); line-height: 1.1; }
+  .acum-lbl   { font-size: 10px; opacity: .65; text-transform: uppercase; letter-spacing: .4px; }
+
+  /* ── CHARTS ── */
+  .charts-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .charts-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .chart-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .chart-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 2px; }
+  .chart-sub   { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .chart-wrap  { position: relative; }
+
+  /* ── TABLE CARD ── */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .table-wrap { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .table-toolbar { padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  .table-title { font-size: 14px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .6px; }
+  .search-input { min-width: 220px; }
+  .table-scroll { overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: var(--primary); color: white; padding: 9px 13px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+  thead th:first-child { text-align: left; }
+  tbody td { padding: 9px 13px; text-align: center; font-size: 13px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody td:first-child { text-align: left; font-weight: 700; color: var(--primary); }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr.row-total td { background: #fff9c4; font-weight: 700; border-top: 2px solid var(--accent); }
+  tbody tr.row-acum  td { background: #e8eaf6; font-weight: 700; border-top: 2px solid var(--primary); }
+
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+
+  .btn-icon-sm {
+    display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px;
+    border: none; border-radius: 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; margin-left: 4px;
+  }
+  .btn-icon-sm.edit { background: #e8eaf6; color: var(--primary); }
+  .btn-icon-sm.edit:hover { background: #c5cae9; }
+  .btn-icon-sm.del  { background: #ffebee; color: var(--red); }
+  .btn-icon-sm.del:hover  { background: #ffcdd2; }
+  .btn-icon-sm.ver  { background: #e3f2fd; color: var(--blue); }
+  .btn-icon-sm.ver:hover  { background: #bbdefb; }
+
+  /* ── NO DATA ── */
+  .no-data { text-align: center; padding: 80px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 72px; margin-bottom: 16px; }
+  .no-data-text { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .no-data-sub  { font-size: 14px; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+
+  /* ── MODAL ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; z-index: 8888; background: rgba(0,0,0,.5); align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 640px; width: 96vw; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-box-lg { background: white; border-radius: 16px; padding: 26px 28px; width: 100%; max-width: 980px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,.25); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .modal-title { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close { background: #f0f0f0; border: none; border-radius: 8px; width: 32px; height: 32px; font-size: 15px; cursor: pointer; color: var(--text); }
+  .modal-close:hover { background: #e0e0e0; }
+  .modal-sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+  #confirmModal { z-index: 9500; }
+  .confirm-modal { max-width: 440px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  /* ── FORM (nueva entrada / editar) ── */
+  .form-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-bottom: 5px; }
+  .form-field input { width: 100%; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-row-fecha { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: end; margin-bottom: 18px; }
+  .fecha-hint { font-size: 12px; color: var(--orange); font-weight: 600; }
+  .turno-block { border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  .turno-block-title { font-size: 12px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .mini-grid .form-field label { font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-grid input { padding: 6px 7px; font-size: 13px; text-align: center; }
+  .total-row-form { background: #fff9c4; border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; }
+  .total-row-form .mini-grid div.form-field b { display:block; font-size: 16px; text-align:center; color: var(--text); }
+  .acum-block { background: #e8eaf6; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+  .form-warnings { background: #fff3e0; border-left: 4px solid var(--orange); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #7a4a00; margin-bottom: 14px; line-height: 1.6; display: none; }
+  .form-warnings.show { display: block; }
+  .foto-drop { border: 2px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; background: #fafafa; transition: all .15s; }
+  .foto-drop:hover { border-color: var(--primary); background: #e8eaf6; }
+  .foto-preview { display: none; margin-top: 10px; text-align: center; }
+  .foto-preview img { max-width: 100%; max-height: 260px; border-radius: 8px; border: 1.5px solid var(--border); }
+  .foto-preview.show { display: block; }
+  .btn-quitar-foto { margin-top: 8px; background: none; border: none; color: var(--red); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+  .btn-guardar {
+    display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; background: var(--green);
+    color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .btn-guardar:hover { opacity: .88; }
+  .btn-cancelar { padding: 11px 22px; background: #e0e0e0; color: var(--text); border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  @media (max-width: 900px) {
+    .kpi-grid  { grid-template-columns: repeat(2, 1fr); }
+    .charts-3  { grid-template-columns: 1fr; }
+    .charts-2  { grid-template-columns: 1fr; }
+    .acum-grid { grid-template-columns: repeat(4, 1fr); }
+    .mini-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 540px) {
+    .content { padding: 14px 12px; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .kpi-val  { font-size: 26px; }
+    .mini-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-row-fecha { grid-template-columns: 1fr; }
+    .brand-title { font-size: 16px; letter-spacing: .8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()" style="color:var(--primary);background:#e8eaf6;border-color:#e8eaf6;">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box-lg confirm-modal" style="max-width:440px;">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones" style="display:flex;justify-content:center;gap:10px;margin-top:10px;"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">PEP</div>
+    <div>
+      <div class="brand-title">PLAN DE ENTRENAMIENTO PROGRESIVO PEP</div>
+      <div class="brand-sub">DIVISIÓN TIRO</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="historial" onclick="switchTab('historial')">📋 Historial</button>
+</nav>
+
+<main class="content">
+
+  <!-- ═══════════ DASHBOARD ═══════════ -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="alert" id="alertDash"></div>
+
+    <div class="dash-controls">
+      <span class="ctrl-label">Vista</span>
+      <div class="period-toggle">
+        <button class="period-btn active" data-p="dia"    onclick="setPeriod('dia')">Día</button>
+        <button class="period-btn"        data-p="semana" onclick="setPeriod('semana')">Semana</button>
+        <button class="period-btn"        data-p="mes"    onclick="setPeriod('mes')">Mes</button>
+        <button class="period-btn"        data-p="anio"   onclick="setPeriod('anio')">Año</button>
+      </div>
+      <span class="ctrl-label">📅</span>
+      <select id="dateSelector" onchange="renderDashboard()">
+        <option value="">— Seleccionar —</option>
+      </select>
+      <button class="btn-nueva" onclick="abrirFormulario(null)">➕ Nueva Entrada</button>
+      <div class="date-pill" id="datePill">Sin datos</div>
+    </div>
+
+    <div class="no-data" id="noData">
+      <div class="no-data-icon">📊</div>
+      <div class="no-data-text">No hay datos cargados aún</div>
+      <div class="no-data-sub">Cargá el primer día desde <strong>➕ Nueva Entrada</strong></div>
+    </div>
+
+    <div id="dashContent" style="display:none">
+
+      <div class="kpi-grid">
+        <div class="kpi c-blue">
+          <div class="kpi-label">Convocados</div>
+          <div class="kpi-val" id="v-conv">–</div>
+          <div class="kpi-sub">personas citadas</div>
+        </div>
+        <div class="kpi c-green">
+          <div class="kpi-label">Presentes</div>
+          <div class="kpi-val" id="v-pres">–</div>
+          <div class="kpi-sub">asistentes</div>
+        </div>
+        <div class="kpi c-red">
+          <div class="kpi-label">Ausentes</div>
+          <div class="kpi-val" id="v-ausen">–</div>
+          <div class="kpi-sub">sin asistir</div>
+        </div>
+        <div class="kpi c-orange">
+          <div class="kpi-label">% Asistencia</div>
+          <div class="kpi-val" id="v-pct-asist">–</div>
+          <div class="pct-bar"><div class="pct-fill g" id="bar-asist" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi c-green">
+          <div class="kpi-label">Aprobados</div>
+          <div class="kpi-val" id="v-aprob">–</div>
+          <div class="kpi-sub">calificados OK</div>
+        </div>
+        <div class="kpi c-red">
+          <div class="kpi-label">Desaprobados</div>
+          <div class="kpi-val" id="v-desap">–</div>
+          <div class="kpi-sub">requieren atención</div>
+        </div>
+        <div class="kpi c-purple">
+          <div class="kpi-label">% Aprobación</div>
+          <div class="kpi-val" id="v-pct-aprob">–</div>
+          <div class="pct-bar"><div class="pct-fill g" id="bar-aprob" style="width:0%"></div></div>
+        </div>
+        <div class="kpi c-teal">
+          <div class="kpi-label">Fuego Vivo</div>
+          <div class="kpi-val" id="v-fv">–</div>
+          <div class="kpi-sub" id="v-virt-sub">Virtual: –</div>
+        </div>
+      </div>
+
+      <div class="acum-banner">
+        <div class="acum-title">📈 ACUMULADO (al último día del período)</div>
+        <div class="acum-grid">
+          <div class="acum-item"><div class="acum-val" id="a-conv">–</div><div class="acum-lbl">Convocados</div></div>
+          <div class="acum-item"><div class="acum-val" id="a-pres">–</div><div class="acum-lbl">Presentes</div></div>
+          <div class="acum-item"><div class="acum-val" id="a-ausen">–</div><div class="acum-lbl">Ausentes</div></div>
+          <div class="acum-item"><div class="acum-val" id="a-aprob">–</div><div class="acum-lbl">Aprobados</div></div>
+          <div class="acum-item"><div class="acum-val" id="a-desap">–</div><div class="acum-lbl">Desaprobados</div></div>
+          <div class="acum-item"><div class="acum-val" id="a-fv">–</div><div class="acum-lbl">Fuego Vivo</div></div>
+          <div class="acum-item"><div class="acum-val" id="a-virt">–</div><div class="acum-lbl">Virtual</div></div>
+        </div>
+      </div>
+
+      <div class="charts-3">
+        <div class="chart-card">
+          <div class="chart-title" id="titleBarMain">Presentismo por Turno</div>
+          <div class="chart-sub"   id="subBarMain">Presentes vs Ausentes — día seleccionado</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="cTurnos"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Calificación</div>
+          <div class="chart-sub">Distribución del período</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="cCalif"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Modalidad</div>
+          <div class="chart-sub">Fuego Vivo vs Virtual</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="cModal"></canvas></div>
+        </div>
+      </div>
+
+      <div class="charts-2">
+        <div class="chart-card">
+          <div class="chart-title" id="titleTrend">Tendencia de Presentes</div>
+          <div class="chart-sub"   id="subTrend">Evolución</div>
+          <div class="chart-wrap" style="height:220px"><canvas id="cTrend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title" id="titleTrendAp">Tendencia % Aprobación</div>
+          <div class="chart-sub"   id="subTrendAp">Evolución del porcentaje</div>
+          <div class="chart-wrap" style="height:220px"><canvas id="cTrendAprob"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="section-title" id="detailTitle">Detalle por Turno</div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2">Turno</th>
+              <th colspan="3" style="background:#0277bd">PRESENTISMO</th>
+              <th colspan="2" style="background:#2e7d32">CALIFICACIÓN</th>
+              <th colspan="2" style="background:#6a1b9a">MODALIDAD</th>
+            </tr>
+            <tr>
+              <th>Convo.</th><th>Pres.</th><th>Ausen.</th>
+              <th>Aprob.</th><th>Desap.</th>
+              <th>Fuego V.</th><th>Virtual</th>
+            </tr>
+          </thead>
+          <tbody id="detailTbody"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /dashContent -->
+  </div><!-- /pane-dashboard -->
+
+  <!-- ═══════════ HISTORIAL ═══════════ -->
+  <div class="tab-pane" id="pane-historial">
+    <div class="alert" id="alertHist"></div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <div class="table-title">📋 Historial de cargas</div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <input type="text" class="search-input" id="buscarHist" placeholder="🔍 Buscar por fecha (dd/mm/aaaa)…" oninput="renderHistorial()">
+          <button class="btn-nueva" onclick="abrirFormulario(null)">➕ Nueva Entrada</button>
+          <button class="btn-nueva" style="background:var(--primary);" onclick="exportarExcel()">⬇️ Exportar Excel</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Convo.</th><th>Pres.</th><th>Ausen.</th>
+              <th>% Asist.</th>
+              <th>Aprob.</th><th>Desap.</th>
+              <th>% Aprob.</th>
+              <th>FV</th><th>Virt.</th>
+              <th>Foto</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="histTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="histEmpty" style="display:none;">
+        <div class="icon">📭</div>
+        <p>No hay registros todavía.</p>
+      </div>
+    </div>
+  </div><!-- /pane-historial -->
+
+</main>
+
+</div><!-- /appRoot -->
+
+<!-- Modal: Nueva entrada / Editar -->
+<div class="modal-overlay" id="formModal">
+  <div class="modal-box-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="formModalTitle">➕ Nueva Entrada</div>
+      <button class="modal-close" onclick="cerrarFormulario()">✕</button>
+    </div>
+    <div class="alert" id="alertForm"></div>
+    <div class="form-warnings" id="formWarnings"></div>
+
+    <div class="form-row-fecha">
+      <div class="form-field">
+        <label>Fecha del día<span style="color:var(--red)">*</span></label>
+        <input type="date" id="fFecha" onchange="onCambioFechaForm()">
+      </div>
+      <div class="fecha-hint" id="fechaHint"></div>
+    </div>
+
+    <div id="turnosWrap"></div>
+
+    <div class="total-row-form">
+      <div class="turno-block-title">TOTAL (calculado automáticamente — suma de los 4 turnos)</div>
+      <div class="mini-grid">
+        <div class="form-field"><label>Convo.</label><b id="totConvocados">0</b></div>
+        <div class="form-field"><label>Pres.</label><b id="totPresentes">0</b></div>
+        <div class="form-field"><label>Ausen.</label><b id="totAusentes">0</b></div>
+        <div class="form-field"><label>Aprob.</label><b id="totAprobados">0</b></div>
+        <div class="form-field"><label>Desap.</label><b id="totDesaprobados">0</b></div>
+        <div class="form-field"><label>Fuego V.</label><b id="totFuegoVivo">0</b></div>
+        <div class="form-field"><label>Virtual</label><b id="totVirtual">0</b></div>
+      </div>
+    </div>
+
+    <div class="acum-block">
+      <div class="turno-block-title">ACUMULADO (histórico de la planilla — se sugiere solo, revisalo y corregilo si hace falta)</div>
+      <div class="mini-grid">
+        <div class="form-field"><label>Convo.</label><input type="number" min="0" id="aConvocados"></div>
+        <div class="form-field"><label>Pres.</label><input type="number" min="0" id="aPresentes"></div>
+        <div class="form-field"><label>Ausen.</label><input type="number" min="0" id="aAusentes"></div>
+        <div class="form-field"><label>Aprob.</label><input type="number" min="0" id="aAprobados"></div>
+        <div class="form-field"><label>Desap.</label><input type="number" min="0" id="aDesaprobados"></div>
+        <div class="form-field"><label>Fuego V.</label><input type="number" min="0" id="aFuegoVivo"></div>
+        <div class="form-field"><label>Virtual</label><input type="number" min="0" id="aVirtual"></div>
+      </div>
+    </div>
+
+    <div class="form-field full" style="margin-bottom:16px;">
+      <label>Foto de la planilla (opcional — solo de respaldo, no se lee automáticamente)</label>
+      <div class="foto-drop" id="fotoDrop" onclick="document.getElementById('fFotoInput').click()">
+        <div id="fotoDropText">📷 Hacé click para elegir una foto (PNG, JPG — opcional)</div>
+      </div>
+      <input type="file" id="fFotoInput" accept="image/*" style="display:none" onchange="onFotoSeleccionada()">
+      <div class="foto-preview" id="fotoPreviewWrap">
+        <img id="fotoPreviewImg" alt="Foto de la planilla">
+        <div><button type="button" class="btn-quitar-foto" onclick="quitarFoto()">🗑️ Quitar foto</button></div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn-cancelar" onclick="cerrarFormulario()">Cancelar</button>
+      <button class="btn-guardar" onclick="guardarRegistro()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ver foto -->
+<div class="modal-overlay" id="verFotoModal">
+  <div class="modal" style="max-width:720px; text-align:center;">
+    <div class="modal-header">
+      <div class="modal-title">📷 Foto — <span id="verFotoFecha"></span></div>
+      <button class="modal-close" onclick="document.getElementById('verFotoModal').classList.remove('show')">✕</button>
+    </div>
+    <img id="verFotoImg" src="" alt="Foto de la planilla" style="max-width:100%; border-radius:8px;">
+  </div>
+</div>
+
+<!-- Aviso de mantenimiento de Supabase (status público / error de red) -->
+<div class="modal-overlay" id="mantenimientoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚠️ Aviso de Supabase</div>
+      <button class="modal-close" onclick="document.getElementById('mantenimientoModal').classList.remove('show')">✕</button>
+    </div>
+    <p id="mantenimientoModalTexto" style="line-height:1.5; color:var(--text, #333);"></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio,
+  // así la sesión iniciada en la portada (index.html) sirve acá también.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ============================================================
+  // AVISO DE MANTENIMIENTO DE SUPABASE
+  // ============================================================
+  function mostrarModalMantenimiento(texto) {
+    var t = document.getElementById('mantenimientoModalTexto');
+    var m = document.getElementById('mantenimientoModal');
+    if (!t || !m) return;
+    t.textContent = texto;
+    m.classList.add('show');
+  }
+
+  async function verificarMantenimientoSupabase() {
+    try {
+      var ctrl = new AbortController();
+      var timeoutId = setTimeout(function() { ctrl.abort(); }, 5000);
+      var res = await fetch('https://status.supabase.com/api/v2/summary.json', { signal: ctrl.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) return;
+      var data = await res.json();
+      var mant = (data.scheduled_maintenances || []).find(function(m) { return m.status === 'in_progress'; });
+      if (!mant) return;
+      var fmt = function(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+      };
+      var inicio = fmt(mant.scheduled_for);
+      var fin = fmt(mant.scheduled_until);
+      var rango = (inicio && fin) ? (' de ' + inicio + ' a ' + fin + '.') : '.';
+      mostrarModalMantenimiento('Supabase está en mantenimiento programado' + rango + ' Durante este lapso la carga o el guardado de datos puede fallar. Podés cerrar este aviso y probar igual.');
+    } catch (e) {
+      // Sin acceso al status público (offline, CORS, timeout): no se avisa acá.
+    }
+  }
+  verificarMantenimientoSupabase();
+
+  // ============================================================
+  // ESTADO
+  // ============================================================
+  var registros = [];        // filas crudas de pep_registros
+  var currentPeriod = 'dia';
+  var charts = {};
+  var editingId = null;      // uuid en edición REAL (se abrió con ✏️), o null si es alta nueva
+  var colisionId = null;     // en alta nueva: id de un registro existente que choca con la fecha tipeada
+  var fotoFile = null;       // File elegido en el formulario (o null)
+  var fotoQuitada = false;   // true si se pidió quitar la foto existente al editar
+  var fotoPathExistente = null;
+
+  const STORAGE_BUCKET = 'adjuntos';
+
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // ── Utilidades ────────────────────────────────────────────────
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function n(v) { var x = parseInt(v); return isNaN(x) ? 0 : x; }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    if (tipo === 'success') setTimeout(function(){ el.classList.remove('show'); }, 5000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn-cancelar';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn-guardar';
+    if (opciones.peligroso) btnOk.style.background = 'var(--red)';
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function hoyISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fechaObjDe(iso) {
+    var p = String(iso).split('-');
+    return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  }
+  function isoDe(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fmtFecha(iso) {
+    if (!iso) return '';
+    var p = String(iso).split('-');
+    return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : iso;
+  }
+
+  // ── Archivos (Supabase Storage — bucket privado "adjuntos") ────
+  async function subirFoto(file, fecha) {
+    var nombreLimpio = String(fecha).replace(/[^0-9-]/g, '');
+    var ruta = 'PEP/' + nombreLimpio + '.jpg';
+    var res = await supabaseClient.storage.from(STORAGE_BUCKET).upload(ruta, file, { upsert: true, contentType: file.type || 'image/jpeg' });
+    if (res.error) throw new Error('No se pudo subir la foto: ' + res.error.message);
+    return ruta;
+  }
+  async function borrarFoto(ruta) {
+    if (!ruta) return;
+    var res = await supabaseClient.storage.from(STORAGE_BUCKET).remove([ruta]);
+    if (res.error) console.error('No se pudo borrar la foto anterior: ', res.error);
+  }
+  async function urlFirmadaFoto(ruta) {
+    if (!ruta) return null;
+    var res = await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrl(ruta, 3600);
+    if (res.error) { console.error('No se pudo generar el link de la foto: ', res.error); return null; }
+    return res.data.signedUrl;
+  }
+
+  // ── Cálculos ─────────────────────────────────────────────────
+  var CAMPOS = ['convocados','presentes','ausentes','aprobados','desaprobados','fuego_vivo','virtual'];
+
+  function turnoDe(r, i) {
+    var o = {};
+    CAMPOS.forEach(function(c) { o[c] = n(r['turno'+i+'_'+c]); });
+    return o;
+  }
+  function acumDe(r) {
+    var o = {};
+    CAMPOS.forEach(function(c) { o[c] = n(r['acum_'+c]); });
+    return o;
+  }
+  function calcTotal(r) {
+    var t = {}; CAMPOS.forEach(function(c){ t[c]=0; });
+    for (var i=1;i<=4;i++) { var ti = turnoDe(r,i); CAMPOS.forEach(function(c){ t[c]+=ti[c]; }); }
+    return t;
+  }
+  function sumar(fechas) {
+    var t = {}; CAMPOS.forEach(function(c){ t[c]=0; });
+    fechas.forEach(function(f) {
+      var reg = registros.find(function(x){ return x.fecha===f; });
+      if (reg) { var tt = calcTotal(reg); CAMPOS.forEach(function(c){ t[c]+=tt[c]; }); }
+    });
+    return t;
+  }
+
+  // ============================================================
+  // TABS
+  // ============================================================
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+    if (tab === 'historial') renderHistorial();
+  }
+
+  // ============================================================
+  // PERÍODO / SELECTOR DE FECHA
+  // ============================================================
+  function setPeriod(p) {
+    currentPeriod = p;
+    document.querySelectorAll('.period-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.p === p); });
+    fillDateSelector();
+    var sel = document.getElementById('dateSelector');
+    if (sel.options.length > 1) { sel.selectedIndex = sel.options.length - 1; renderDashboard(); }
+    else { document.getElementById('dashContent').style.display = 'none'; document.getElementById('noData').style.display = 'block'; }
+  }
+
+  function fechasOrdenadas() { return registros.map(function(r){ return r.fecha; }).sort(); }
+
+  function getWeeks() {
+    var map = {};
+    fechasOrdenadas().forEach(function(f) {
+      var d = fechaObjDe(f);
+      var day = d.getDay() || 7;
+      var mon = new Date(d); mon.setDate(d.getDate()-day+1);
+      var sun = new Date(mon); sun.setDate(mon.getDate()+6);
+      var key = isoDe(mon);
+      if (!map[key]) map[key] = { key:key, label:'Sem. '+fmtFecha(isoDe(mon))+' – '+fmtFecha(isoDe(sun)), fechas:[] };
+      map[key].fechas.push(f);
+    });
+    return Object.values(map).sort(function(a,b){ return a.key<b.key?-1:1; });
+  }
+  var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  function getMonths() {
+    var map = {};
+    fechasOrdenadas().forEach(function(f) {
+      var d = fechaObjDe(f);
+      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      if (!map[key]) map[key] = { key:key, label: MESES[d.getMonth()]+' '+d.getFullYear(), fechas:[] };
+      map[key].fechas.push(f);
+    });
+    return Object.values(map).sort(function(a,b){ return a.key<b.key?-1:1; });
+  }
+  function getYears() {
+    var set = {};
+    fechasOrdenadas().forEach(function(f) { set[fechaObjDe(f).getFullYear()] = true; });
+    return Object.keys(set).sort();
+  }
+  function getDatesForPeriod(val) {
+    if (currentPeriod === 'dia')    return [val];
+    if (currentPeriod === 'semana') { var w = getWeeks().find(function(x){ return x.key===val; }); return w ? w.fechas : []; }
+    if (currentPeriod === 'mes')    { var m = getMonths().find(function(x){ return x.key===val; }); return m ? m.fechas : []; }
+    if (currentPeriod === 'anio')   { return fechasOrdenadas().filter(function(f){ return String(fechaObjDe(f).getFullYear())===String(val); }); }
+    return [];
+  }
+
+  function fillDateSelector() {
+    var sel = document.getElementById('dateSelector');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>';
+    if (currentPeriod === 'dia') {
+      fechasOrdenadas().forEach(function(f) { var o=document.createElement('option'); o.value=f; o.textContent=fmtFecha(f); sel.appendChild(o); });
+    } else if (currentPeriod === 'semana') {
+      getWeeks().forEach(function(w) { var o=document.createElement('option'); o.value=w.key; o.textContent=w.label; sel.appendChild(o); });
+    } else if (currentPeriod === 'mes') {
+      getMonths().forEach(function(m) { var o=document.createElement('option'); o.value=m.key; o.textContent=m.label; sel.appendChild(o); });
+    } else if (currentPeriod === 'anio') {
+      getYears().forEach(function(y) { var o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); });
+    }
+  }
+
+  // ============================================================
+  // DASHBOARD
+  // ============================================================
+  function renderDashboard() {
+    var val = document.getElementById('dateSelector').value;
+    if (!val) return;
+    var periodDates = getDatesForPeriod(val);
+    if (!periodDates.length) return;
+
+    var pillLabel = '';
+    if (currentPeriod === 'dia') pillLabel = fmtFecha(val);
+    else if (currentPeriod === 'semana') { var wf = getWeeks().find(function(x){ return x.key===val; }); pillLabel = wf ? wf.label : val; }
+    else if (currentPeriod === 'mes')    { var mf = getMonths().find(function(x){ return x.key===val; }); pillLabel = mf ? mf.label : val; }
+    else if (currentPeriod === 'anio')   pillLabel = 'Año ' + val;
+    document.getElementById('datePill').textContent = pillLabel;
+
+    document.getElementById('noData').style.display = 'none';
+    document.getElementById('dashContent').style.display = 'block';
+
+    var agg = sumar(periodDates);
+    var pAsist = agg.convocados > 0 ? Math.round(agg.presentes / agg.convocados * 100) : 0;
+    var pAprob = agg.presentes  > 0 ? Math.round(agg.aprobados  / agg.presentes  * 100) : 0;
+
+    set('v-conv', agg.convocados); set('v-pres', agg.presentes); set('v-ausen', agg.ausentes);
+    set('v-pct-asist', pAsist+'%');
+    set('v-aprob', agg.aprobados); set('v-desap', agg.desaprobados); set('v-pct-aprob', pAprob+'%');
+    set('v-fv', agg.fuego_vivo); set('v-virt-sub', 'Virtual: '+agg.virtual);
+    pctBar('bar-asist', pAsist); pctBar('bar-aprob', pAprob);
+
+    var lastFecha = periodDates[periodDates.length-1];
+    var lastReg = registros.find(function(r){ return r.fecha===lastFecha; });
+    var acum = lastReg ? acumDe(lastReg) : {convocados:0,presentes:0,ausentes:0,aprobados:0,desaprobados:0,fuego_vivo:0,virtual:0};
+    set('a-conv', acum.convocados); set('a-pres', acum.presentes); set('a-ausen', acum.ausentes);
+    set('a-aprob', acum.aprobados); set('a-desap', acum.desaprobados); set('a-fv', acum.fuego_vivo); set('a-virt', acum.virtual);
+
+    if (currentPeriod === 'dia') {
+      set('detailTitle', 'Detalle por Turno — ' + pillLabel);
+      var reg = registros.find(function(r){ return r.fecha===val; });
+      renderDetailDia(reg);
+      set('titleBarMain', 'Presentismo por Turno'); set('subBarMain', 'Presentes vs Ausentes — día seleccionado');
+      var labels = ['TURNO 1','TURNO 2','TURNO 3','TURNO 4'];
+      var pres = [], aus = [];
+      for (var i=1;i<=4;i++) { var t = reg ? turnoDe(reg,i) : {presentes:0,ausentes:0}; pres.push(t.presentes); aus.push(t.ausentes); }
+      makeBarMain(labels, pres, aus);
+      makeTrendLine(fechasOrdenadas(), fechasOrdenadas().map(function(f){ var r=registros.find(function(x){return x.fecha===f;}); return r?calcTotal(r).presentes:0; }), 'Evolución diaria — todos los días');
+      makeTrendAprob(fechasOrdenadas(), fechasOrdenadas().map(function(f){ var r=registros.find(function(x){return x.fecha===f;}); if(!r)return 0; var t=calcTotal(r); return t.presentes>0?Math.round(t.aprobados/t.presentes*100):0; }), 'Porcentaje diario — todos los días');
+    } else {
+      set('detailTitle', 'Detalle por Día — ' + pillLabel);
+      renderDetailPeriodo(periodDates);
+      var label = currentPeriod === 'semana' ? 'semana' : currentPeriod === 'mes' ? 'mes' : 'año';
+      set('titleBarMain', 'Presentismo por Día'); set('subBarMain', 'Presentes vs Ausentes — días de la ' + label);
+      if (currentPeriod === 'anio') {
+        var meses = getMonths().filter(function(m){ return m.key.indexOf(val)===0; });
+        makeBarMain(meses.map(function(m){ return m.label.split(' ')[0]; }), meses.map(function(m){ return sumar(m.fechas).presentes; }), meses.map(function(m){ return sumar(m.fechas).ausentes; }));
+        makeTrendLine(meses.map(function(m){ return m.label; }), meses.map(function(m){ return sumar(m.fechas).presentes; }), 'Evolución mensual — ' + val, true);
+        makeTrendAprob(meses.map(function(m){ return m.label; }), meses.map(function(m){ var s=sumar(m.fechas); return s.presentes>0?Math.round(s.aprobados/s.presentes*100):0; }), 'Porcentaje mensual — ' + val, true);
+      } else {
+        makeBarMain(periodDates.map(fmtFecha), periodDates.map(function(f){ var r=registros.find(function(x){return x.fecha===f;}); return r?calcTotal(r).presentes:0; }), periodDates.map(function(f){ var r=registros.find(function(x){return x.fecha===f;}); return r?calcTotal(r).ausentes:0; }));
+        makeTrendLine(periodDates, periodDates.map(function(f){ var r=registros.find(function(x){return x.fecha===f;}); return r?calcTotal(r).presentes:0; }), 'Evolución — ' + pillLabel);
+        makeTrendAprob(periodDates, periodDates.map(function(f){ var r=registros.find(function(x){return x.fecha===f;}); if(!r)return 0; var t=calcTotal(r); return t.presentes>0?Math.round(t.aprobados/t.presentes*100):0; }), 'Porcentaje — ' + pillLabel);
+      }
+    }
+
+    makeDonut('cCalif', ['Aprobados','Desaprobados'], [agg.aprobados, agg.desaprobados], ['#4caf50','#ef5350']);
+    makeDonut('cModal', ['Fuego Vivo','Virtual'], [agg.fuego_vivo, agg.virtual], ['#ff7043','#42a5f5']);
+  }
+
+  function filaHtml(label, t, cls) {
+    return '<tr class="'+(cls||'')+'">' +
+      '<td>'+esc(label)+'</td>' +
+      '<td>'+t.convocados+'</td><td>'+t.presentes+'</td><td>'+t.ausentes+'</td>' +
+      '<td>'+t.aprobados+'</td><td>'+t.desaprobados+'</td>' +
+      '<td>'+t.fuego_vivo+'</td><td>'+t.virtual+'</td>' +
+      '</tr>';
+  }
+  function renderDetailDia(reg) {
+    var html = '';
+    if (reg) {
+      for (var i=1;i<=4;i++) html += filaHtml('TURNO '+i, turnoDe(reg,i), '');
+      html += filaHtml('TOTAL', calcTotal(reg), 'row-total');
+      html += filaHtml('ACUMULADO', acumDe(reg), 'row-acum');
+    }
+    document.getElementById('detailTbody').innerHTML = html || '<tr><td colspan="8" style="text-align:center;color:var(--muted)">Sin datos</td></tr>';
+  }
+  function renderDetailPeriodo(fechas) {
+    var html = '';
+    fechas.forEach(function(f) { var r = registros.find(function(x){ return x.fecha===f; }); if (r) html += filaHtml(fmtFecha(f), calcTotal(r), ''); });
+    html += filaHtml('TOTAL PERÍODO', sumar(fechas), 'row-total');
+    document.getElementById('detailTbody').innerHTML = html;
+  }
+
+  // ── Charts ──
+  function kill(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+  function makeBarMain(labels, presData, ausenData) {
+    kill('turnos');
+    charts.turnos = new Chart(document.getElementById('cTurnos'), {
+      type: 'bar',
+      data: { labels: labels, datasets: [
+        { label:'Presentes', data:presData, backgroundColor:'#4caf50', borderRadius:6 },
+        { label:'Ausentes',  data:ausenData, backgroundColor:'#ef5350', borderRadius:6 }
+      ]},
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'top' } },
+        scales:{ y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,0.05)' } }, x:{ grid:{ display:false }, ticks:{ maxTicksLimit:12 } } } }
+    });
+  }
+  function makeDonut(canvasId, labels, data, colors) {
+    kill(canvasId);
+    charts[canvasId] = new Chart(document.getElementById(canvasId), {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data:data, backgroundColor:colors, borderWidth:0, hoverOffset:8 }] },
+      options: { responsive:true, maintainAspectRatio:false, cutout:'68%',
+        plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:function(ctx){ var tot=ctx.dataset.data.reduce(function(a,b){return a+b;},0); var pct=tot>0?Math.round(ctx.parsed/tot*100):0; return ctx.label+': '+ctx.parsed+' ('+pct+'%)'; } } } } }
+    });
+  }
+  function makeTrendLine(labels, data, subtitle, isLabels) {
+    kill('trend');
+    var lbls = isLabels ? labels : labels.map(fmtFecha);
+    set('subTrend', subtitle || 'Evolución');
+    charts.trend = new Chart(document.getElementById('cTrend'), {
+      type:'line',
+      data:{ labels: lbls, datasets:[{ label:'Presentes', data: data, borderColor:'#1a237e', backgroundColor:'rgba(26,35,126,0.10)', fill:true, tension:.35, pointBackgroundColor:'#1a237e', pointRadius:4 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:false, grid:{ color:'rgba(0,0,0,0.05)' } }, x:{ grid:{ display:false }, ticks:{ maxTicksLimit:12 } } } }
+    });
+  }
+  function makeTrendAprob(labels, data, subtitle, isLabels) {
+    kill('trendAp');
+    var lbls = isLabels ? labels : labels.map(fmtFecha);
+    set('subTrendAp', subtitle || 'Porcentaje');
+    charts.trendAp = new Chart(document.getElementById('cTrendAprob'), {
+      type:'line',
+      data:{ labels: lbls, datasets:[{ label:'% Aprobación', data: data, borderColor:'#4caf50', backgroundColor:'rgba(76,175,80,0.10)', fill:true, tension:.35, pointBackgroundColor:'#4caf50', pointRadius:4 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+        scales:{ y:{ min:0, max:100, ticks:{ callback:function(v){ return v+'%'; } }, grid:{ color:'rgba(0,0,0,0.05)' } }, x:{ grid:{ display:false }, ticks:{ maxTicksLimit:12 } } } }
+    });
+  }
+
+  function set(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+  function pctBar(id, pct) { var el = document.getElementById(id); if (el) el.style.width = pct + '%'; }
+
+  // ============================================================
+  // HISTORIAL
+  // ============================================================
+  function badgeCls(v, hi, mid) { return v>=hi?'b-green':v>=mid?'b-yellow':'b-red'; }
+
+  function renderHistorial() {
+    var q = document.getElementById('buscarHist').value.trim().toLowerCase();
+    var lista = registros.slice().sort(function(a,b){ return a.fecha<b.fecha?1:-1; });
+    if (q) lista = lista.filter(function(r){ return fmtFecha(r.fecha).toLowerCase().indexOf(q) !== -1; });
+
+    document.getElementById('histEmpty').style.display = lista.length ? 'none' : 'block';
+
+    var html = '';
+    lista.forEach(function(r) {
+      var t = calcTotal(r);
+      var pA = t.convocados>0 ? Math.round(t.presentes/t.convocados*100) : 0;
+      var pR = t.presentes>0  ? Math.round(t.aprobados/t.presentes*100)  : 0;
+      html += '<tr>' +
+        '<td>'+esc(fmtFecha(r.fecha))+'</td>' +
+        '<td>'+t.convocados+'</td><td>'+t.presentes+'</td><td>'+t.ausentes+'</td>' +
+        '<td><span class="badge '+badgeCls(pA,90,70)+'">'+pA+'%</span></td>' +
+        '<td>'+t.aprobados+'</td><td>'+t.desaprobados+'</td>' +
+        '<td><span class="badge '+badgeCls(pR,80,60)+'">'+pR+'%</span></td>' +
+        '<td>'+t.fuego_vivo+'</td><td>'+t.virtual+'</td>' +
+        '<td>'+(r.imagen_path ? '<button class="btn-icon-sm ver" onclick="verFoto(\''+r.fecha+'\',\''+esc(r.imagen_path)+'\')">📷 Ver</button>' : '<span style="color:var(--muted);font-size:12px;">—</span>')+'</td>' +
+        '<td>' +
+          '<button class="btn-icon-sm edit" onclick="abrirFormulario(\''+r.id+'\')">✏️</button>' +
+          '<button class="btn-icon-sm del" onclick="eliminarRegistro(\''+r.id+'\',\''+r.fecha+'\')">🗑️</button>' +
+        '</td>' +
+        '</tr>';
+    });
+    document.getElementById('histTbody').innerHTML = html;
+  }
+
+  async function verFoto(fecha, ruta) {
+    showLoading('Cargando foto…');
+    var url = await urlFirmadaFoto(ruta);
+    hideLoading();
+    if (!url) { alertShow('alertHist', 'error', 'No se pudo cargar la foto.'); return; }
+    document.getElementById('verFotoFecha').textContent = fmtFecha(fecha);
+    document.getElementById('verFotoImg').src = url;
+    document.getElementById('verFotoModal').classList.add('show');
+  }
+
+  function eliminarRegistro(id, fecha) {
+    showConfirm('¿Eliminar el registro del ' + fmtFecha(fecha) + '? Esta acción no se puede deshacer.', async function() {
+      showLoading('Eliminando…');
+      try {
+        var reg = registros.find(function(r){ return r.id===id; });
+        var res = await supabaseClient.from('pep_registros').delete().eq('id', id);
+        if (res.error) throw res.error;
+        if (reg && reg.imagen_path) await borrarFoto(reg.imagen_path);
+        await cargarDatos();
+        alertShow('alertHist', 'success', 'Registro del ' + fmtFecha(fecha) + ' eliminado.');
+      } catch (e) {
+        alertShow('alertHist', 'error', 'No se pudo eliminar: ' + (e.message || e));
+      } finally { hideLoading(); }
+    }, { peligroso:true, textoOk:'Eliminar', icon:'🗑️' });
+  }
+
+  // ── Exportar Excel ──
+  var COLOR_HEADER_FILL   = 'FFE8EAF6';
+  var COLOR_HEADER_BORDER = 'FFC5CAE9';
+  var COLOR_CELL_BORDER   = 'FFE0E0E0';
+  function estilarFilaHeader(row) {
+    row.height = 20;
+    row.eachCell({ includeEmpty:true }, function(cell) {
+      cell.font = { bold:true, color:{ argb:'FF1A237E' } };
+      cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:COLOR_HEADER_FILL } };
+      cell.border = { top:{style:'thin',color:{argb:COLOR_HEADER_BORDER}}, left:{style:'thin',color:{argb:COLOR_HEADER_BORDER}}, bottom:{style:'medium',color:{argb:COLOR_HEADER_BORDER}}, right:{style:'thin',color:{argb:COLOR_HEADER_BORDER}} };
+    });
+  }
+  function estilarFilaDatos(row) {
+    row.eachCell({ includeEmpty:true }, function(cell) {
+      cell.alignment = { vertical:'middle' };
+      cell.border = { top:{style:'thin',color:{argb:COLOR_CELL_BORDER}}, left:{style:'thin',color:{argb:COLOR_CELL_BORDER}}, bottom:{style:'thin',color:{argb:COLOR_CELL_BORDER}}, right:{style:'thin',color:{argb:COLOR_CELL_BORDER}} };
+    });
+  }
+  function descargarWorkbook(wb, nombreArchivo) {
+    return wb.xlsx.writeBuffer().then(function(buffer) {
+      var blob = new Blob([buffer], { type:'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    });
+  }
+  function exportarExcel() {
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('PEP');
+    ws.columns = [
+      { header:'Fecha', width:12 }, { header:'Convocados', width:12 }, { header:'Presentes', width:11 }, { header:'Ausentes', width:11 },
+      { header:'% Asistencia', width:12 }, { header:'Aprobados', width:11 }, { header:'Desaprobados', width:13 }, { header:'% Aprobación', width:12 },
+      { header:'Fuego Vivo', width:11 }, { header:'Virtual', width:10 },
+      { header:'Acum. Convocados', width:16 }, { header:'Acum. Presentes', width:15 }, { header:'Acum. Aprobados', width:15 }
+    ];
+    estilarFilaHeader(ws.getRow(1));
+    registros.slice().sort(function(a,b){ return a.fecha<b.fecha?-1:1; }).forEach(function(r) {
+      var t = calcTotal(r); var a = acumDe(r);
+      var pA = t.convocados>0 ? Math.round(t.presentes/t.convocados*100) : 0;
+      var pR = t.presentes>0  ? Math.round(t.aprobados/t.presentes*100)  : 0;
+      estilarFilaDatos(ws.addRow([fmtFecha(r.fecha), t.convocados, t.presentes, t.ausentes, pA+'%', t.aprobados, t.desaprobados, pR+'%', t.fuego_vivo, t.virtual, a.convocados, a.presentes, a.aprobados]));
+    });
+    descargarWorkbook(wb, 'PEP_' + hoyISO() + '.xlsx')
+      .then(function() { alertShow('alertHist', 'success', 'Excel exportado.'); })
+      .catch(function(err) { alertShow('alertHist', 'error', 'No se pudo exportar: ' + err.message); });
+  }
+
+  // ============================================================
+  // FORMULARIO (nueva entrada / editar)
+  // ============================================================
+  function construirTurnosWrap() {
+    var html = '';
+    for (var i=1;i<=4;i++) {
+      html += '<div class="turno-block">' +
+        '<div class="turno-block-title">TURNO '+i+'</div>' +
+        '<div class="mini-grid">' +
+          '<div class="form-field"><label>Convo.</label><input type="number" min="0" id="f'+i+'_convocados" oninput="recalcularTotalForm()"></div>' +
+          '<div class="form-field"><label>Pres.</label><input type="number" min="0" id="f'+i+'_presentes" oninput="recalcularTotalForm()"></div>' +
+          '<div class="form-field"><label>Ausen.</label><input type="number" min="0" id="f'+i+'_ausentes" oninput="recalcularTotalForm()"></div>' +
+          '<div class="form-field"><label>Aprob.</label><input type="number" min="0" id="f'+i+'_aprobados" oninput="recalcularTotalForm()"></div>' +
+          '<div class="form-field"><label>Desap.</label><input type="number" min="0" id="f'+i+'_desaprobados" oninput="recalcularTotalForm()"></div>' +
+          '<div class="form-field"><label>Fuego V.</label><input type="number" min="0" id="f'+i+'_fuego_vivo" oninput="recalcularTotalForm()"></div>' +
+          '<div class="form-field"><label>Virtual</label><input type="number" min="0" id="f'+i+'_virtual" oninput="recalcularTotalForm()"></div>' +
+        '</div>' +
+      '</div>';
+    }
+    document.getElementById('turnosWrap').innerHTML = html;
+  }
+
+  function leerTurnoForm(i) {
+    var o = {};
+    CAMPOS.forEach(function(c) { o[c] = n(document.getElementById('f'+i+'_'+c).value); });
+    return o;
+  }
+  function totalFormActual() {
+    var t = {}; CAMPOS.forEach(function(c){ t[c]=0; });
+    for (var i=1;i<=4;i++) { var ti = leerTurnoForm(i); CAMPOS.forEach(function(c){ t[c]+=ti[c]; }); }
+    return t;
+  }
+  function recalcularTotalForm() {
+    var t = totalFormActual();
+    set('totConvocados', t.convocados); set('totPresentes', t.presentes); set('totAusentes', t.ausentes);
+    set('totAprobados', t.aprobados); set('totDesaprobados', t.desaprobados); set('totFuegoVivo', t.fuego_vivo); set('totVirtual', t.virtual);
+    return t;
+  }
+
+  function sugerirAcumulado(fecha) {
+    // Busca el registro con la fecha más reciente ANTERIOR a la elegida
+    var idActual = editingId || colisionId;
+    var anteriores = registros.filter(function(r){ return r.fecha < fecha && r.id !== idActual; }).sort(function(a,b){ return a.fecha<b.fecha?1:-1; });
+    var base = anteriores.length ? acumDe(anteriores[0]) : {convocados:0,presentes:0,ausentes:0,aprobados:0,desaprobados:0,fuego_vivo:0,virtual:0};
+    var t = totalFormActual();
+    var sug = {};
+    CAMPOS.forEach(function(c){ sug[c] = base[c] + t[c]; });
+    return sug;
+  }
+
+  function onCambioFechaForm() {
+    var fecha = document.getElementById('fFecha').value;
+    var hint = document.getElementById('fechaHint');
+    if (editingId !== null) {
+      // Edición real de un registro existente: cambiar la fecha no dispara
+      // la lógica de "alta nueva chocó con otra fecha", solo se avisa si
+      // la nueva fecha pisaría a UN TERCER registro distinto del que se edita.
+      var choqueEdit = registros.find(function(r){ return r.fecha === fecha && r.id !== editingId; });
+      hint.textContent = choqueEdit ? '⚠️ Ya existe otro registro para esta fecha — si guardás, va a fallar. Elegí otra fecha.' : '';
+      return;
+    }
+    // Modo alta nueva: si la fecha tipeada coincide con un registro ya
+    // cargado, se pasa a completar (y sobrescribir) ESE registro en vez
+    // de chocar contra la restricción de fecha única al guardar.
+    var existente = registros.find(function(r){ return r.fecha === fecha; });
+    if (existente) {
+      hint.textContent = '⚠️ Ya existe un registro para esta fecha — se completó con esos datos, revisalos antes de guardar.';
+      cargarValoresEnForm(existente);
+      colisionId = existente.id;
+    } else {
+      hint.textContent = '';
+      colisionId = null;
+      var sug = sugerirAcumulado(fecha);
+      CAMPOS.forEach(function(c) { document.getElementById('a'+capitalize(c)).value = sug[c]; });
+    }
+  }
+  function capitalize(c) {
+    // convocados -> Convocados, fuego_vivo -> FuegoVivo
+    return c.split('_').map(function(p){ return p.charAt(0).toUpperCase()+p.slice(1); }).join('');
+  }
+
+  function limpiarFormulario() {
+    document.getElementById('fFecha').value = hoyISO();
+    document.getElementById('fechaHint').textContent = '';
+    colisionId = null;
+    for (var i=1;i<=4;i++) CAMPOS.forEach(function(c) { document.getElementById('f'+i+'_'+c).value = ''; });
+    CAMPOS.forEach(function(c) { document.getElementById('a'+capitalize(c)).value = 0; });
+    recalcularTotalForm();
+    fotoFile = null; fotoQuitada = false; fotoPathExistente = null;
+    document.getElementById('fFotoInput').value = '';
+    document.getElementById('fotoPreviewWrap').classList.remove('show');
+    document.getElementById('formWarnings').classList.remove('show');
+    document.getElementById('alertForm').classList.remove('show');
+  }
+
+  function cargarValoresEnForm(reg) {
+    document.getElementById('fFecha').value = reg.fecha;
+    for (var i=1;i<=4;i++) { var t = turnoDe(reg,i); CAMPOS.forEach(function(c) { document.getElementById('f'+i+'_'+c).value = t[c]; }); }
+    var a = acumDe(reg);
+    CAMPOS.forEach(function(c) { document.getElementById('a'+capitalize(c)).value = a[c]; });
+    recalcularTotalForm();
+    fotoPathExistente = reg.imagen_path || null;
+    fotoFile = null; fotoQuitada = false;
+    document.getElementById('fFotoInput').value = '';
+    if (fotoPathExistente) {
+      document.getElementById('fotoPreviewImg').src = '';
+      document.getElementById('fotoPreviewWrap').classList.add('show');
+      urlFirmadaFoto(fotoPathExistente).then(function(url) { if (url) document.getElementById('fotoPreviewImg').src = url; });
+    } else {
+      document.getElementById('fotoPreviewWrap').classList.remove('show');
+    }
+  }
+
+  function abrirFormulario(id) {
+    construirTurnosWrap();
+    limpiarFormulario();
+    editingId = id;
+    if (id) {
+      var reg = registros.find(function(r){ return r.id === id; });
+      document.getElementById('formModalTitle').textContent = '✏️ Editar — ' + fmtFecha(reg.fecha);
+      cargarValoresEnForm(reg);
+    } else {
+      document.getElementById('formModalTitle').textContent = '➕ Nueva Entrada';
+      document.getElementById('fFecha').value = hoyISO();
+      var sug = sugerirAcumulado(hoyISO());
+      CAMPOS.forEach(function(c) { document.getElementById('a'+capitalize(c)).value = sug[c]; });
+    }
+    document.getElementById('formModal').classList.add('show');
+  }
+  function cerrarFormulario() {
+    document.getElementById('formModal').classList.remove('show');
+    editingId = null;
+  }
+
+  function onFotoSeleccionada() {
+    var input = document.getElementById('fFotoInput');
+    if (!input.files || !input.files[0]) return;
+    fotoFile = input.files[0];
+    fotoQuitada = false;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('fotoPreviewImg').src = e.target.result;
+      document.getElementById('fotoPreviewWrap').classList.add('show');
+    };
+    reader.readAsDataURL(fotoFile);
+  }
+  function quitarFoto() {
+    fotoFile = null; fotoQuitada = true;
+    document.getElementById('fFotoInput').value = '';
+    document.getElementById('fotoPreviewWrap').classList.remove('show');
+  }
+
+  function validarNumeros(fecha, turnos) {
+    var avisos = [];
+    turnos.forEach(function(t, idx) {
+      if (t.presentes + t.ausentes !== t.convocados && (t.convocados || t.presentes || t.ausentes)) {
+        avisos.push('Turno '+(idx+1)+': Presentes ('+t.presentes+') + Ausentes ('+t.ausentes+') no coincide con Convocados ('+t.convocados+').');
+      }
+      if (t.aprobados + t.desaprobados > t.presentes) {
+        avisos.push('Turno '+(idx+1)+': Aprobados ('+t.aprobados+') + Desaprobados ('+t.desaprobados+') supera a Presentes ('+t.presentes+').');
+      }
+    });
+    return avisos;
+  }
+
+  async function guardarRegistro() {
+    var fecha = document.getElementById('fFecha').value;
+    if (!fecha) { alertShow('alertForm', 'error', 'Elegí una fecha.'); return; }
+
+    var turnos = []; for (var i=1;i<=4;i++) turnos.push(leerTurnoForm(i));
+    var avisos = validarNumeros(fecha, turnos);
+    var warnEl = document.getElementById('formWarnings');
+    if (avisos.length) { warnEl.innerHTML = '⚠️ ' + avisos.join('<br>⚠️ '); warnEl.classList.add('show'); }
+    else { warnEl.classList.remove('show'); }
+
+    var proceder = function() { guardarRegistroConfirmado(fecha, turnos); };
+    if (avisos.length) {
+      showConfirm('Los números cargados tienen inconsistencias (ver el detalle arriba en el formulario). ¿Guardar igual?', proceder, { textoOk:'Guardar igual', peligroso:true });
+    } else {
+      proceder();
+    }
+  }
+
+  async function guardarRegistroConfirmado(fecha, turnos) {
+    showLoading('Guardando…');
+    try {
+      var idDestino = editingId || colisionId; // el registro real a actualizar, si hay uno
+      var fila = { fecha: fecha };
+      for (var i=1;i<=4;i++) CAMPOS.forEach(function(c) { fila['turno'+i+'_'+c] = turnos[i-1][c]; });
+      CAMPOS.forEach(function(c) { fila['acum_'+c] = n(document.getElementById('a'+capitalize(c)).value); });
+
+      if (fotoFile) {
+        fila.imagen_path = await subirFoto(fotoFile, fecha);
+        if (fotoPathExistente && fotoPathExistente !== fila.imagen_path) await borrarFoto(fotoPathExistente);
+      } else if (fotoQuitada) {
+        if (fotoPathExistente) await borrarFoto(fotoPathExistente);
+        fila.imagen_path = null;
+      } else if (idDestino) {
+        fila.imagen_path = fotoPathExistente;
+      }
+
+      var res;
+      if (idDestino) {
+        res = await supabaseClient.from('pep_registros').update(fila).eq('id', idDestino);
+      } else {
+        res = await supabaseClient.from('pep_registros').insert(fila);
+      }
+      if (res.error) {
+        if (String(res.error.message || '').toLowerCase().indexOf('duplicate') !== -1) {
+          throw new Error('Ya existe un registro para esa fecha.');
+        }
+        throw res.error;
+      }
+
+      cerrarFormulario();
+      await cargarDatos();
+      alertShow('alertHist', 'success', 'Registro del ' + fmtFecha(fecha) + ' guardado correctamente.');
+      renderHistorial();
+    } catch (e) {
+      alertShow('alertForm', 'error', 'No se pudo guardar: ' + (e.message || e));
+    } finally { hideLoading(); }
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email').eq('email', email).maybeSingle();
+      if (res.error) { console.error('Error al verificar el acceso: ', res.error);
+      if (!document.getElementById('mantenimientoModal').classList.contains('show')) { mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.'); } mostrarPantalla('login'); return; }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      await cargarDatos();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  function initAuth() { supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); }); }
+
+  // ============================================================
+  // CARGA DE DATOS
+  // ============================================================
+  async function cargarDatos() {
+    showLoading('Cargando datos…');
+    try {
+      var res = await supabaseClient.from('pep_registros').select('*');
+      if (res.error) throw res.error;
+      registros = res.data || [];
+      if (registros.length) {
+        fillDateSelector();
+        var sel = document.getElementById('dateSelector');
+        sel.selectedIndex = sel.options.length - 1;
+        renderDashboard();
+      } else {
+        document.getElementById('dashContent').style.display = 'none';
+        document.getElementById('noData').style.display = 'block';
+      }
+      renderHistorial();
+    } catch (e) {
+      console.error(e);
+      alertShow('alertDash', 'error', 'Error al cargar los datos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  initAuth();
+
+</script>
+</body>
+</html>
