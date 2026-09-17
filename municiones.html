@@ -351,16 +351,6 @@
         <label class="form-label">Actividad<span class="required-star">*</span></label>
         <select id="actActividad"></select>
       </div>
-      <div class="form-group full" style="position:relative;">
-        <label class="form-label">Personal que retira</label>
-        <input type="text" id="actRetira" autocomplete="off" placeholder="LP, apellido o nombre" oninput="buscarSugerenciasPersonal('actRetira')" onblur="ocultarSugerenciasConDelay('actRetiraSuggest')">
-        <div class="autocomplete-list" id="actRetiraSuggest"></div>
-      </div>
-      <div class="form-group full" style="position:relative;">
-        <label class="form-label">Personal que devuelve</label>
-        <input type="text" id="actDevuelve" autocomplete="off" placeholder="LP, apellido o nombre" oninput="buscarSugerenciasPersonal('actDevuelve')" onblur="ocultarSugerenciasConDelay('actDevuelveSuggest')">
-        <div class="autocomplete-list" id="actDevuelveSuggest"></div>
-      </div>
       <div class="form-group half">
         <label class="form-label">Munición<span class="required-star">*</span></label>
         <select id="actMunicion"></select>
@@ -504,8 +494,8 @@
     <div class="table-card">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Horario</th><th>Actividad</th><th>Retira</th><th>Devuelve</th>
-          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th>
+          <th>Fecha</th><th>Horario</th><th>Actividad</th>
+          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th>
           <th class="action-col">Acciones</th>
         </tr></thead>
         <tbody id="tbodyActividades"></tbody>
@@ -571,7 +561,7 @@
       </div>
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Horario</th><th>Actividad</th><th>Retira</th><th>Devuelve</th>
+          <th>Fecha</th><th>Horario</th><th>Actividad</th>
           <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th>
         </tr></thead>
         <tbody id="tbodyExportar"></tbody>
@@ -664,8 +654,6 @@
   verificarMantenimientoSupabase();
 
 
-  var personalDirectorio = {}; // LP -> {grado, apellido, nombre} — misma planilla general que usa Personal
-  var personalArray = [];
   var configActividades = [];  // ["CADETES", ...]
   var configMuniciones = [];   // ["9MM", ...]
   var ingresos = [];           // filas crudas de municiones_ingresos
@@ -847,7 +835,7 @@
   async function cargarTodo() {
     showLoading('Cargando datos…');
     try {
-      await Promise.all([cargarDirectorioPersonal(), cargarConfig(), cargarIngresos(), cargarActividades()]);
+      await Promise.all([cargarConfig(), cargarIngresos(), cargarActividades()]);
       renderDashboard();
       renderIngresosTable();
       renderActividadesTable();
@@ -859,19 +847,6 @@
     } finally {
       hideLoading();
     }
-  }
-
-  async function cargarDirectorioPersonal() {
-    var res = await supabaseClient.from('personal_general').select('lp,grado,apellido,nombres');
-    if (res.error) { console.error('No se pudo cargar el directorio de personal: ', res.error); return; }
-    personalDirectorio = {};
-    (res.data || []).forEach(function(p) {
-      personalDirectorio[p.lp] = { grado: p.grado || '', apellido: p.apellido || '', nombre: p.nombres || '' };
-    });
-    personalArray = Object.keys(personalDirectorio).map(function(lp) {
-      var p = personalDirectorio[lp];
-      return { lp: lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre };
-    });
   }
 
   async function cargarConfig() {
@@ -1147,9 +1122,9 @@
     document.getElementById('actividadesNoData').style.display = filas.length ? 'none' : 'block';
     document.getElementById('tbodyActividades').innerHTML = filas.map(function(a) {
       return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
-        '<td>'+esc(a.personal_retira)+'</td><td>'+esc(a.personal_devuelve)+'</td><td>'+esc(a.municion)+'</td>' +
+        '<td>'+esc(a.municion)+'</td>' +
         '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td>' +
-        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td>' +
+        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td>' +
         '<td class="action-col">' +
         '<button class="btn btn-ghost btn-sm" onclick="abrirModalActividad(\''+a.id+'\')">✏️</button>' +
         '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarActividad(\''+a.id+'\')">🗑️</button>' +
@@ -1165,8 +1140,6 @@
       document.getElementById('actFecha').value = a.fecha || '';
       document.getElementById('actHorario').value = a.horario ? String(a.horario).slice(0,5) : '';
       document.getElementById('actActividad').value = a.actividad || '';
-      document.getElementById('actRetira').value = a.personal_retira || '';
-      document.getElementById('actDevuelve').value = a.personal_devuelve || '';
       document.getElementById('actMunicion').value = a.municion || '';
       document.getElementById('actRetiraCant').value = a.retira || '';
       document.getElementById('actConsumido').value = a.consumido || '';
@@ -1176,7 +1149,7 @@
     } else {
       document.getElementById('modalActividadTitulo').textContent = '➕ Nuevo registro de actividad';
       document.getElementById('actFecha').value = isoDate(new Date());
-      ['actHorario','actRetira','actDevuelve','actRetiraCant','actConsumido','actDevueltoSinUso','actVainas','actObservaciones'].forEach(function(id) {
+      ['actHorario','actRetiraCant','actConsumido','actDevueltoSinUso','actVainas','actObservaciones'].forEach(function(id) {
         document.getElementById(id).value = '';
       });
       document.getElementById('actActividad').selectedIndex = 0;
@@ -1205,8 +1178,6 @@
       fecha: fecha,
       horario: document.getElementById('actHorario').value || null,
       actividad: actividad,
-      personal_retira: str(document.getElementById('actRetira').value),
-      personal_devuelve: str(document.getElementById('actDevuelve').value),
       municion: municion,
       retira: Number(document.getElementById('actRetiraCant').value || 0),
       consumido: Number(document.getElementById('actConsumido').value || 0),
@@ -1251,39 +1222,6 @@
     } finally {
       hideLoading();
     }
-  }
-
-  // ---- Autocompletado de personal (retira/devuelve), misma base que Personal ----
-  function buscarSugerenciasPersonal(inputId) {
-    var input = document.getElementById(inputId);
-    var listEl = document.getElementById(inputId + 'Suggest');
-    var q = input.value.trim().toLowerCase();
-    if (!q) { listEl.classList.remove('show'); listEl.innerHTML = ''; return; }
-
-    var matches = personalArray.filter(function(p) {
-      return String(p.lp).toLowerCase().indexOf(q) !== -1 ||
-             (p.apellido || '').toLowerCase().indexOf(q) !== -1 ||
-             (p.nombre   || '').toLowerCase().indexOf(q) !== -1;
-    }).slice(0, 8);
-
-    if (!matches.length) {
-      listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en la planilla general de Personal</div>';
-    } else {
-      listEl.innerHTML = matches.map(function(p) {
-        var texto = str(p.grado) + ' ' + str(p.lp) + ' ' + str(p.apellido) + ' ' + str(p.nombre);
-        return '<div class="autocomplete-item" onmousedown="seleccionarPersonal(\''+inputId+'\', \''+esc(texto).replace(/'/g,"\\'")+'\')">' +
-          '<b>'+esc(p.apellido)+', '+esc(p.nombre)+'</b>' +
-          '<small>LP '+esc(p.lp)+' — '+esc(p.grado)+'</small></div>';
-      }).join('');
-    }
-    listEl.classList.add('show');
-  }
-  function seleccionarPersonal(inputId, texto) {
-    document.getElementById(inputId).value = texto.trim();
-    document.getElementById(inputId + 'Suggest').classList.remove('show');
-  }
-  function ocultarSugerenciasConDelay(listId) {
-    setTimeout(function() { document.getElementById(listId).classList.remove('show'); }, 150);
   }
 
   // ============================================================
@@ -1363,7 +1301,7 @@
     document.getElementById('exportarNoData').style.display = lastExportRows.length ? 'none' : 'block';
     document.getElementById('tbodyExportar').innerHTML = lastExportRows.map(function(a) {
       return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
-        '<td>'+esc(a.personal_retira)+'</td><td>'+esc(a.personal_devuelve)+'</td><td>'+esc(a.municion)+'</td>' +
+        '<td>'+esc(a.municion)+'</td>' +
         '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td>' +
         '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td></tr>';
     }).join('');
@@ -1382,12 +1320,12 @@
       ws.addRow(['Reporte de Consumo']);
       ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
       ws.addRow([]);
-      var headers = ['Fecha','Horario','Actividad','Personal que retira','Personal que devuelve','Munición','Retira','Consumido','Devuelto sin uso','Vainas','Observaciones'];
+      var headers = ['Fecha','Horario','Actividad','Munición','Retira','Consumido','Devuelto sin uso','Vainas','Observaciones'];
       var headerRow = ws.addRow(headers);
       headerRow.font = { bold: true };
       lastExportRows.forEach(function(a) {
         ws.addRow([
-          fmtFecha(a.fecha), fmtHorario(a.horario), a.actividad || '', a.personal_retira || '', a.personal_devuelve || '',
+          fmtFecha(a.fecha), fmtHorario(a.horario), a.actividad || '',
           a.municion || '', Number(a.retira||0), Number(a.consumido||0), Number(a.devuelto_sin_uso||0),
           a.vainas != null ? Number(a.vainas) : '', a.observaciones || ''
         ]);
