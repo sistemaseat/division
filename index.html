@@ -125,7 +125,11 @@
     .intro h1 { font-size: 20px; color: var(--text); margin-bottom: 6px; }
     .intro p  { font-size: 14px; color: var(--muted); }
 
-    /* ── NOTICIAS (barra lateral, de la Agenda) ── */
+    /* ── NOTICIAS (barra lateral, de la Agenda) ──
+       Muestra solo Hoy y Mañana. Si el texto no entra en el panel, se
+       arma un ticker que sube solo (translateY en loop, ver
+       @keyframes noticiasScroll) — la altura del contenido se duplica
+       en JS para que el loop no se note. */
     .noticias-panel {
       position: fixed;
       top: 96px;
@@ -139,12 +143,29 @@
       border-radius: 16px;
       box-shadow: var(--shadow-lg);
       padding: 16px 16px 12px;
-      overflow-y: auto;
+      overflow: hidden;
       z-index: 400;
+      display: flex;
+      flex-direction: column;
     }
-    .noticias-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .noticias-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-shrink: 0; }
     .noticias-titulo { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--primary); }
     .noticias-sub { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+    .noticias-viewport {
+      flex: 1 1 auto;
+      min-height: 40px;
+      overflow: hidden;
+      position: relative;
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+    }
+    .noticias-track { display: flex; flex-direction: column; }
+    .noticias-track.is-scrolling { animation-name: noticiasScroll; animation-timing-function: linear; animation-iteration-count: infinite; }
+    .noticias-panel:hover .noticias-track.is-scrolling { animation-play-state: paused; }
+    @keyframes noticiasScroll {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-50%); }
+    }
     .noticia-item {
       display: flex; align-items: flex-start; gap: 9px;
       padding: 9px 10px; margin-bottom: 6px; border-radius: 10px;
@@ -152,11 +173,11 @@
       text-decoration: none; color: inherit; transition: background .12s;
     }
     .noticia-item:hover { background: rgba(255,255,255,.9); }
-    .noticia-fecha { font-size: 10px; font-weight: 800; color: var(--primary); min-width: 34px; line-height: 1.2; }
+    .noticia-fecha { font-size: 10px; font-weight: 800; color: var(--primary); min-width: 42px; line-height: 1.2; }
     .noticia-txt b { display: block; font-size: 12px; font-weight: 700; line-height: 1.3; }
     .noticia-txt span { font-size: 10.5px; color: var(--muted); }
     .noticias-vacio { font-size: 12px; color: var(--muted); text-align: center; padding: 14px 4px; }
-    .noticias-footer { text-align: center; margin-top: 8px; }
+    .noticias-footer { text-align: center; margin-top: 8px; flex-shrink: 0; }
     .noticias-footer a { font-size: 11.5px; font-weight: 700; color: var(--primary); text-decoration: none; }
     .noticias-footer a:hover { text-decoration: underline; }
 
@@ -347,17 +368,21 @@
 </div>
 
 <!-- NOTICIAS — mismos eventos cruzados que la Agenda (Cumpleaños, Servicios,
-     PAE, Licencias, Guardias, Ascensos), resumidos acá para que se vean sin
-     entrar a la Agenda. Solo aparece en pantallas anchas (ver @media en el
-     CSS) — en una pantalla más chica no entra al lado de las tarjetas. -->
+     PAE, Licencias, Guardias, Ascensos), pero solo de HOY y MAÑANA, resumidos
+     acá para que se vean sin entrar a la Agenda. Si el texto no entra en el
+     panel, sube solo en loop (ticker automático armado en cargarNoticias()).
+     Solo aparece en pantallas anchas (ver @media en el CSS) — en una
+     pantalla más chica no entra al lado de las tarjetas. -->
 <aside class="noticias-panel" id="noticiasPanel">
   <div class="noticias-head">
     <div>
       <div class="noticias-titulo">📰 Noticias</div>
-      <div class="noticias-sub">De la Agenda — próximos 14 días</div>
+      <div class="noticias-sub">De la Agenda — hoy y mañana</div>
     </div>
   </div>
-  <div id="noticiasLista"><div class="noticias-vacio">Cargando…</div></div>
+  <div class="noticias-viewport">
+    <div class="noticias-track" id="noticiasLista"><div class="noticias-vacio">Cargando…</div></div>
+  </div>
   <div class="noticias-footer"><a href="agenda.html">Ver Agenda completa →</a></div>
 </aside>
 
@@ -483,7 +508,7 @@
   supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
 
   // ============================================================
-  // NOTICIAS — resumen de los próximos 14 días, cruzando las mismas
+  // NOTICIAS — resumen de HOY y MAÑANA nada más, cruzando las mismas
   // secciones que la Agenda (agenda.html). Es una versión chica y de
   // solo lectura de la misma lógica de agenda.html — si el día de
   // mañana esa lógica cambia ahí, conviene revisar acá también.
@@ -538,7 +563,8 @@
       function nombreDe2(p) { return [p.apellido, p.nombres].filter(Boolean).join(', '); }
 
       var hoy = hoyISO2();
-      var limite = sumarDiasISO2(hoy, 14);
+      // Solo hoy y mañana — "solo eso", nada de ventana de 14 días.
+      var limite = sumarDiasISO2(hoy, 1);
       var eventos = [];
 
       var hoyAno = new Date().getFullYear();
@@ -551,6 +577,10 @@
           var esBisiesto = (anio % 4 === 0 && anio % 100 !== 0) || (anio % 400 === 0);
           if (Number(partes[1]) === 2 && diaNum === 29 && !esBisiesto) diaNum = 28;
           var iso = anio + '-' + partes[1] + '-' + String(diaNum).padStart(2, '0');
+          // Con la ventana angosta (hoy/mañana) hace falta filtrar acá
+          // mismo, si no un cumpleaños de otro día del año quedaba
+          // afuera recién en el slice de más abajo.
+          if (iso < hoy || iso > limite) return;
           eventos.push({ cat: 'cumpleanos', fecha: iso, titulo: '🎂 ' + nombreDe2(p) + ' cumple ' + (anio - Number(partes[0])) });
         });
       });
@@ -598,22 +628,46 @@
       });
 
       eventos.sort(function(a,b){ return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
-      eventos = eventos.slice(0, 14);
 
-      if (!eventos.length) { cont.innerHTML = '<div class="noticias-vacio">Sin novedades en los próximos 14 días.</div>'; return; }
+      cont.classList.remove('is-scrolling');
+      cont.style.animationDuration = '';
 
-      var MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-      cont.innerHTML = eventos.map(function(e) {
+      if (!eventos.length) {
+        cont.innerHTML = '<div class="noticias-vacio">Sin novedades para hoy y mañana.</div>';
+        return;
+      }
+
+      var itemsHtml = eventos.map(function(e) {
         var c = CATEGORIAS_NOTICIAS[e.cat];
-        var p = e.fecha.split('-');
-        var etiquetaFecha = e.fecha === hoy ? 'HOY' : (p[2] + '/' + MESES[Number(p[1])-1]);
+        var etiquetaFecha = e.fecha === hoy ? 'HOY' : 'MAÑANA';
         return '<a class="noticia-item" href="agenda.html" style="border-left-color:' + c.color + ';">' +
           '<div class="noticia-fecha">' + etiquetaFecha + '</div>' +
           '<div class="noticia-txt"><b>' + esc2(e.titulo) + '</b></div>' +
           '</a>';
       }).join('');
+
+      cont.innerHTML = itemsHtml;
+
+      // Ticker automático: si la lista entra entera en el panel se deja
+      // fija (nada que ganar animando); si no entra, se duplica el
+      // contenido y se anima un translateY en loop infinito para que
+      // el texto vaya "elevando para arriba... solo", sin que el
+      // usuario tenga que scrollear. La duración se calcula según el
+      // alto del contenido para que la velocidad sea siempre pareja.
+      var viewport = cont.parentElement;
+      requestAnimationFrame(function() {
+        if (cont.scrollHeight > viewport.clientHeight + 4) {
+          cont.innerHTML = itemsHtml + itemsHtml;
+          var pxPorSeg = 22;
+          var duracion = Math.max(8, Math.round((cont.scrollHeight / 2) / pxPorSeg));
+          cont.style.animationDuration = duracion + 's';
+          cont.classList.add('is-scrolling');
+        }
+      });
     } catch (e) {
       console.error(e);
+      cont.classList.remove('is-scrolling');
+      cont.style.animationDuration = '';
       cont.innerHTML = '<div class="noticias-vacio">No se pudieron cargar las noticias.</div>';
     }
   }
