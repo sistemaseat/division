@@ -381,6 +381,8 @@
       <div class="kpi" style="border-left-color:var(--orange);"><div class="kpi-label">🏖️ Licencias</div><div class="kpi-sub">Licencias Anuales</div></div>
       <div class="kpi" style="border-left-color:var(--purple);"><div class="kpi-label">🛡️ Guardias</div><div class="kpi-sub">Guardias Pasivas y Administrativas</div></div>
       <div class="kpi" style="border-left-color:var(--green);"><div class="kpi-label">🎖️ Ascensos</div><div class="kpi-sub">PEP / Curso / Examen</div></div>
+      <div class="kpi" style="border-left-color:#5d4037;"><div class="kpi-label">🔫 Idoneidades</div><div class="kpi-sub">Evaluaciones pendientes</div></div>
+      <div class="kpi" style="border-left-color:var(--red);"><div class="kpi-label">⏰ Vencimientos</div><div class="kpi-sub">Recurrentes y puntuales</div></div>
       <div class="kpi" style="border-left-color:var(--muted);"><div class="kpi-label">📌 Manuales</div><div class="kpi-sub">Cargados acá mismo</div></div>
     </div>
     <p style="font-size:12px; color:var(--muted); max-width:640px; margin-top:14px; line-height:1.5;">
@@ -606,6 +608,7 @@
     guardia:    { label: 'Guardias',     icon: '🛡️', color: '#6a1b9a', origen: 'Guardias',              link: 'guardias.html' },
     ascenso:    { label: 'Ascensos',     icon: '🎖️', color: '#2e7d32', origen: 'Ascensos',              link: 'ascenso.html' },
     idoneidad:  { label: 'Idoneidades',  icon: '🔫', color: '#5d4037', origen: 'Idoneidades',           link: 'idoneidades.html' },
+    vencimiento:{ label: 'Vencimientos', icon: '⏰', color: '#c62828', origen: 'Vencimientos',          link: 'vencimientos.html' },
     manual:     { label: 'Manuales',     icon: '📌', color: '#616161', origen: null,                    link: null }
   };
   var filtroCategorias = {}; // { cumpleanos: true, ... } — todas activas por defecto
@@ -623,6 +626,7 @@
   var guardiasTurnos = [];
   var ascensoRegistros = [];
   var idoneidadesRegistros = [];
+  var vencimientosRegistros = [];
   var agendaEventos = [];
 
   async function cargarTodo() {
@@ -643,6 +647,7 @@
         // ya tomadas con Aprobado/Desaprobado/Ausente no son "agenda", ya
         // pasaron) y solo se piden las columnas que hacen falta.
         supabaseClient.from('idoneidades').select('fecha,tipo,lp,grado,apellido,nombre').eq('estado', 'Pendiente'),
+        supabaseClient.from('vencimientos').select('id,titulo,tipo,dia_semana,fecha,observaciones,adjunto_path'),
         supabaseClient.from('agenda_eventos').select('*').order('fecha')
       ]);
 
@@ -658,8 +663,9 @@
       guardiasTurnos          = results[6].error ? [] : (results[6].data || []);
       ascensoRegistros        = results[7].error ? [] : (results[7].data || []);
       idoneidadesRegistros    = results[8].error ? [] : (results[8].data || []);
-      if (results[9].error) throw results[9].error; // esta sí es propia de la Agenda, tiene que existir
-      agendaEventos           = results[9].data || [];
+      vencimientosRegistros   = results[9].error ? [] : (results[9].data || []);
+      if (results[10].error) throw results[10].error; // esta sí es propia de la Agenda, tiene que existir
+      agendaEventos           = results[10].data || [];
 
       construirEventos();
       renderCatFiltros();
@@ -864,6 +870,45 @@
         descripcion: nombres.join('\n'),
         origenDetalle: 'Evaluación de idoneidad pendiente (todo el personal de la institución que rinde en la Tiro, no solo el propio).'
       });
+    });
+
+    // ---- Vencimientos (planillas/trámites recurrentes o puntuales) ----
+    // "Recurrente" se repite todas las semanas en dia_semana -- se generan
+    // ocurrencias en la misma ventana hoyAno-1..hoyAno+1 que Cumpleaños,
+    // para que el calendario lo muestre sin importar el mes que se esté
+    // mirando. "Puntual" es una fecha exacta, una sola ocurrencia.
+    var DIA_SEMANA_JS = { LUNES: 1, MARTES: 2, MIERCOLES: 3, JUEVES: 4, VIERNES: 5 };
+    vencimientosRegistros.forEach(function(r) {
+      var tieneModelo = r.adjunto_path ? ' Tiene un modelo adjunto para descargar.' : '';
+      if (r.tipo === 'Puntual') {
+        if (!r.fecha) return;
+        agregarEvento('vencimiento', {
+          id: 'venc|' + r.id,
+          fecha: r.fecha,
+          titulo: r.titulo,
+          descripcion: r.observaciones || '',
+          origenDetalle: 'Vencimiento puntual cargado en Vencimientos.' + tieneModelo
+        });
+        return;
+      }
+      var diaJs = DIA_SEMANA_JS[r.dia_semana];
+      if (diaJs === undefined) return;
+      var cur = new Date(Date.UTC(hoyAno - 1, 0, 1));
+      var fin = new Date(Date.UTC(hoyAno + 1, 11, 31));
+      while (cur.getUTCDay() !== diaJs) cur.setUTCDate(cur.getUTCDate() + 1);
+      var guard = 0;
+      while (cur <= fin && guard < 200) {
+        var iso = cur.toISOString().slice(0, 10);
+        agregarEvento('vencimiento', {
+          id: 'venc|' + r.id + '|' + iso,
+          fecha: iso,
+          titulo: r.titulo,
+          descripcion: r.observaciones || '',
+          origenDetalle: 'Vencimiento recurrente, todos los ' + r.dia_semana.charAt(0) + r.dia_semana.slice(1).toLowerCase() + '.' + tieneModelo
+        });
+        cur.setUTCDate(cur.getUTCDate() + 7);
+        guard++;
+      }
     });
 
     // ---- Eventos manuales ----

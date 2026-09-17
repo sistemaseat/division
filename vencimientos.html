@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vencimientos — División Tiro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:       #1a237e;
+    --primary-light: #283593;
+    --accent:        #ffd600;
+    --green:         #2e7d32;
+    --green-light:   #4caf50;
+    --red:           #c62828;
+    --red-light:     #ef5350;
+    --orange:        #e65100;
+    --blue:          #0277bd;
+    --purple:        #6a1b9a;
+    --teal:          #00695c;
+    --bg:            #f0f2f5;
+    --card:          #ffffff;
+    --text:          #212121;
+    --muted:         #757575;
+    --border:        #e0e0e0;
+    --shadow:        0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg:     0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* PANTALLAS DE AUTENTICACIÓN */
+  .pantalla-auth {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    align-items: center; justify-content: center;
+    min-height: 100vh; z-index: 5000; padding: 20px;
+  }
+  .pantalla-auth.show { display: flex; }
+  .pantalla-auth .box {
+    background: white; border-radius: 16px; padding: 48px 40px;
+    text-align: center; box-shadow: var(--shadow-lg); max-width: 420px;
+  }
+  .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+  .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+  .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .pantalla-auth .email-chip {
+    background: #f5f5f5; border-radius: 8px; padding: 8px 14px;
+    font-family: monospace; font-size: 13px; color: #333;
+    margin: 4px 0 16px; display: inline-block;
+  }
+  .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+  .btn-cerrar-sesion {
+    background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+  /* HEADER */
+  .header {
+    background: var(--primary); color: white; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    flex-wrap: wrap; row-gap: 8px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 44px; height: 44px; background: var(--accent); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900; color: var(--primary);
+  }
+  .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+  .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+
+  /* TABS */
+  .tabs { background: var(--primary-light); display: flex; padding: 0 28px; gap: 4px; overflow-x: auto; }
+  .tab-btn {
+    background: none; border: none; color: rgba(255,255,255,.65);
+    padding: 13px 22px; cursor: pointer; font-size: 13px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* SEMANA GRID (Dashboard) */
+  .semana-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .semana-col { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .semana-col-header { padding: 12px 16px; background: var(--primary); color: white; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; text-align: center; }
+  .semana-col-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+  .semana-item {
+    background: #f7f9ff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12.5px; line-height: 1.4;
+  }
+  .semana-item b { display: block; color: var(--primary); font-size: 12.5px; }
+  .semana-item .semana-item-obs { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .semana-item .semana-item-modelo { display: inline-block; margin-top: 4px; font-size: 11px; color: var(--teal); cursor: pointer; text-decoration: underline; }
+  .semana-vacio { color: var(--muted); font-size: 11.5px; font-style: italic; text-align: center; padding: 10px 0; }
+
+  /* SEARCH BAR / FORM CONTROLS */
+  .search-bar {
+    background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
+    display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow);
+  }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; margin-bottom: 4px; display: block; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 2px; }
+  select, input[type="date"], input[type="text"], input[type="number"], input[type="time"], input[type="file"], textarea {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+  .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+  /* TABLE */
+  .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px; overflow-x: auto; }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .section-title .ico { font-size: 16px; }
+  .section-title-left { display: flex; align-items: center; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th {
+    background: var(--primary); color: white; padding: 10px 13px; text-align: left;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
+  }
+  thead tr:first-child th:first-child { border-radius: 8px 0 0 0; }
+  thead tr:first-child th:last-child  { border-radius: 0 8px 0 0; }
+  tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:hover td { background: #f5f7fa; }
+  tbody tr:last-child td { border-bottom: none; }
+  .action-col { white-space: nowrap; text-align: right; }
+  .action-col button { margin-left: 4px; }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-green  { background: #e8f5e9; color: #2e7d32; }
+  .b-yellow { background: #fff9c4; color: #f57f17; }
+  .b-red    { background: #ffebee; color: #c62828; }
+  .b-blue   { background: #e3f2fd; color: #0277bd; }
+  .b-purple { background: #ede7f6; color: #4527a0; }
+  .b-gray   { background: #f5f5f5; color: #616161; }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .required-star { color: var(--red); margin-left: 2px; }
+  .field-hint { font-size: 11px; color: var(--muted); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-danger  { background: var(--red); color: white; }
+  .btn-ghost   { background: #e0e0e0; color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* ALERT */
+  .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+  .alert.show { display: block; }
+  .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+  /* NO DATA */
+  .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+  .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 700px; width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+  .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+  .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-modal p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .confirm-modal .btn-row { justify-content: center; }
+
+  @media (max-width: 900px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .header { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+    .header-user { width: 100%; justify-content: flex-start; gap: 6px 10px; }
+    .content { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- El login del sitio se hace en la portada (index.html) — esta página,
+     si no hay sesión iniciada, redirige para allá. -->
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<!-- Modal Nuevo/Editar Vencimiento (se reusa para las dos acciones) -->
+<div class="modal-overlay" id="modalVencimiento">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalVencimientoTitulo">➕ Nuevo Vencimiento</div>
+      <button class="modal-close" onclick="cerrarModalVencimiento()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">Título<span class="required-star">*</span></label>
+        <input type="text" id="vTitulo" placeholder="Ej: PRESENTISMO">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipo<span class="required-star">*</span></label>
+        <select id="vTipo" onchange="actualizarCamposTipoVencimiento()">
+          <option value="Recurrente">🔁 Recurrente (todas las semanas)</option>
+          <option value="Puntual">📅 Puntual (una sola fecha)</option>
+        </select>
+      </div>
+      <div class="form-group" id="grupoVDia">
+        <label class="form-label">Día de la semana<span class="required-star">*</span></label>
+        <select id="vDiaSemana">
+          <option value="LUNES">Lunes</option>
+          <option value="MARTES">Martes</option>
+          <option value="MIERCOLES">Miércoles</option>
+          <option value="JUEVES">Jueves</option>
+          <option value="VIERNES">Viernes</option>
+        </select>
+      </div>
+      <div class="form-group" id="grupoVFecha" style="display:none;">
+        <label class="form-label">Fecha<span class="required-star">*</span></label>
+        <input type="date" id="vFecha">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Observaciones</label>
+        <textarea id="vObservaciones" placeholder="Opcional"></textarea>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Modelo (Excel u otro archivo — opcional)</label>
+        <input type="file" id="vArchivo">
+        <div class="field-hint" id="vArchivoActualHint"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnGuardarVencimiento" onclick="guardarVencimiento()">💾 Guardar</button>
+      <button class="btn btn-ghost" onclick="cerrarModalVencimiento()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">⏰</div>
+    <div>
+      <div class="brand-title">VENCIMIENTOS — DIVISIÓN TIRO</div>
+      <div class="brand-sub">Planillas y trámites que vencen cada día — recurrentes y puntuales</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="lista" onclick="switchTab('lista')">📋 Vencimientos</button>
+</nav>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🗓️</span> Vencimientos recurrentes de la semana</div>
+      <div class="semana-grid" id="semanaGrid"></div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">📅</span> Vencimientos puntuales próximos</div>
+      <table>
+        <thead><tr><th>Fecha</th><th>Título</th><th>Observaciones</th><th>Modelo</th></tr></thead>
+        <tbody id="tbodyProximosPuntuales"></tbody>
+      </table>
+      <div class="no-data" id="proximosPuntualesNoData" style="display:none;">
+        <div class="no-data-icon">✅</div>
+        <div class="no-data-text">No hay vencimientos puntuales próximos cargados</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== VENCIMIENTOS (lista completa) ==================== -->
+  <div class="tab-pane" id="pane-lista">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Buscar</label>
+        <input type="text" id="fBusqueda" placeholder="Título u observaciones…" oninput="renderListaVencimientos()">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Día / Tipo</label>
+        <select id="fDia" onchange="renderListaVencimientos()">
+          <option value="">Todos</option>
+          <option value="LUNES">Lunes</option>
+          <option value="MARTES">Martes</option>
+          <option value="MIERCOLES">Miércoles</option>
+          <option value="JUEVES">Jueves</option>
+          <option value="VIERNES">Viernes</option>
+          <option value="PUNTUAL">Puntuales</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost" onclick="document.getElementById('fBusqueda').value=''; document.getElementById('fDia').value=''; renderListaVencimientos();">Limpiar filtros</button>
+      <span class="count-pill" id="listaCountPill">0 vencimientos</span>
+      <button class="btn btn-primary" style="margin-left:auto;" onclick="abrirModalNuevoVencimiento()">➕ Nuevo Vencimiento</button>
+    </div>
+
+    <div class="table-card">
+      <table>
+        <thead><tr><th>Cuándo</th><th>Título</th><th>Observaciones</th><th>Modelo</th><th class="action-col">Acciones</th></tr></thead>
+        <tbody id="tbodyLista"></tbody>
+      </table>
+      <div class="no-data" id="listaNoData" style="display:none;">
+        <div class="no-data-icon">📭</div>
+        <div class="no-data-text">No hay vencimientos cargados con ese filtro</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /appRoot -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+  // ============================================================
+  // CONFIGURACIÓN — mismo proyecto de Supabase que el resto del sitio.
+  // ============================================================
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ============================================================
+  // AVISO DE MANTENIMIENTO DE SUPABASE
+  // ============================================================
+  function mostrarModalMantenimiento(texto) {
+    var t = document.getElementById('mantenimientoModalTexto');
+    var m = document.getElementById('mantenimientoModal');
+    if (!t || !m) return;
+    t.textContent = texto;
+    m.classList.add('show');
+  }
+
+  async function verificarMantenimientoSupabase() {
+    try {
+      var ctrl = new AbortController();
+      var timeoutId = setTimeout(function() { ctrl.abort(); }, 5000);
+      var res = await fetch('https://status.supabase.com/api/v2/summary.json', { signal: ctrl.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) return;
+      var data = await res.json();
+      var mant = (data.scheduled_maintenances || []).find(function(m) { return m.status === 'in_progress'; });
+      if (!mant) return;
+      var fmt = function(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+      };
+      var inicio = fmt(mant.scheduled_for);
+      var fin = fmt(mant.scheduled_until);
+      var rango = (inicio && fin) ? (' de ' + inicio + ' a ' + fin + '.') : '.';
+      mostrarModalMantenimiento('Supabase está en mantenimiento programado' + rango + ' Durante este lapso la carga o el guardado de datos puede fallar. Podés cerrar este aviso y probar igual.');
+    } catch (e) {
+      // Sin acceso al status público (offline, CORS, timeout): no se avisa acá.
+    }
+  }
+  verificarMantenimientoSupabase();
+
+  var DIAS_SEMANA = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES'];
+  var DIAS_SEMANA_LABEL = { LUNES:'Lunes', MARTES:'Martes', MIERCOLES:'Miércoles', JUEVES:'Jueves', VIERNES:'Viernes' };
+
+  var vencimientos = []; // todos los registros, cargados una vez y refrescados tras cada cambio
+  var _vencEditId = null; // null = modal en modo "nuevo"; si no, id del que se está editando
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+  }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    setTimeout(function(){ el.classList.remove('show'); }, 6000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = opciones.textoCancelar || 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — mismo patrón que el resto del sitio.
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email, rol').eq('email', email).maybeSingle();
+      if (res.error) {
+        console.error('Error al verificar el acceso: ', res.error);
+        if (!document.getElementById('mantenimientoModal').classList.contains('show')) { mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.'); }
+        mostrarPantalla('login');
+        return;
+      }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      mostrarPantalla('app', session.user.email);
+      window.SOLO_LECTURA = (res.data.rol === 'visual');
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['abrirModalNuevoVencimiento', 'abrirModalEditarVencimiento', 'guardarVencimiento', 'confirmarEliminarVencimiento', 'eliminarVencimiento', 'adjuntarModeloExistente']);
+      await cargarVencimientos();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+
+  // ============================================================
+  // MODO SOLO LECTURA — mismo criterio que el resto del sitio (ver
+  // idoneidades.html/municiones.html para el comentario completo).
+  // ============================================================
+  function aplicarModoSoloLectura(nombresEscritura) {
+    if (!window.SOLO_LECTURA) return;
+    try {
+      if (!document.getElementById('bannerSoloLectura')) {
+        var banner = document.createElement('div');
+        banner.id = 'bannerSoloLectura';
+        banner.textContent = '👁️ Modo solo lectura — esta cuenta solo puede ver, no puede cargar, editar ni borrar nada.';
+        banner.style.cssText = 'background:#5d4037;color:#fff;text-align:center;font-size:12px;font-weight:700;padding:7px 10px;';
+        document.body.insertBefore(banner, document.body.firstChild);
+      }
+
+      var patrones = (nombresEscritura || []).map(function(n) {
+        return new RegExp('\\b' + n + '\\s*\\(', 'i');
+      });
+
+      function esControlDeEscritura(el) {
+        var fns = [el.onclick, el.onchange, el.onsubmit];
+        for (var i = 0; i < fns.length; i++) {
+          if (typeof fns[i] !== 'function') continue;
+          var src = fns[i].toString();
+          for (var j = 0; j < patrones.length; j++) {
+            if (patrones[j].test(src)) return true;
+          }
+        }
+        return false;
+      }
+
+      function ocultar(el) { el.style.setProperty('display', 'none', 'important'); }
+
+      function procesar(root) {
+        if (!root || root.nodeType !== 1 || !root.querySelectorAll) return;
+        var candidatos = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+        candidatos.forEach(function(el) {
+          if (!el.hasAttribute || el.hasAttribute('data-solo-lectura-visto')) return;
+          el.setAttribute('data-solo-lectura-visto', '1');
+          if (esControlDeEscritura(el)) { ocultar(el); return; }
+          if (el.tagName === 'INPUT' && el.type === 'file') el.disabled = true;
+        });
+      }
+
+      procesar(document.body);
+      var obs = new MutationObserver(function(muts) {
+        muts.forEach(function(m) { m.addedNodes.forEach(function(n) { procesar(n); }); });
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { console.error('Error al aplicar modo solo lectura: ', e); }
+  }
+
+  function initAuth() {
+    supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
+  }
+
+  // ============================================================
+  // CARGA Y RENDER
+  // ============================================================
+  async function cargarVencimientos() {
+    showLoading('Cargando vencimientos…');
+    try {
+      var res = await supabaseClient.from('vencimientos').select('*');
+      if (res.error) throw res.error;
+      vencimientos = res.data || [];
+      renderDashboard();
+      renderListaVencimientos();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cargar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function ordenarDentroDia(a, b) {
+    var r = (a.orden || 0) - (b.orden || 0);
+    if (r !== 0) return r;
+    return String(a.titulo || '').localeCompare(String(b.titulo || ''), 'es');
+  }
+
+  function htmlModeloCelda(v) {
+    if (!v.adjunto_path) return '<span style="color:var(--muted);">—</span>';
+    return '<span class="semana-item-modelo" onclick="descargarModelo(' + JSON.stringify(v.id) + ')" style="cursor:pointer; color:var(--teal); text-decoration:underline; font-size:12.5px;">📎 ' + esc(v.adjunto_nombre || 'Descargar') + '</span>';
+  }
+
+  function renderDashboard() {
+    var recurrentes = vencimientos.filter(function(v){ return v.tipo === 'Recurrente'; });
+    var html = DIAS_SEMANA.map(function(dia) {
+      var items = recurrentes.filter(function(v){ return v.dia_semana === dia; }).sort(ordenarDentroDia);
+      var cuerpo = items.length
+        ? items.map(function(v) {
+            return '<div class="semana-item"><b>' + esc(v.titulo) + '</b>' +
+              (v.observaciones ? '<div class="semana-item-obs">' + esc(v.observaciones) + '</div>' : '') +
+              (v.adjunto_path ? '<div>' + htmlModeloCelda(v) + '</div>' : '') +
+              '</div>';
+          }).join('')
+        : '<div class="semana-vacio">Sin vencimientos</div>';
+      return '<div class="semana-col"><div class="semana-col-header">' + DIAS_SEMANA_LABEL[dia] + '</div><div class="semana-col-body">' + cuerpo + '</div></div>';
+    }).join('');
+    document.getElementById('semanaGrid').innerHTML = html;
+
+    var hoy = isoDate(new Date());
+    var puntuales = vencimientos.filter(function(v){ return v.tipo === 'Puntual' && v.fecha && v.fecha >= hoy; })
+      .sort(function(a,b){ return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0; });
+    var tbody = document.getElementById('tbodyProximosPuntuales');
+    var noData = document.getElementById('proximosPuntualesNoData');
+    if (!puntuales.length) {
+      tbody.innerHTML = ''; noData.style.display = 'block';
+    } else {
+      noData.style.display = 'none';
+      tbody.innerHTML = puntuales.map(function(v) {
+        var esHoy = v.fecha === hoy;
+        return '<tr><td>' + fmtFecha(v.fecha) + (esHoy ? ' <span class="badge b-yellow">HOY</span>' : '') + '</td>' +
+          '<td>' + esc(v.titulo) + '</td>' +
+          '<td>' + esc(v.observaciones || '—') + '</td>' +
+          '<td>' + htmlModeloCelda(v) + '</td></tr>';
+      }).join('');
+    }
+  }
+
+  function cuandoTexto(v) {
+    if (v.tipo === 'Puntual') return fmtFecha(v.fecha);
+    return 'Todos los ' + DIAS_SEMANA_LABEL[v.dia_semana];
+  }
+
+  function renderListaVencimientos() {
+    var q = str(document.getElementById('fBusqueda').value).toLowerCase();
+    var fDia = document.getElementById('fDia').value;
+
+    var filas = vencimientos.filter(function(v) {
+      if (q && !((v.titulo||'').toLowerCase().indexOf(q) !== -1 || (v.observaciones||'').toLowerCase().indexOf(q) !== -1)) return false;
+      if (fDia === 'PUNTUAL' && v.tipo !== 'Puntual') return false;
+      if (fDia && fDia !== 'PUNTUAL' && v.dia_semana !== fDia) return false;
+      return true;
+    });
+
+    // Orden: recurrentes agrupados Lunes→Viernes (y dentro, por "orden"),
+    // después los puntuales por fecha ascendente.
+    filas.sort(function(a, b) {
+      if (a.tipo !== b.tipo) return a.tipo === 'Recurrente' ? -1 : 1;
+      if (a.tipo === 'Recurrente') {
+        var r = DIAS_SEMANA.indexOf(a.dia_semana) - DIAS_SEMANA.indexOf(b.dia_semana);
+        if (r !== 0) return r;
+        return ordenarDentroDia(a, b);
+      }
+      return (a.fecha || '') < (b.fecha || '') ? -1 : (a.fecha || '') > (b.fecha || '') ? 1 : 0;
+    });
+
+    document.getElementById('listaCountPill').textContent = filas.length + ' vencimiento' + (filas.length === 1 ? '' : 's');
+
+    var tbody = document.getElementById('tbodyLista');
+    var noData = document.getElementById('listaNoData');
+    if (!filas.length) {
+      tbody.innerHTML = ''; noData.style.display = 'block'; return;
+    }
+    noData.style.display = 'none';
+    var hoy = isoDate(new Date());
+    tbody.innerHTML = filas.map(function(v) {
+      var vencidoBadge = (v.tipo === 'Puntual' && v.fecha && v.fecha < hoy) ? ' <span class="badge b-gray">Pasado</span>' : '';
+      return '<tr>' +
+        '<td>' + (v.tipo === 'Recurrente' ? '<span class="badge b-blue">🔁 ' + cuandoTexto(v) + '</span>' : '<span class="badge b-purple">📅 ' + cuandoTexto(v) + '</span>') + vencidoBadge + '</td>' +
+        '<td>' + esc(v.titulo) + '</td>' +
+        '<td>' + esc(v.observaciones || '—') + '</td>' +
+        '<td>' + htmlModeloCelda(v) +
+          (!v.adjunto_path ? ' <button class="btn btn-ghost btn-sm" onclick="adjuntarModeloExistente(' + JSON.stringify(v.id) + ')" title="Subir modelo">📎 Subir</button>' : ' <button class="btn btn-ghost btn-sm" onclick="adjuntarModeloExistente(' + JSON.stringify(v.id) + ')" title="Reemplazar modelo">🔄</button>') +
+        '</td>' +
+        '<td class="action-col">' +
+          '<button class="btn btn-ghost btn-sm" onclick="abrirModalEditarVencimiento(' + JSON.stringify(v.id) + ')" title="Editar">✏️</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarVencimiento(' + JSON.stringify(v.id) + ')" title="Eliminar">🗑️</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  // ============================================================
+  // MODAL NUEVO / EDITAR
+  // ============================================================
+  function actualizarCamposTipoVencimiento() {
+    var esRecurrente = document.getElementById('vTipo').value === 'Recurrente';
+    document.getElementById('grupoVDia').style.display = esRecurrente ? '' : 'none';
+    document.getElementById('grupoVFecha').style.display = esRecurrente ? 'none' : '';
+  }
+
+  function abrirModalNuevoVencimiento() {
+    _vencEditId = null;
+    document.getElementById('modalVencimientoTitulo').textContent = '➕ Nuevo Vencimiento';
+    document.getElementById('vTitulo').value = '';
+    document.getElementById('vTipo').value = 'Recurrente';
+    document.getElementById('vDiaSemana').value = 'LUNES';
+    document.getElementById('vFecha').value = '';
+    document.getElementById('vObservaciones').value = '';
+    document.getElementById('vArchivo').value = '';
+    document.getElementById('vArchivoActualHint').textContent = '';
+    actualizarCamposTipoVencimiento();
+    document.getElementById('modalVencimiento').classList.add('show');
+  }
+
+  function abrirModalEditarVencimiento(id) {
+    var v = vencimientos.find(function(x){ return x.id === id; });
+    if (!v) return;
+    _vencEditId = id;
+    document.getElementById('modalVencimientoTitulo').textContent = '✏️ Editar Vencimiento';
+    document.getElementById('vTitulo').value = v.titulo || '';
+    document.getElementById('vTipo').value = v.tipo;
+    document.getElementById('vDiaSemana').value = v.dia_semana || 'LUNES';
+    document.getElementById('vFecha').value = v.fecha || '';
+    document.getElementById('vObservaciones').value = v.observaciones || '';
+    document.getElementById('vArchivo').value = '';
+    document.getElementById('vArchivoActualHint').textContent = v.adjunto_path ? ('Ya tiene un modelo cargado (' + (v.adjunto_nombre || '') + '). Elegí un archivo acá solo si querés reemplazarlo.') : '';
+    actualizarCamposTipoVencimiento();
+    document.getElementById('modalVencimiento').classList.add('show');
+  }
+
+  function cerrarModalVencimiento() {
+    document.getElementById('modalVencimiento').classList.remove('show');
+  }
+
+  function extensionDeArchivo(nombre) {
+    var m = /\.([a-zA-Z0-9]+)$/.exec(nombre || '');
+    return m ? m[1].toLowerCase() : 'xlsx';
+  }
+
+  async function subirModeloVencimiento(id, file) {
+    var path = 'VENCIMIENTOS/' + id + '.' + extensionDeArchivo(file.name);
+    var up = await supabaseClient.storage.from('adjuntos').upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' });
+    if (up.error) throw up.error;
+    var upd = await supabaseClient.from('vencimientos').update({ adjunto_path: path, adjunto_nombre: file.name }).eq('id', id);
+    if (upd.error) throw upd.error;
+  }
+
+  async function guardarVencimiento() {
+    var titulo = str(document.getElementById('vTitulo').value);
+    var tipo = document.getElementById('vTipo').value;
+    var diaSemana = document.getElementById('vDiaSemana').value;
+    var fecha = document.getElementById('vFecha').value;
+    var observaciones = str(document.getElementById('vObservaciones').value);
+    var archivo = document.getElementById('vArchivo').files[0];
+
+    if (!titulo) { alertShow('topAlert', 'error', 'Completá el título.'); return; }
+    if (tipo === 'Puntual' && !fecha) { alertShow('topAlert', 'error', 'Completá la fecha para un vencimiento puntual.'); return; }
+
+    var payload = {
+      titulo: titulo,
+      tipo: tipo,
+      dia_semana: tipo === 'Recurrente' ? diaSemana : null,
+      fecha: tipo === 'Puntual' ? fecha : null,
+      observaciones: observaciones
+    };
+
+    var btn = document.getElementById('btnGuardarVencimiento');
+    btn.disabled = true; btn.textContent = '⏳ Guardando…';
+    try {
+      var id = _vencEditId;
+      if (id) {
+        var upd = await supabaseClient.from('vencimientos').update(payload).eq('id', id);
+        if (upd.error) throw upd.error;
+      } else {
+        var ins = await supabaseClient.from('vencimientos').insert(payload).select().single();
+        if (ins.error) throw ins.error;
+        id = ins.data.id;
+      }
+
+      if (archivo) {
+        try { await subirModeloVencimiento(id, archivo); }
+        catch (eArchivo) { alertShow('topAlert', 'error', 'El vencimiento se guardó, pero hubo un error al subir el modelo: ' + (eArchivo.message || eArchivo)); }
+      }
+
+      cerrarModalVencimiento();
+      alertShow('topAlert', 'success', '✅ Vencimiento guardado.');
+      await cargarVencimientos();
+    } catch (e) {
+      var msg = /duplicate key|unique/i.test(e.message||'') ? 'Ya existe un vencimiento recurrente cargado con ese mismo título y día.' : (e.message||e);
+      alertShow('topAlert', 'error', 'Error al guardar: ' + msg);
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 Guardar';
+    }
+  }
+
+  function confirmarEliminarVencimiento(id) {
+    showConfirm('¿Eliminar este vencimiento? Esta acción no se puede deshacer (el modelo adjunto, si tiene, queda guardado en el bucket).', function() { eliminarVencimiento(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
+  async function eliminarVencimiento(id) {
+    showLoading('Eliminando…');
+    try {
+      var res = await supabaseClient.from('vencimientos').delete().eq('id', id);
+      if (res.error) throw res.error;
+      alertShow('topAlert', 'success', '🗑️ Vencimiento eliminado.');
+      await cargarVencimientos();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al eliminar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ── Adjuntar/reemplazar modelo directo desde la lista (sin abrir el modal) ──
+  function adjuntarModeloExistente(id) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = async function() {
+      var file = input.files[0];
+      if (!file) return;
+      showLoading('Subiendo modelo…');
+      try {
+        await subirModeloVencimiento(id, file);
+        alertShow('topAlert', 'success', '✅ Modelo adjuntado.');
+        await cargarVencimientos();
+      } catch (e) {
+        alertShow('topAlert', 'error', 'Error al subir: ' + (e.message || e));
+      } finally {
+        hideLoading();
+      }
+    };
+    input.click();
+  }
+
+  // ── Descargar modelo (URL firmada, el bucket es privado) ──
+  async function descargarModelo(id) {
+    var v = vencimientos.find(function(x){ return x.id === id; });
+    if (!v || !v.adjunto_path) return;
+    try {
+      var res = await supabaseClient.storage.from('adjuntos').createSignedUrl(v.adjunto_path, 3600);
+      if (res.error || !res.data) { alertShow('topAlert', 'error', 'No se pudo generar el link del archivo: ' + (res.error ? res.error.message : '')); return; }
+      window.open(res.data.signedUrl, '_blank');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al abrir el archivo: ' + (e.message||e));
+    }
+  }
+
+  initAuth();
+
+</script>
+
+<!-- Aviso de mantenimiento de Supabase (status público / error de red) -->
+<div class="modal-overlay" id="mantenimientoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚠️ Aviso de Supabase</div>
+      <button class="modal-close" onclick="document.getElementById('mantenimientoModal').classList.remove('show')">✕</button>
+    </div>
+    <p id="mantenimientoModalTexto" style="line-height:1.5; color:var(--text, #333);"></p>
+  </div>
+</div>
+
+</body>
+</html>
