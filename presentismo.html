@@ -2083,7 +2083,9 @@
       personas[r.legajo].dependencia = r.dependencia || personas[r.legajo].dependencia;
       personas[r.legajo].porDia[d.getDate()] = { valor: r.valor, novedad: r.novedad };
     });
-    var lista = Object.keys(personas).map(function(lp){ return personas[lp]; }).sort(compararCaratula);
+    // Ordenado por Grado (y a igual grado, por apellido/nombre) — no se agrupa
+    // por dependencia acá, para que la tabla quede en un solo orden de grado.
+    var lista = Object.keys(personas).map(function(lp){ return personas[lp]; }).sort(compararPersonal);
     var dias = [];
     for (var d2 = 1; d2 <= ultimoDia; d2++) dias.push({ dia: d2, dow: new Date(anio, mes - 1, d2).getDay() });
     return { dias: dias, personas: lista };
