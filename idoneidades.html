@@ -668,7 +668,7 @@
     </div>
     <div class="table-card">
       <table>
-        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th>🍼</th><th class="action-col">Acciones</th></tr></thead>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Usuario</th><th class="action-col">Acciones</th></tr></thead>
         <tbody id="tbodyRegistros"></tbody>
       </table>
       <div class="no-data" id="registrosNoData" style="display:none;">
@@ -1704,11 +1704,10 @@
         var cls = r.estado === 'Aprobado' ? 'est-aprobado' : r.estado === 'Desaprobado' ? 'est-desaprobado' : r.estado === 'Ausente' ? 'est-ausente' : 'est-pendiente';
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
           '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td>'+fmtFecha(r.fecha)+'</td><td>'+fmtHorario(r.hora)+'</td>' +
-          '<td>'+esc((r.tipo||'').replace('Idoneidad ',''))+'</td>' +
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.estado)+'" onchange="cambiarEstado(\'idoneidades\',\''+r.id+'\',this.value,this)">' +
             ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
-          '<td style="text-align:center;"><input type="checkbox" '+(r.lactancia?'checked':'')+' disabled title="Lactancia (se modifica desde ✏️ Editar)"></td>' +
+          '<td style="font-size:11px;">'+esc(r.usuario)+'</td>' +
           '<td class="action-col"><button class="btn btn-ghost btn-sm" onclick="abrirModalEditarRegistro(\''+r.id+'\')" title="Editar">✏️</button> <button class="btn btn-danger btn-sm" onclick="confirmarEliminarRegistro(\''+r.id+'\')" title="Eliminar">🗑️</button></td></tr>';
       }).join('');
 
