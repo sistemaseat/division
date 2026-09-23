@@ -719,13 +719,42 @@
   // Dependencia: División Tiro va siempre antes que la Sección en exportación.
   const DEPENDENCIAS_ORDEN = ['DIVISION TIRO', 'SECCION TIRO DE FORMACION INICIAL'];
 
+  // El grado viene de la nómina general (padrón de toda la institución) con
+  // mayúsculas mezcladas -- normalizamos tipo "initcap" para que "INSPECTOR"/
+  // "inspector"/"Inspector" siempre matcheen la misma posición en GRADOS_ORDEN
+  // (si no, quedaba último y desordenaba Carga Diaria/Control Mensual/Horarios).
+  function normalizarGrado(g) {
+    return String(g || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|\s)\S/g, function(c) { return c.toUpperCase(); });
+  }
   function gradoRank(g) {
-    var idx = GRADOS_ORDEN.indexOf(String(g || '').trim());
+    var idx = GRADOS_ORDEN.indexOf(normalizarGrado(g));
     return idx === -1 ? GRADOS_ORDEN.length : idx;
   }
   function dependenciaRank(d) {
     var idx = DEPENDENCIAS_ORDEN.indexOf(String(d || '').trim().toUpperCase());
     return idx === -1 ? DEPENDENCIAS_ORDEN.length : idx;
+  }
+  // El texto de cada persona en Horarios/Actividades siempre tiene el formato
+  // "GRADO LP <lp> <apellido> <nombre>" (ver calcularHorariosDesdeRegistro /
+  // generarActividadesDesdeRegistro) -- de ahí se puede sacar el grado para
+  // ordenar sin tener el objeto de personal a mano.
+  function extraerGradoDePersona(s) {
+    var i = String(s || '').indexOf(' LP ');
+    return i === -1 ? '' : String(s).slice(0, i);
+  }
+  function ordenarPersonasPorGrado(lista) {
+    return (lista || []).slice().sort(function(a, b) {
+      var rg = gradoRank(extraerGradoDePersona(a)) - gradoRank(extraerGradoDePersona(b));
+      if (rg !== 0) return rg;
+      return String(a).localeCompare(String(b), 'es', { sensitivity: 'base' });
+    });
+  }
+  // Igual problema que con Grado: el horario es texto libre cargado a mano en
+  // Carga Diaria, así que "07 A 15" y "07 A 15 " (o con doble espacio) quedaban
+  // como grupos separados en vez de uno solo. Se normaliza el espaciado y
+  // mayúsculas antes de usarlo como clave de agrupación.
+  function normalizarHorario(h) {
+    return String(h || '').trim().replace(/\s+/g, ' ').toUpperCase();
   }
   function compararPersonal(a, b) {
     var rg = gradoRank(a.grado) - gradoRank(b.grado);
@@ -1392,7 +1421,7 @@
       var estado = tr.dataset.estado;
       rows.push({
         fecha: fecha, lp: lp, estado: estado,
-        horario: up(tr.querySelector('.inp-horario').value),
+        horario: normalizarHorario(tr.querySelector('.inp-horario').value),
         funcion: up(tr.querySelector('.inp-funcion').value),
         sector: str(tr.querySelector('.inp-sector').value),
         dispuesto_por: str(tr.querySelector('.inp-dispuesto').value),
@@ -1452,7 +1481,7 @@
         if (TIPOS_SIN_HORARIO.indexOf(r.tipo_presencia) !== -1) {
           (especiales[r.tipo_presencia] = especiales[r.tipo_presencia] || []).push(persona);
         } else {
-          var h = r.horario || 'SIN HORARIO';
+          var h = normalizarHorario(r.horario) || 'SIN HORARIO';
           (horarios[h] = horarios[h] || []).push(persona);
         }
       } else {
@@ -1460,11 +1489,20 @@
         (especiales[m] = especiales[m] || []).push(persona);
       }
     });
+    // Orden por Grado (jerarquía) dentro de cada horario/grupo, igual que en el
+    // resto del sitio -- si no, quedaban en el orden en que se habían cargado.
+    Object.keys(horarios).forEach(function(h){ horarios[h] = ordenarPersonasPorGrado(horarios[h]); });
+    Object.keys(especiales).forEach(function(k){ especiales[k] = ordenarPersonasPorGrado(especiales[k]); });
     return { horarios: horarios, especiales: especiales };
   }
 
   function _excluirGrado(personaTxt) {
-    return GRADOS_EXCLUIR_INTERNO.some(function(g){ return String(personaTxt || '').indexOf(g) === 0; });
+    // Antes comparaba con indexOf(g) === 0, que además de ser sensible a
+    // mayúsculas/minúsculas confundía "Comisario Inspector" con "Comisario"
+    // (empieza igual). Ahora se extrae el grado exacto (hasta el " LP ") y se
+    // compara normalizado.
+    var grado = normalizarGrado(extraerGradoDePersona(personaTxt));
+    return GRADOS_EXCLUIR_INTERNO.indexOf(grado) !== -1;
   }
 
   async function cargarActividades() {
@@ -1522,7 +1560,11 @@
     document.getElementById('badgeInterno').textContent = actInternoItems.length;
     var html = '';
     actInternoItems.forEach(function(item, idx) {
-      var personas = str(item.personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+      var personas = ordenarPersonasPorGrado(str(item.personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean));
+      // Se deja guardado en el mismo orden (por Grado) — así el 1° de la lista
+      // siempre es el de mayor jerarquía (lo usa el Parte EDT como "responsable")
+      // y el índice de cada chip coincide con el de quitarPersonaDeActInterno.
+      item.personal = personas.join(' | ');
       html += '<div class="act-row">' +
         '<div class="act-field" style="max-width:60px;flex:0 0 60px;">' +
           '<label>&nbsp;</label>' +
@@ -1701,11 +1743,11 @@
       rows.forEach(function(r) {
         if (r.estado !== 'PRESENTE') return;
         var grado = str(r.grado);
-        if (GRADOS_EXCLUIR_INTERNO.indexOf(grado) !== -1) return;
+        if (GRADOS_EXCLUIR_INTERNO.indexOf(normalizarGrado(grado)) !== -1) return;
         var persona = grado + ' LP ' + r.lp + ' ' + r.apellido + ' ' + (r.nombre || '');
         var funcion = up(r.funcion);
         var tipo = up(r.tipo_presencia);
-        var horario = str(r.horario);
+        var horario = normalizarHorario(r.horario);
         if (TIPOS_SIN_HORARIO.indexOf(tipo) !== -1) {
           if (!grupos[tipo]) grupos[tipo] = { descripcion: tipo, personas: [], horario: '' };
           grupos[tipo].personas.push(persona);
