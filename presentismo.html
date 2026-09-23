@@ -831,6 +831,21 @@
   var actInternoItems = []; // [{id?,descripcion,horario,personal,orden}]
   var actEDTItems = [];     // [{actividad,horario,responsable,cantidad}] — solo lectura
   var _selectorInternoIdx = null;
+  // Carga Diaria del día de Actividades (actFecha) — se recarga en cada
+  // cargarActividades() y sirve para bloquear en el selector de personal
+  // a quien esté de Licencia Anual, Franco de Servicio, o presente pero
+  // afectado a un servicio (Fuera de Jurisdicción, Saturación, Espacios
+  // Públicos) ese día.
+  var _registroActFecha = { fecha: null, porLp: {} };
+  var MOTIVOS_NO_SELECCIONABLE = ['LICENCIA ANUAL', 'FRANCO DE SERVICIO'];
+  var TIPOS_NO_SELECCIONABLE = ['SERVICIO FUERA DE JURISDICCION', 'SATURACION', 'ESPACIOS PUBLICOS'];
+  function _motivoNoDisponible(p) {
+    var r = _registroActFecha.porLp[String(p.lp)];
+    if (!r) return '';
+    if (r.estado === 'AUSENTE' && MOTIVOS_NO_SELECCIONABLE.indexOf(up(r.motivo)) !== -1) return abrevEstado(up(r.motivo));
+    if (r.estado === 'PRESENTE' && TIPOS_NO_SELECCIONABLE.indexOf(up(r.tipo_presencia)) !== -1) return abrevEstado(up(r.tipo_presencia));
+    return '';
+  }
   var _chartAsistencia = null, _chartTipos = null;
 
   document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
@@ -1573,6 +1588,8 @@
 
       var rowsReg = await cargarRegistroDeFecha(fecha);
       renderPreviewHorarios(calcularHorariosDesdeRegistro(rowsReg), fecha, rowsReg.length > 0);
+      _registroActFecha = { fecha: fecha, porLp: {} };
+      rowsReg.forEach(function(r){ _registroActFecha.porLp[String(r.lp)] = r; });
 
       renderListaInterno();
       renderListaEdt();
@@ -1679,9 +1696,14 @@
     cont.innerHTML = personal.map(function(p) {
       var texto = nombrePersona(p);
       var checked = preseleccion.indexOf(texto) !== -1;
-      return '<div class="sp-item" data-texto="'+esc(texto.toLowerCase())+'">' +
-        '<input type="checkbox" class="sp-check" value="'+esc(texto)+'" id="sp-'+esc(p.lp)+'" '+(checked?'checked':'')+' onchange="actualizarCountSelectorPersonal()">' +
-        '<label for="sp-'+esc(p.lp)+'" style="flex:1;display:flex;justify-content:space-between;cursor:pointer;"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombres)+'</span><span style="color:var(--muted);font-size:12px">LP '+esc(p.lp)+'</span></label>' +
+      // No se puede tildar a quien esa fecha esté de Licencia Anual, Franco
+      // de Servicio o en Servicio Fuera de Jurisdicción — salvo que ya
+      // estuviera seleccionado de antes (para no perder una carga previa).
+      var motivo = _motivoNoDisponible(p);
+      var bloqueado = motivo && !checked;
+      return '<div class="sp-item'+(bloqueado?' sp-item-bloqueado':'')+'" data-texto="'+esc(texto.toLowerCase())+'"'+(bloqueado?' title="No disponible: '+esc(motivo)+'"':'')+'>' +
+        '<input type="checkbox" class="sp-check" value="'+esc(texto)+'" id="sp-'+esc(p.lp)+'" '+(checked?'checked':'')+' '+(bloqueado?'disabled':'')+' onchange="actualizarCountSelectorPersonal()">' +
+        '<label for="sp-'+esc(p.lp)+'" style="flex:1;display:flex;justify-content:space-between;cursor:'+(bloqueado?'not-allowed':'pointer')+';'+(bloqueado?'opacity:.5;':'')+'"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombres)+(motivo?' <em style="font-style:normal;color:var(--danger,#c62828);font-size:11px;">— '+esc(motivo)+'</em>':'')+'</span><span style="color:var(--muted);font-size:12px">LP '+esc(p.lp)+'</span></label>' +
       '</div>';
     }).join('');
     document.getElementById('spBuscar').value = '';
@@ -1696,7 +1718,9 @@
   function toggleSeleccionTodosPersonal(sel) {
     document.querySelectorAll('#spLista .sp-item').forEach(function(el){
       if (el.style.display === 'none') return;
-      el.querySelector('.sp-check').checked = sel;
+      var chk = el.querySelector('.sp-check');
+      if (sel && chk.disabled) return; // no forzar la selección de quien está bloqueado
+      chk.checked = sel;
     });
     actualizarCountSelectorPersonal();
   }
