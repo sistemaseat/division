@@ -1246,7 +1246,7 @@
         '<td><input list="listHorarios" class="inp-horario" placeholder="07 A 15"></td>' +
         '<td>' +
           '<select class="sel-tipo campo-pres campo-oculto" onchange="onTipoChangeCarga(this)">' + configTipos.filter(function(t){return t.activo;}).map(function(t){ return '<option value="'+esc(t.nombre)+'">'+esc(t.nombre)+'</option>'; }).join('') + '</select>' +
-          '<select class="sel-motivo campo-aus campo-oculto">' + configMotivos.filter(function(m){return m.activo;}).map(function(m){ return '<option value="'+esc(m.nombre)+'">'+esc(m.nombre)+'</option>'; }).join('') + '</select>' +
+          '<select class="sel-motivo campo-aus campo-oculto" onchange="onMotivoChangeCarga(this)">' + configMotivos.filter(function(m){return m.activo;}).map(function(m){ return '<option value="'+esc(m.nombre)+'">'+esc(m.nombre)+'</option>'; }).join('') + '</select>' +
         '</td>' +
         '<td><input list="listFunciones" class="inp-funcion campo-pres campo-oculto" placeholder="Función"></td>' +
         '<td><input list="listSectores" class="inp-sector campo-pres campo-oculto" placeholder="Sector / QTH"></td>' +
@@ -1290,7 +1290,10 @@
     tr.querySelectorAll('.campo-pres').forEach(function(el){ el.classList.toggle('campo-oculto', !showPres); });
     tr.querySelectorAll('.campo-aus').forEach(function(el){ el.classList.toggle('campo-oculto', !showAus); });
     tr.classList.toggle('fila-ausente', showAus);
-    if (showPres) _aplicarDefaultsCarga(tr, tr.querySelector('.sel-tipo').value);
+    if (showPres) {
+      _aplicarDefaultsCarga(tr, tr.querySelector('.sel-tipo').value);
+      _limpiarObsLicenciaSiCorresponde(tr);
+    }
     if (!tr.dataset.blurBound) {
       tr.dataset.blurBound = '1';
       tr.addEventListener('focusout', function(e){
@@ -1306,6 +1309,23 @@
     var tr = sel.closest('tr');
     _aplicarDefaultsCarga(tr, sel.value);
     tr.classList.toggle('fila-especial', TIPOS_SIN_HORARIO.indexOf(sel.value) !== -1);
+  }
+
+  // Si alguien ya no está de Licencia Anual (pasó a PRESENTE, o le cambiaron
+  // el Motivo a otra cosa) pero la Observación todavía tiene la nota
+  // autocompletada de esa licencia ("Licencia Anual dd/mm/aaaa al..."), la
+  // limpia — si no, esa nota vieja queda pegada para siempre una vez
+  // guardada, aunque la persona ya haya vuelto de licencia.
+  function _limpiarObsLicenciaSiCorresponde(tr) {
+    var inpObs = tr.querySelector('.inp-obs');
+    var selMotivo = tr.querySelector('.sel-motivo');
+    if (!inpObs) return;
+    var esNotaLicencia = /^Licencia Anual /i.test(inpObs.value || '');
+    var siguesDeLicencia = tr.dataset.estado === 'AUSENTE' && selMotivo && selMotivo.value === 'LICENCIA ANUAL';
+    if (esNotaLicencia && !siguesDeLicencia) inpObs.value = '';
+  }
+  function onMotivoChangeCarga(sel) {
+    _limpiarObsLicenciaSiCorresponde(sel.closest('tr'));
   }
 
   function _aplicarDefaultsCarga(tr, tipo) {
@@ -1388,6 +1408,7 @@
         setv('.inp-dispuesto', r.dispuesto_por);
         setv('.sel-justif', r.justificado);
         setv('.inp-obs', r.observaciones);
+        _limpiarObsLicenciaSiCorresponde(tr); // por si quedó guardada una nota de Licencia Anual vieja en un día que ya no lo es
         if (TIPOS_SIN_HORARIO.indexOf(r.tipo_presencia) !== -1) tr.classList.add('fila-especial');
       });
       await aplicarServiciosDelDia(fecha);
@@ -2370,22 +2391,22 @@
 
   function buildAusentes(ws, ausentes, fechaTxt) {
     var totalStr = numLetras(ausentes.length) + ' (' + String(ausentes.length).padStart(2,'0') + ')';
-    celdaHeader(ws, 1, 1, 8, 'AUSENTES ' + totalStr, COLOR_AZUL_OSC);
-    celdaHeader(ws, 2, 1, 8, 'DEPENDENCIA: DIVISION TIRO', COLOR_AZUL_OSC);
+    celdaHeader(ws, 1, 1, 9, 'AUSENTES ' + totalStr, COLOR_AZUL_OSC);
+    celdaHeader(ws, 2, 1, 9, 'DEPENDENCIA: DIVISION TIRO', COLOR_AZUL_OSC);
     ws.getCell(3,1).value = fechaTxt; ws.getCell(3,1).font = { bold: true };
     ws.getCell(4,1).value = 'Tercio: GUARDIA 1'; ws.getCell(4,1).font = { bold: true };
-    ws.mergeCells(4,6,4,8); ws.getCell(4,6).value = 'Horario: 24hs (de 06.00 a 06.00 hs, de L a V)'; ws.getCell(4,6).font = { bold: true };
-    ws.mergeCells(5,1,5,8); var tCell = ws.getCell(5,1); tCell.value = 'TOTAL AUSENTES AL SERVICIO: ' + totalStr; tCell.font = { bold:true }; tCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_NARANJA} };
-    var headRow = ['Nº','Grado','L.P.','Apellido/s','Nombre/s','Motivo','Justificado','Turno de ausencia'];
+    ws.mergeCells(4,6,4,9); ws.getCell(4,6).value = 'Horario: 24hs (de 06.00 a 06.00 hs, de L a V)'; ws.getCell(4,6).font = { bold: true };
+    ws.mergeCells(5,1,5,9); var tCell = ws.getCell(5,1); tCell.value = 'TOTAL AUSENTES AL SERVICIO: ' + totalStr; tCell.font = { bold:true }; tCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_NARANJA} };
+    var headRow = ['Nº','Grado','L.P.','Apellido/s','Nombre/s','Motivo','Justificado','Turno de ausencia','Observaciones'];
     headRow.forEach(function(h,i){ var c = ws.getCell(8, i+1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} }; });
     ausentes = ausentes.slice().sort(compararPersonal);
     ausentes.forEach(function(p, i) {
       var row = 9 + i;
-      var vals = [i+1, p.grado, p.lp, p.apellido, p.nombre, p.motivo||'', p.justificado||'SI', p.horario||''];
+      var vals = [i+1, p.grado, p.lp, p.apellido, p.nombre, p.motivo||'', p.justificado||'SI', p.horario||'', p.observaciones||''];
       vals.forEach(function(v, ci){ ws.getCell(row, ci+1).value = v; });
-      if (i % 2 === 0) { for (var c=1;c<=8;c++) ws.getCell(row,c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_CLAR} }; }
+      if (i % 2 === 0) { for (var c=1;c<=9;c++) ws.getCell(row,c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_CLAR} }; }
     });
-    ws.columns = [{width:5},{width:15},{width:8},{width:18},{width:16},{width:30},{width:11},{width:16}];
+    ws.columns = [{width:5},{width:15},{width:8},{width:18},{width:16},{width:30},{width:11},{width:16},{width:34}];
   }
 
   function buildRecargos(ws, recargos, fechaTxt) {
