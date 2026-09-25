@@ -2340,8 +2340,16 @@
     }
   }
 
+  // El grado que viene de personal_tiro no siempre está en mayúsculas/
+  // espaciado prolijo (ver comentario junto a normalizarGrado/gradoRank
+  // más arriba) — sin esto, un grado guardado como "INSPECTOR" en vez de
+  // "Inspector" no matcheaba ninguna clave de valorModulo y el Monto
+  // quedaba siempre en $0 aunque se cargara el Módulo Extra.
+  function valorModuloDe(grado) {
+    return valorModulo[normalizarGrado(grado)] || 0;
+  }
   function montoDe(r) {
-    return (Number(r.modulo_extra) || 0) * (valorModulo[r.grado] || 0);
+    return (Number(r.modulo_extra) || 0) * valorModuloDe(r.grado);
   }
 
   async function cargarControlRecargos() {
@@ -2388,7 +2396,7 @@
         '<td class="celda-monto">' + fmtMonto(montoDe(r)) + '</td>' +
       '</tr>';
     }).join('') || '<tr><td colspan="5" class="no-data-text">Sin personal cargado.</td></tr>';
-    renderResumenRecargos();
+    construirResumenRecargos();
   }
 
   function onCambioRecargo(i, el) {
@@ -2398,32 +2406,66 @@
     else r.suma_dias = (el.value === 'SI') ? 'SI' : 'NO';
     var tr = el.closest('tr');
     if (tr) { var c = tr.querySelector('.celda-monto'); if (c) c.textContent = fmtMonto(montoDe(r)); }
-    renderResumenRecargos();
+    actualizarResumenRecargos();
   }
 
   function onCambioMontoAsignado(el) {
     montoAsignadoActual = parseFloat(el.value) || 0;
-    renderResumenRecargos();
+    actualizarResumenRecargos();
   }
 
-  // Cantidad por grado / escenarios de presupuesto — misma lógica que
-  // la hoja "CONTROL DE MONTOS" del Excel: la cantidad por grado solo
+  // Cantidad por grado / escenarios de presupuesto — misma lógica que la
+  // hoja "CONTROL DE MONTOS" del Excel: la cantidad por grado solo
   // cuenta a los que tienen Suma Días = SI, "Monto Base N Módulos" es
   // esa cantidad × valor de módulo × N (para N=2,3,4,5), y "Cálculo
   // Mensual N Módulos + Extras" es el Monto Base más la suma de los
   // Montos de TODOS (no solo los "SI") ya cargados ese mes.
-  function renderResumenRecargos() {
-    var porGrado = {};
-    GRADOS_ORDEN.forEach(function(g) { porGrado[g] = 0; });
-    controlRecargos.forEach(function(r) { if (r.suma_dias === 'SI') porGrado[r.grado] = (porGrado[r.grado] || 0) + 1; });
-
+  //
+  // Se separa en dos: construirResumenRecargos() arma el HTML una sola
+  // vez (cuando se carga el mes/año o se guarda Valor de Módulo) y le
+  // pone un id a cada celda que cambia; actualizarResumenRecargos() solo
+  // toca esos textContent. Si el "Monto Asignado" reconstruía todo el
+  // bloque en cada tecla (como antes), el navegador tira el <input> viejo
+  // (el que tenía el foco) y pone uno nuevo — por eso solo entraba un
+  // dígito por vez y había que volver a clickear adentro.
+  function construirResumenRecargos() {
     var contGrado = document.getElementById('recargosPorGrado');
     if (contGrado) {
       contGrado.innerHTML = '<table><thead><tr><th>Grado</th><th>Cantidad</th><th>Valor módulo</th></tr></thead><tbody>' +
-        GRADOS_ORDEN.map(function(g) {
-          return '<tr><td>' + esc(g) + '</td><td>' + (porGrado[g] || 0) + '</td><td>' + fmtMonto(valorModulo[g] || 0) + '</td></tr>';
+        GRADOS_ORDEN.map(function(g, i) {
+          return '<tr><td>' + esc(g) + '</td><td id="cantGrado-' + i + '">0</td><td id="valGrado-' + i + '">' + fmtMonto(0) + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
+
+    var contResumen = document.getElementById('recargosResumen');
+    if (contResumen) {
+      contResumen.innerHTML =
+        '<div class="ctrl-group" style="margin-bottom:12px;"><label class="ctrl-label">Monto Asignado (se carga a mano cada mes)</label>' +
+          '<input type="number" step="1" min="0" id="inpMontoAsignado" value="' + montoAsignadoActual + '" oninput="onCambioMontoAsignado(this)" style="width:160px"></div>' +
+        '<table><tbody>' +
+          '<tr><td>Módulos Extra (total, Suma Días: SI)</td><td id="txtModulosExtra">0</td></tr>' +
+          '<tr><td>Suma Módulos (total $, Suma Días: SI)</td><td id="txtSumaModulos">' + fmtMonto(0) + '</td></tr>' +
+          '<tr><td>Restante Módulos</td><td id="txtRestante">' + fmtMonto(0) + '</td></tr>' +
+          [2, 3, 4, 5].map(function(n) {
+            return '<tr><td>Monto Base ' + n + ' Módulos</td><td id="txtBase' + n + '">' + fmtMonto(0) + '</td>' +
+              '<td>Cálculo Mensual ' + n + ' Módulos + Extras</td><td id="txtCalc' + n + '">' + fmtMonto(0) + '</td></tr>';
+          }).join('') +
+        '</tbody></table>';
+    }
+    actualizarResumenRecargos();
+  }
+
+  function actualizarResumenRecargos() {
+    var porGrado = {};
+    GRADOS_ORDEN.forEach(function(g) { porGrado[g] = 0; });
+    controlRecargos.forEach(function(r) { if (r.suma_dias === 'SI') porGrado[normalizarGrado(r.grado)] = (porGrado[normalizarGrado(r.grado)] || 0) + 1; });
+
+    GRADOS_ORDEN.forEach(function(g, i) {
+      var cCant = document.getElementById('cantGrado-' + i);
+      if (cCant) cCant.textContent = porGrado[g] || 0;
+      var cVal = document.getElementById('valGrado-' + i);
+      if (cVal) cVal.textContent = fmtMonto(valorModulo[g] || 0);
+    });
 
     var baseUnitaria = 0;
     GRADOS_ORDEN.forEach(function(g) { baseUnitaria += (porGrado[g] || 0) * (valorModulo[g] || 0); });
@@ -2436,25 +2478,15 @@
     });
     var restante = montoAsignadoActual - sumaModulos;
 
-    var filasEscenarios = [2, 3, 4, 5].map(function(n) {
+    var setTxt = function(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; };
+    setTxt('txtModulosExtra', modulosExtra);
+    setTxt('txtSumaModulos', fmtMonto(sumaModulos));
+    setTxt('txtRestante', fmtMonto(restante));
+    [2, 3, 4, 5].forEach(function(n) {
       var base = baseUnitaria * n;
-      var calculo = totalMontoTodos + base;
-      return '<tr><td>Monto Base ' + n + ' Módulos</td><td>' + fmtMonto(base) + '</td>' +
-        '<td>Cálculo Mensual ' + n + ' Módulos + Extras</td><td>' + fmtMonto(calculo) + '</td></tr>';
-    }).join('');
-
-    var contResumen = document.getElementById('recargosResumen');
-    if (contResumen) {
-      contResumen.innerHTML =
-        '<div class="ctrl-group" style="margin-bottom:12px;"><label class="ctrl-label">Monto Asignado (se carga a mano cada mes)</label>' +
-          '<input type="number" step="1" min="0" id="inpMontoAsignado" value="' + montoAsignadoActual + '" oninput="onCambioMontoAsignado(this)" style="width:160px"></div>' +
-        '<table><tbody>' +
-          '<tr><td>Módulos Extra (total, Suma Días: SI)</td><td>' + modulosExtra + '</td></tr>' +
-          '<tr><td>Suma Módulos (total $, Suma Días: SI)</td><td>' + fmtMonto(sumaModulos) + '</td></tr>' +
-          '<tr><td>Restante Módulos</td><td>' + fmtMonto(restante) + '</td></tr>' +
-          filasEscenarios +
-        '</tbody></table>';
-    }
+      setTxt('txtBase' + n, fmtMonto(base));
+      setTxt('txtCalc' + n, fmtMonto(totalMontoTodos + base));
+    });
   }
 
   async function guardarControlRecargos() {
@@ -2469,7 +2501,7 @@
           grado: r.grado, apellido: r.apellido,
           modulo_extra: Number(r.modulo_extra) || 0,
           suma_dias: r.suma_dias === 'SI' ? 'SI' : 'NO',
-          valor_modulo_usado: valorModulo[r.grado] || 0,
+          valor_modulo_usado: valorModuloDe(r.grado),
           monto: montoDe(r),
         };
       });
@@ -2964,7 +2996,7 @@
       // G:H — cantidad por grado (Suma Días: SI)
       var porGrado = {};
       GRADOS_ORDEN.forEach(function(g) { porGrado[g] = 0; });
-      filas.forEach(function(p) { if (p.suma_dias === 'SI') porGrado[p.grado] = (porGrado[p.grado] || 0) + 1; });
+      filas.forEach(function(p) { if (p.suma_dias === 'SI') porGrado[normalizarGrado(p.grado)] = (porGrado[normalizarGrado(p.grado)] || 0) + 1; });
       var filaCant = 2 + GRADOS_ORDEN.length + 1;
       ws.getCell(filaCant, 7).value = 'GRADO'; ws.getCell(filaCant, 7).font = { bold:true };
       ws.getCell(filaCant, 8).value = 'CANTIDAD'; ws.getCell(filaCant, 8).font = { bold:true };
