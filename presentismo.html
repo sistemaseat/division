@@ -2369,7 +2369,13 @@
         return {
           lp: p.lp, grado: p.grado, apellido: p.apellido, nombres: p.nombres,
           modulo_extra: g ? (Number(g.modulo_extra) || 0) : 0,
-          suma_dias: g ? g.suma_dias : 'NO',
+          // Por defecto "SI" (participa) para quien todavía no tiene fila
+          // guardada ese mes — así el Monto Base ya sale calculado con
+          // todo el personal desde el primer momento, sin tener que
+          // entrar persona por persona a tildar "SI" antes de ver algo.
+          // Se pone "NO" a mano solo a quien puntualmente no corresponda
+          // ese mes.
+          suma_dias: g ? g.suma_dias : 'SI',
         };
       });
       var resCfg = await supabaseClient.from('presentismo_control_recargos_config').select('monto_asignado').eq('mes', mes).eq('anio', anio).maybeSingle();
@@ -2978,7 +2984,7 @@
         return {
           grado: p.grado, apellido: p.apellido, nombres: p.nombres,
           modulo_extra: g ? (Number(g.modulo_extra) || 0) : 0,
-          suma_dias: g ? g.suma_dias : 'NO',
+          suma_dias: g ? g.suma_dias : 'SI', // mismo criterio que cargarControlRecargos: por defecto participa
           monto: g ? (Number(g.monto) || 0) : 0,
         };
       }).sort(compararPersonal);
