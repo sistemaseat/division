@@ -640,6 +640,17 @@
         <div id="recargosResumen"></div>
       </div>
     </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🕘</span> Historial mensual</div>
+      <p class="config-hint">Cada mes queda guardado por separado (nunca se pisa con el siguiente) — acá los tenés todos juntos para ver la evolución. Tocá "Ver" para abrir ese mes arriba.</p>
+      <table id="tabla-historial-recargos">
+        <thead>
+          <tr><th>Mes</th><th>Monto Asignado</th><th>Suma Módulos</th><th>Restante Módulos</th><th></th></tr>
+        </thead>
+        <tbody id="tbodyHistorialRecargos"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ==================== EXPORTAR ==================== -->
@@ -1131,6 +1142,7 @@
       await cargarMensual();
       await cargarSigeno();
       await cargarControlRecargos();
+      await cargarHistorialRecargos();
     } catch (e) {
       console.error(e);
       alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
@@ -2533,11 +2545,61 @@
         .upsert({ mes: mes, anio: anio, monto_asignado: montoAsignadoActual }, { onConflict: 'mes,anio' });
       if (resCfg.error) { alertShow('topAlert', 'error', resCfg.error.message); return; }
       alertShow('topAlert', 'success', 'Control Recargos guardado.');
+      await cargarHistorialRecargos();
     } catch (e) {
       alertShow('topAlert', 'error', 'Error al guardar Control Recargos: ' + (e.message || e));
     } finally {
       hideLoading();
     }
+  }
+
+  // Historial mensual — cada mes ya queda guardado por separado en
+  // presentismo_control_recargos / _config (nunca se pisa entre meses:
+  // la clave es lp+mes+año), esto solo arma una vista con todos los
+  // meses guardados uno abajo del otro para ver la evolución sin tener
+  // que ir cambiando el selector de a uno.
+  async function cargarHistorialRecargos() {
+    var tbody = document.getElementById('tbodyHistorialRecargos');
+    if (!tbody) return;
+    try {
+      var resCfg = await supabaseClient.from('presentismo_control_recargos_config')
+        .select('mes,anio,monto_asignado').order('anio', { ascending: false }).order('mes', { ascending: false });
+      if (resCfg.error) throw resCfg.error;
+      var meses = resCfg.data || [];
+      if (!meses.length) { tbody.innerHTML = '<tr><td colspan="5" class="no-data-text">Todavía no hay meses guardados.</td></tr>'; return; }
+
+      var resDatos = await supabaseClient.from('presentismo_control_recargos').select('mes,anio,monto,suma_dias');
+      if (resDatos.error) throw resDatos.error;
+      var sumaPorMes = {};
+      (resDatos.data || []).forEach(function(r) {
+        if (r.suma_dias !== 'SI') return;
+        var k = r.anio + '-' + r.mes;
+        sumaPorMes[k] = (sumaPorMes[k] || 0) + (Number(r.monto) || 0);
+      });
+
+      var NOMBRES_MES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      tbody.innerHTML = meses.map(function(m) {
+        var suma = sumaPorMes[m.anio + '-' + m.mes] || 0;
+        var asignado = Number(m.monto_asignado) || 0;
+        var restante = asignado - suma;
+        return '<tr>' +
+          '<td>' + esc(NOMBRES_MES[m.mes]) + ' ' + m.anio + '</td>' +
+          '<td>' + fmtMonto(asignado) + '</td>' +
+          '<td>' + fmtMonto(suma) + '</td>' +
+          '<td class="' + (restante < 0 ? 'monto-neg' : 'monto-pos') + '">' + fmtMonto(restante) + '</td>' +
+          '<td><button class="btn btn-ghost btn-xs" onclick="irAMesRecargos(' + m.mes + ',' + m.anio + ')">Ver</button></td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" class="no-data-text">Error al cargar el historial.</td></tr>';
+      console.error('Error al cargar historial de Control Recargos:', e);
+    }
+  }
+
+  function irAMesRecargos(mes, anio) {
+    document.getElementById('recMes').value = mes;
+    document.getElementById('recAnio').value = anio;
+    cargarControlRecargos();
   }
 
   // ============================================================
