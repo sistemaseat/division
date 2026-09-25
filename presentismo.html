@@ -138,6 +138,8 @@
   .b-red    { background: #ffebee; color: #c62828; }
   .b-blue   { background: #e3f2fd; color: #0277bd; }
   .b-gray   { background: #f5f5f5; color: #616161; }
+  .monto-pos { background: #e8f5e9 !important; color: #2e7d32 !important; font-weight: 700; }
+  .monto-neg { background: #ffebee !important; color: #c62828 !important; font-weight: 700; }
 
   /* AUTOCOMPLETE / DATALIST-STYLE */
   .autocomplete-list {
@@ -2481,11 +2483,25 @@
     var setTxt = function(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; };
     setTxt('txtModulosExtra', modulosExtra);
     setTxt('txtSumaModulos', fmtMonto(sumaModulos));
-    setTxt('txtRestante', fmtMonto(restante));
+
+    // Restante Módulos: verde si todavía queda plata, rojo si ya se pasó
+    // del Monto Asignado (pedido de Enzo: "así se sabe si están
+    // pasados"). Igual criterio para el Cálculo Mensual de cada
+    // escenario (2/3/4/5 módulos) contra el Monto Asignado — pero solo
+    // una vez que se cargó un Monto Asignado (>0); si todavía está en 0
+    // no tiene sentido pintar todo de rojo.
+    var elRestante = document.getElementById('txtRestante');
+    if (elRestante) { elRestante.textContent = fmtMonto(restante); elRestante.className = restante < 0 ? 'monto-neg' : 'monto-pos'; }
+
     [2, 3, 4, 5].forEach(function(n) {
       var base = baseUnitaria * n;
+      var calculo = totalMontoTodos + base;
       setTxt('txtBase' + n, fmtMonto(base));
-      setTxt('txtCalc' + n, fmtMonto(totalMontoTodos + base));
+      var elCalc = document.getElementById('txtCalc' + n);
+      if (elCalc) {
+        elCalc.textContent = fmtMonto(calculo);
+        elCalc.className = montoAsignadoActual > 0 ? (calculo > montoAsignadoActual ? 'monto-neg' : 'monto-pos') : '';
+      }
     });
   }
 
