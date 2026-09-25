@@ -390,6 +390,7 @@
   <button class="tab-btn" data-tab="actividades" onclick="switchTab('actividades')">🎯 Actividades</button>
   <button class="tab-btn" data-tab="mensual" onclick="switchTab('mensual')">🗓️ Control Mensual</button>
   <button class="tab-btn" data-tab="sigeno" onclick="switchTab('sigeno')">📶 Horario Sigeno</button>
+  <button class="tab-btn" data-tab="recargos" onclick="switchTab('recargos')">💰 Control Recargos</button>
   <button class="tab-btn" data-tab="exportar" onclick="switchTab('exportar')">📤 Exportar</button>
   <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Configuración</button>
 </nav>
@@ -586,6 +587,59 @@
     </div>
   </div>
 
+  <!-- ==================== CONTROL RECARGOS ==================== -->
+  <div class="tab-pane" id="pane-recargos">
+    <div class="search-bar">
+      <div class="ctrl-group">
+        <label class="ctrl-label">Mes</label>
+        <select id="recMes"></select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Año</label>
+        <select id="recAnio"></select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="cargarControlRecargos()">📅 Ver</button>
+      <button class="btn btn-primary" onclick="guardarControlRecargos()">💾 Guardar cambios</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportarControlRecargos()">📥 Exportar Excel</button>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">⚙️</span> Valor de módulo por grado</div>
+      <p class="config-hint">Estos valores cambian seguido — actualizalos acá cuando corresponda y apretá "Guardar valores de módulo". El Monto de cada persona se recalcula solo con el nuevo valor.</p>
+      <div class="search-bar" style="box-shadow:none;padding:0;margin-bottom:10px;" id="listaValorModulo"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="guardarValorModulo()">💾 Guardar valores de módulo</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">💰</span> Control de Montos — personal</div>
+      <table id="tabla-recargos">
+        <thead>
+          <tr>
+            <th>Grado</th>
+            <th>Apellido / Nombre</th>
+            <th style="width:130px">Módulo Extra</th>
+            <th style="width:110px">Suma Días</th>
+            <th style="width:130px">Monto</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyRecargos"></tbody>
+      </table>
+    </div>
+
+    <div class="dash-grid">
+      <div class="table-card">
+        <div class="section-title"><span class="ico">📊</span> Cantidad por grado (Suma Días: SI)</div>
+        <div id="recargosPorGrado"></div>
+      </div>
+      <div class="table-card">
+        <div class="section-title"><span class="ico">🧮</span> Resumen del mes</div>
+        <div id="recargosResumen"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== EXPORTAR ==================== -->
   <div class="tab-pane" id="pane-exportar">
 
@@ -641,6 +695,22 @@
           <select id="expCtrlAnio"></select>
         </div>
         <button class="btn btn-primary btn-sm" onclick="exportarCtrlRecargos()">📥 Generar Excel</button>
+      </div>
+    </div>
+
+    <div class="export-card">
+      <h3>💰 Control Recargos (Control de Montos)</h3>
+      <p>Módulo Extra / Suma Días por persona, cantidades por grado y los 4 escenarios de presupuesto contra el Monto Asignado.</p>
+      <div class="search-bar" style="box-shadow:none;padding:0;margin-bottom:0;">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Mes</label>
+          <select id="expRecMes"></select>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">Año</label>
+          <select id="expRecAnio"></select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportarControlRecargos()">📥 Generar Excel</button>
       </div>
     </div>
 
@@ -848,6 +918,15 @@
   }
   var _chartAsistencia = null, _chartTipos = null;
 
+  // Control Recargos — valor de módulo por grado (editable) + Módulo
+  // Extra/Suma Días por persona del mes elegido. "controlRecargos" es
+  // siempre una fila por cada persona activa de `personal` (no solo las
+  // que ya tengan guardado algo ese mes), para poder cargar a todos de
+  // una.
+  var valorModulo = {};      // grado -> valor ($ por módulo)
+  var controlRecargos = [];  // [{lp,grado,apellido,nombres,modulo_extra,suma_dias}]
+  var montoAsignadoActual = 0;
+
   document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
   // ---------- helpers ----------
@@ -945,7 +1024,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['agregarConfigMotivo', 'agregarConfigTipo', 'eliminarConfigMotivo', 'eliminarConfigTipo', 'guardarActInterno', 'guardarCarga', 'quitarPlantilla', 'regenerarEDT', 'subirPlantilla', 'toggleConfigMotivo', 'toggleConfigTipo', 'confirmarSelectorPersonal']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['agregarConfigMotivo', 'agregarConfigTipo', 'eliminarConfigMotivo', 'eliminarConfigTipo', 'guardarActInterno', 'guardarCarga', 'quitarPlantilla', 'regenerarEDT', 'subirPlantilla', 'toggleConfigMotivo', 'toggleConfigTipo', 'confirmarSelectorPersonal', 'guardarValorModulo', 'guardarControlRecargos']);
       await cargarTodo();
       _usuarioInicializado = email;
     } finally {
@@ -1039,15 +1118,17 @@
       document.getElementById('expIntFecha').value = hoy;
       poblarSelectsMesAnio();
 
-      await Promise.all([cargarPersonal(), cargarConfig(), cargarConfigTemplates(), cargarConfigHorariosServicios()]);
+      await Promise.all([cargarPersonal(), cargarConfig(), cargarConfigTemplates(), cargarConfigHorariosServicios(), cargarValorModulo()]);
       renderTablaCarga();
       renderConfigLists();
       renderTemplateBoxes();
+      renderValorModulo();
       await cargarExistente();
       await cargarDashboard();
       await cargarActividades();
       await cargarMensual();
       await cargarSigeno();
+      await cargarControlRecargos();
     } catch (e) {
       console.error(e);
       alertShow('topAlert', 'error', 'Error al cargar los datos: ' + (e.message || e));
@@ -1059,12 +1140,12 @@
   function poblarSelectsMesAnio() {
     var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     var hoy = new Date();
-    ['mensMes','expCtrlMes','sigMes'].forEach(function(id){
+    ['mensMes','expCtrlMes','sigMes','recMes','expRecMes'].forEach(function(id){
       var sel = document.getElementById(id);
       sel.innerHTML = MESES.map(function(m,i){ return '<option value="'+(i+1)+'">'+m+'</option>'; }).join('');
       sel.value = hoy.getMonth() + 1;
     });
-    ['mensAnio','expCtrlAnio','sigAnio'].forEach(function(id){
+    ['mensAnio','expCtrlAnio','sigAnio','recAnio','expRecAnio'].forEach(function(id){
       var sel = document.getElementById(id);
       var anios = [];
       for (var a = hoy.getFullYear() - 2; a <= hoy.getFullYear() + 1; a++) anios.push(a);
@@ -2212,6 +2293,200 @@
   }
 
   // ============================================================
+  // CONTROL RECARGOS — "Control de Montos" mensual (reemplaza a la
+  // hoja del mismo nombre del Excel). Por persona se carga Módulo
+  // Extra + Suma Días; el Monto sale solo (Módulo Extra × valor de
+  // módulo de su grado). El valor de módulo por grado es editable acá
+  // mismo porque cambia seguido. No confundir con "Control Mensual"
+  // (pestaña aparte, esa es la grilla de horarios/novedades día a día,
+  // sin plata de por medio).
+  // ============================================================
+  function fmtMonto(n) {
+    return '$ ' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+  }
+
+  async function cargarValorModulo() {
+    var res = await supabaseClient.from('presentismo_valor_modulo').select('grado,valor');
+    if (res.error) throw res.error;
+    valorModulo = {};
+    (res.data || []).forEach(function(r) { valorModulo[r.grado] = Number(r.valor) || 0; });
+    GRADOS_ORDEN.forEach(function(g) { if (!(g in valorModulo)) valorModulo[g] = 0; });
+  }
+
+  function renderValorModulo() {
+    var cont = document.getElementById('listaValorModulo');
+    if (!cont) return;
+    cont.innerHTML = GRADOS_ORDEN.map(function(g) {
+      return '<div class="ctrl-group"><label class="ctrl-label">' + esc(g) + '</label>' +
+        '<input type="number" step="1" min="0" class="inp-valor-modulo" data-grado="' + esc(g).replace(/"/g,'&quot;') + '" value="' + (valorModulo[g] || 0) + '" style="width:120px"></div>';
+    }).join('');
+  }
+
+  async function guardarValorModulo() {
+    showLoading('Guardando valores de módulo…');
+    try {
+      var filas = Array.prototype.slice.call(document.querySelectorAll('.inp-valor-modulo')).map(function(inp) {
+        return { grado: inp.dataset.grado, valor: parseFloat(inp.value) || 0 };
+      });
+      var res = await supabaseClient.from('presentismo_valor_modulo').upsert(filas, { onConflict: 'grado' });
+      if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+      filas.forEach(function(f) { valorModulo[f.grado] = f.valor; });
+      renderControlRecargos();
+      alertShow('topAlert', 'success', 'Valores de módulo guardados.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar valores de módulo: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function montoDe(r) {
+    return (Number(r.modulo_extra) || 0) * (valorModulo[r.grado] || 0);
+  }
+
+  async function cargarControlRecargos() {
+    var mes = parseInt(document.getElementById('recMes').value);
+    var anio = parseInt(document.getElementById('recAnio').value);
+    if (!mes || !anio) return;
+    showLoading('Cargando Control Recargos…');
+    try {
+      var res = await supabaseClient.from('presentismo_control_recargos').select('*').eq('mes', mes).eq('anio', anio);
+      if (res.error) throw res.error;
+      var mapa = {};
+      (res.data || []).forEach(function(r) { mapa[String(r.lp)] = r; });
+      controlRecargos = personal.map(function(p) {
+        var g = mapa[String(p.lp)];
+        return {
+          lp: p.lp, grado: p.grado, apellido: p.apellido, nombres: p.nombres,
+          modulo_extra: g ? (Number(g.modulo_extra) || 0) : 0,
+          suma_dias: g ? g.suma_dias : 'NO',
+        };
+      });
+      var resCfg = await supabaseClient.from('presentismo_control_recargos_config').select('monto_asignado').eq('mes', mes).eq('anio', anio).maybeSingle();
+      if (resCfg.error) throw resCfg.error;
+      montoAsignadoActual = (resCfg.data && resCfg.data.monto_asignado != null) ? Number(resCfg.data.monto_asignado) : 0;
+      renderControlRecargos();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al cargar Control Recargos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderControlRecargos() {
+    var tbody = document.getElementById('tbodyRecargos');
+    if (!tbody) return;
+    tbody.innerHTML = controlRecargos.map(function(r, i) {
+      return '<tr data-lp="' + esc(r.lp) + '">' +
+        '<td>' + esc(r.grado) + '</td>' +
+        '<td>' + esc(r.apellido) + ' ' + esc(r.nombres) + '</td>' +
+        '<td><input type="number" step="0.5" min="0" class="inp-modulo-extra" value="' + (r.modulo_extra || 0) + '" oninput="onCambioRecargo(' + i + ', this)"></td>' +
+        '<td><select class="sel-suma-dias" onchange="onCambioRecargo(' + i + ', this)">' +
+          '<option value="SI"' + (r.suma_dias === 'SI' ? ' selected' : '') + '>SI</option>' +
+          '<option value="NO"' + (r.suma_dias !== 'SI' ? ' selected' : '') + '>NO</option>' +
+        '</select></td>' +
+        '<td class="celda-monto">' + fmtMonto(montoDe(r)) + '</td>' +
+      '</tr>';
+    }).join('') || '<tr><td colspan="5" class="no-data-text">Sin personal cargado.</td></tr>';
+    renderResumenRecargos();
+  }
+
+  function onCambioRecargo(i, el) {
+    var r = controlRecargos[i];
+    if (!r) return;
+    if (el.classList.contains('inp-modulo-extra')) r.modulo_extra = parseFloat(el.value) || 0;
+    else r.suma_dias = (el.value === 'SI') ? 'SI' : 'NO';
+    var tr = el.closest('tr');
+    if (tr) { var c = tr.querySelector('.celda-monto'); if (c) c.textContent = fmtMonto(montoDe(r)); }
+    renderResumenRecargos();
+  }
+
+  function onCambioMontoAsignado(el) {
+    montoAsignadoActual = parseFloat(el.value) || 0;
+    renderResumenRecargos();
+  }
+
+  // Cantidad por grado / escenarios de presupuesto — misma lógica que
+  // la hoja "CONTROL DE MONTOS" del Excel: la cantidad por grado solo
+  // cuenta a los que tienen Suma Días = SI, "Monto Base N Módulos" es
+  // esa cantidad × valor de módulo × N (para N=2,3,4,5), y "Cálculo
+  // Mensual N Módulos + Extras" es el Monto Base más la suma de los
+  // Montos de TODOS (no solo los "SI") ya cargados ese mes.
+  function renderResumenRecargos() {
+    var porGrado = {};
+    GRADOS_ORDEN.forEach(function(g) { porGrado[g] = 0; });
+    controlRecargos.forEach(function(r) { if (r.suma_dias === 'SI') porGrado[r.grado] = (porGrado[r.grado] || 0) + 1; });
+
+    var contGrado = document.getElementById('recargosPorGrado');
+    if (contGrado) {
+      contGrado.innerHTML = '<table><thead><tr><th>Grado</th><th>Cantidad</th><th>Valor módulo</th></tr></thead><tbody>' +
+        GRADOS_ORDEN.map(function(g) {
+          return '<tr><td>' + esc(g) + '</td><td>' + (porGrado[g] || 0) + '</td><td>' + fmtMonto(valorModulo[g] || 0) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+
+    var baseUnitaria = 0;
+    GRADOS_ORDEN.forEach(function(g) { baseUnitaria += (porGrado[g] || 0) * (valorModulo[g] || 0); });
+
+    var modulosExtra = 0, sumaModulos = 0, totalMontoTodos = 0;
+    controlRecargos.forEach(function(r) {
+      var m = montoDe(r);
+      totalMontoTodos += m;
+      if (r.suma_dias === 'SI') { modulosExtra += Number(r.modulo_extra) || 0; sumaModulos += m; }
+    });
+    var restante = montoAsignadoActual - sumaModulos;
+
+    var filasEscenarios = [2, 3, 4, 5].map(function(n) {
+      var base = baseUnitaria * n;
+      var calculo = totalMontoTodos + base;
+      return '<tr><td>Monto Base ' + n + ' Módulos</td><td>' + fmtMonto(base) + '</td>' +
+        '<td>Cálculo Mensual ' + n + ' Módulos + Extras</td><td>' + fmtMonto(calculo) + '</td></tr>';
+    }).join('');
+
+    var contResumen = document.getElementById('recargosResumen');
+    if (contResumen) {
+      contResumen.innerHTML =
+        '<div class="ctrl-group" style="margin-bottom:12px;"><label class="ctrl-label">Monto Asignado (se carga a mano cada mes)</label>' +
+          '<input type="number" step="1" min="0" id="inpMontoAsignado" value="' + montoAsignadoActual + '" oninput="onCambioMontoAsignado(this)" style="width:160px"></div>' +
+        '<table><tbody>' +
+          '<tr><td>Módulos Extra (total, Suma Días: SI)</td><td>' + modulosExtra + '</td></tr>' +
+          '<tr><td>Suma Módulos (total $, Suma Días: SI)</td><td>' + fmtMonto(sumaModulos) + '</td></tr>' +
+          '<tr><td>Restante Módulos</td><td>' + fmtMonto(restante) + '</td></tr>' +
+          filasEscenarios +
+        '</tbody></table>';
+    }
+  }
+
+  async function guardarControlRecargos() {
+    var mes = parseInt(document.getElementById('recMes').value);
+    var anio = parseInt(document.getElementById('recAnio').value);
+    if (!mes || !anio) return;
+    showLoading('Guardando Control Recargos…');
+    try {
+      var filas = controlRecargos.map(function(r) {
+        return {
+          lp: r.lp, mes: mes, anio: anio,
+          grado: r.grado, apellido: r.apellido,
+          modulo_extra: Number(r.modulo_extra) || 0,
+          suma_dias: r.suma_dias === 'SI' ? 'SI' : 'NO',
+          valor_modulo_usado: valorModulo[r.grado] || 0,
+          monto: montoDe(r),
+        };
+      });
+      var res = await supabaseClient.from('presentismo_control_recargos').upsert(filas, { onConflict: 'lp,mes,anio' });
+      if (res.error) { alertShow('topAlert', 'error', res.error.message); return; }
+      var resCfg = await supabaseClient.from('presentismo_control_recargos_config')
+        .upsert({ mes: mes, anio: anio, monto_asignado: montoAsignadoActual }, { onConflict: 'mes,anio' });
+      if (resCfg.error) { alertShow('topAlert', 'error', resCfg.error.message); return; }
+      alertShow('topAlert', 'success', 'Control Recargos guardado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar Control Recargos: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
   // CONFIGURACIÓN — tipos de presencia / motivos de ausencia
   // ============================================================
   function renderConfigLists() {
@@ -2627,6 +2902,105 @@
       ws.columns = [{width:34}].concat(r.dias.map(function(){ return {width:6}; }));
       await descargarWorkbook(wb, 'Control Recargos ' + MESES[mes] + ' ' + anio + '.xlsx');
       alertShow('topAlert', 'success', 'Control de Recargos generado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---------- Control Recargos (Control de Montos) — no confundir con
+  // exportarCtrlRecargos de arriba (esa es la grilla de horarios de
+  // "Control Mensual"; esta es la plata de "Control Recargos"). Trae
+  // siempre lo guardado en la base para ese mes/año, no lo que haya en
+  // pantalla, así se puede exportar cualquier mes ya cargado. ----------
+  async function exportarControlRecargos() {
+    var mes = parseInt(document.getElementById('expRecMes').value);
+    var anio = parseInt(document.getElementById('expRecAnio').value);
+    if (!mes || !anio) return;
+    showLoading('Generando Control Recargos…');
+    try {
+      var MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      var res = await supabaseClient.from('presentismo_control_recargos').select('*').eq('mes', mes).eq('anio', anio);
+      if (res.error) throw res.error;
+      var mapa = {};
+      (res.data || []).forEach(function(r) { mapa[String(r.lp)] = r; });
+      var filas = personal.map(function(p) {
+        var g = mapa[String(p.lp)];
+        return {
+          grado: p.grado, apellido: p.apellido, nombres: p.nombres,
+          modulo_extra: g ? (Number(g.modulo_extra) || 0) : 0,
+          suma_dias: g ? g.suma_dias : 'NO',
+          monto: g ? (Number(g.monto) || 0) : 0,
+        };
+      }).sort(compararPersonal);
+      var resCfg = await supabaseClient.from('presentismo_control_recargos_config').select('monto_asignado').eq('mes', mes).eq('anio', anio).maybeSingle();
+      if (resCfg.error) throw resCfg.error;
+      var montoAsignado = (resCfg.data && resCfg.data.monto_asignado != null) ? Number(resCfg.data.monto_asignado) : 0;
+
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet('CONTROL DE MONTOS');
+
+      // A:E — personal del mes
+      ['GRADO','APELLIDO','MONTO','MODULO EXTRA','SUMA DIAS'].forEach(function(h, i) {
+        var c = ws.getCell(1, i + 1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} };
+      });
+      filas.forEach(function(p, idx) {
+        var row = idx + 2;
+        var vals = [p.grado, (p.apellido + ' ' + p.nombres).trim(), p.monto, p.modulo_extra || '', p.suma_dias];
+        vals.forEach(function(v, ci) { ws.getCell(row, ci + 1).value = v; });
+        if (idx % 2 === 0) { for (var c = 1; c <= 5; c++) ws.getCell(row, c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_CLAR} }; }
+      });
+
+      // G:H — valor de módulo por grado (fila 1 comparte header con A:E)
+      ['GRADO','MONTO MODULO'].forEach(function(h, i) {
+        var c = ws.getCell(1, 7 + i); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} };
+      });
+      GRADOS_ORDEN.forEach(function(g, i) {
+        ws.getCell(2 + i, 7).value = g;
+        ws.getCell(2 + i, 8).value = valorModulo[g] || 0;
+      });
+
+      // G:H — cantidad por grado (Suma Días: SI)
+      var porGrado = {};
+      GRADOS_ORDEN.forEach(function(g) { porGrado[g] = 0; });
+      filas.forEach(function(p) { if (p.suma_dias === 'SI') porGrado[p.grado] = (porGrado[p.grado] || 0) + 1; });
+      var filaCant = 2 + GRADOS_ORDEN.length + 1;
+      ws.getCell(filaCant, 7).value = 'GRADO'; ws.getCell(filaCant, 7).font = { bold:true };
+      ws.getCell(filaCant, 8).value = 'CANTIDAD'; ws.getCell(filaCant, 8).font = { bold:true };
+      GRADOS_ORDEN.forEach(function(g, i) {
+        ws.getCell(filaCant + 1 + i, 7).value = g;
+        ws.getCell(filaCant + 1 + i, 8).value = porGrado[g] || 0;
+      });
+
+      // Escenarios de presupuesto (2/3/4/5 módulos) + resumen contra el Monto Asignado
+      var baseUnitaria = 0;
+      GRADOS_ORDEN.forEach(function(g) { baseUnitaria += (porGrado[g] || 0) * (valorModulo[g] || 0); });
+      var modulosExtra = 0, sumaModulos = 0, totalMontoTodos = 0;
+      filas.forEach(function(p) { totalMontoTodos += p.monto; if (p.suma_dias === 'SI') { modulosExtra += Number(p.modulo_extra) || 0; sumaModulos += p.monto; } });
+      var restante = montoAsignado - sumaModulos;
+
+      var filaBase = filaCant + GRADOS_ORDEN.length + 2;
+      [2, 3, 4, 5].forEach(function(n, i) {
+        var row = filaBase + i;
+        ws.getCell(row, 7).value = 'MONTO BASE ' + n + ' MODULOS';
+        ws.getCell(row, 8).value = baseUnitaria * n;
+      });
+      ws.getCell(filaBase, 10).value = 'MONTO ASIGNADO'; ws.getCell(filaBase, 11).value = montoAsignado;
+      ws.getCell(filaBase + 1, 10).value = 'MODULOS EXTRA'; ws.getCell(filaBase + 1, 11).value = modulosExtra;
+      ws.getCell(filaBase + 2, 10).value = 'SUMA MODULOS'; ws.getCell(filaBase + 2, 11).value = sumaModulos;
+      ws.getCell(filaBase + 3, 10).value = 'RESTANTE MODULOS'; ws.getCell(filaBase + 3, 11).value = restante;
+
+      var filaCalc = filaBase + 5;
+      [2, 3, 4, 5].forEach(function(n, i) {
+        var row = filaCalc + i * 2;
+        ws.getCell(row, 7).value = 'CALCULO MENSUAL ' + n + ' MODULOS + EXTRAS';
+        ws.getCell(row, 8).value = totalMontoTodos + (baseUnitaria * n);
+      });
+
+      ws.columns = [{width:18},{width:22},{width:12},{width:13},{width:11},{width:2},{width:22},{width:14},{width:2},{width:20},{width:14}];
+      await descargarWorkbook(wb, 'Control Recargos ' + MESES[mes] + ' ' + anio + '.xlsx');
+      alertShow('topAlert', 'success', 'Control Recargos exportado.');
     } catch (e) {
       alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
     } finally {
