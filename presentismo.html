@@ -2988,19 +2988,36 @@
 
       var wb = new ExcelJS.Workbook();
       var ws = wb.addWorksheet('CONTROL DE MONTOS');
+      var lastRow = 1 + filas.length; // última fila con datos de personal (fila 1 = encabezado)
 
-      // A:E — personal del mes
+      // A:E — personal del mes. El grado se escribe normalizado (misma
+      // función que usa todo el sitio para ordenar por jerarquía) para
+      // que coincida EXACTO con las claves de la tabla de Valor de
+      // Módulo (G2:H9) — si no, el VLOOKUP de la columna Monto no
+      // encuentra el grado y da error/0, que fue justo el bug que
+      // reportaste antes con el Monto en $0.
       ['GRADO','APELLIDO','MONTO','MODULO EXTRA','SUMA DIAS'].forEach(function(h, i) {
         var c = ws.getCell(1, i + 1); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} };
       });
       filas.forEach(function(p, idx) {
         var row = idx + 2;
-        var vals = [p.grado, (p.apellido + ' ' + p.nombres).trim(), p.monto, p.modulo_extra || '', p.suma_dias];
-        vals.forEach(function(v, ci) { ws.getCell(row, ci + 1).value = v; });
+        var gradoNorm = normalizarGrado(p.grado);
+        ws.getCell(row, 1).value = gradoNorm;
+        ws.getCell(row, 2).value = (p.apellido + ' ' + p.nombres).trim();
+        // MONTO = Módulo Extra × valor de módulo de SU grado — formula real
+        // de Excel (VLOOKUP contra la tablita G2:H9), no un número fijo, así
+        // que si después cambiás el Módulo Extra o el Valor de Módulo
+        // directo en el Excel, el Monto se recalcula solo.
+        ws.getCell(row, 3).value = { formula: 'D' + row + '*VLOOKUP(A' + row + ',$G$2:$H$9,2,FALSE)', result: p.monto };
+        ws.getCell(row, 4).value = Number(p.modulo_extra) || 0;
+        ws.getCell(row, 5).value = p.suma_dias;
         if (idx % 2 === 0) { for (var c = 1; c <= 5; c++) ws.getCell(row, c).fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_CLAR} }; }
       });
 
-      // G:H — valor de módulo por grado (fila 1 comparte header con A:E)
+      // G:H — valor de módulo por grado (fila 1 comparte header con A:E).
+      // Son números sueltos (no fórmula) porque ESTA es la tabla fuente
+      // que se puede tocar a mano — todo lo demás se calcula a partir de
+      // ella.
       ['GRADO','MONTO MODULO'].forEach(function(h, i) {
         var c = ws.getCell(1, 7 + i); c.value = h; c.font = { bold:true, color:{argb:'FFFFFFFF'} }; c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:COLOR_AZUL_MED} };
       });
@@ -3009,19 +3026,25 @@
         ws.getCell(2 + i, 8).value = valorModulo[g] || 0;
       });
 
-      // G:H — cantidad por grado (Suma Días: SI)
+      // G:H — cantidad por grado (Suma Días: SI) — COUNTIFS real, igual
+      // que en el Excel original.
       var porGrado = {};
       GRADOS_ORDEN.forEach(function(g) { porGrado[g] = 0; });
       filas.forEach(function(p) { if (p.suma_dias === 'SI') porGrado[normalizarGrado(p.grado)] = (porGrado[normalizarGrado(p.grado)] || 0) + 1; });
       var filaCant = 2 + GRADOS_ORDEN.length + 1;
       ws.getCell(filaCant, 7).value = 'GRADO'; ws.getCell(filaCant, 7).font = { bold:true };
       ws.getCell(filaCant, 8).value = 'CANTIDAD'; ws.getCell(filaCant, 8).font = { bold:true };
+      var filaCantIni = filaCant + 1, filaCantFin = filaCant + GRADOS_ORDEN.length;
       GRADOS_ORDEN.forEach(function(g, i) {
-        ws.getCell(filaCant + 1 + i, 7).value = g;
-        ws.getCell(filaCant + 1 + i, 8).value = porGrado[g] || 0;
+        var row = filaCantIni + i;
+        ws.getCell(row, 7).value = g;
+        ws.getCell(row, 8).value = { formula: 'COUNTIFS($A$2:$A$' + lastRow + ',G' + row + ',$E$2:$E$' + lastRow + ',"SI")', result: porGrado[g] || 0 };
       });
 
-      // Escenarios de presupuesto (2/3/4/5 módulos) + resumen contra el Monto Asignado
+      // Escenarios de presupuesto (2/3/4/5 módulos) + resumen contra el
+      // Monto Asignado — todo con fórmula real (SUMPRODUCT/SUMIF/SUM),
+      // igual criterio que el Excel original (H19:H22 / K19:K22 / H25-H31)
+      // pero sin depender de que los grados estén en bloques contiguos.
       var baseUnitaria = 0;
       GRADOS_ORDEN.forEach(function(g) { baseUnitaria += (porGrado[g] || 0) * (valorModulo[g] || 0); });
       var modulosExtra = 0, sumaModulos = 0, totalMontoTodos = 0;
@@ -3032,18 +3055,19 @@
       [2, 3, 4, 5].forEach(function(n, i) {
         var row = filaBase + i;
         ws.getCell(row, 7).value = 'MONTO BASE ' + n + ' MODULOS';
-        ws.getCell(row, 8).value = baseUnitaria * n;
+        ws.getCell(row, 8).value = { formula: 'SUMPRODUCT($H$' + filaCantIni + ':$H$' + filaCantFin + ',$H$2:$H$9)*' + n, result: baseUnitaria * n };
       });
       ws.getCell(filaBase, 10).value = 'MONTO ASIGNADO'; ws.getCell(filaBase, 11).value = montoAsignado;
-      ws.getCell(filaBase + 1, 10).value = 'MODULOS EXTRA'; ws.getCell(filaBase + 1, 11).value = modulosExtra;
-      ws.getCell(filaBase + 2, 10).value = 'SUMA MODULOS'; ws.getCell(filaBase + 2, 11).value = sumaModulos;
-      ws.getCell(filaBase + 3, 10).value = 'RESTANTE MODULOS'; ws.getCell(filaBase + 3, 11).value = restante;
+      ws.getCell(filaBase + 1, 10).value = 'MODULOS EXTRA'; ws.getCell(filaBase + 1, 11).value = { formula: 'SUMIF($E$2:$E$' + lastRow + ',"SI",$D$2:$D$' + lastRow + ')', result: modulosExtra };
+      ws.getCell(filaBase + 2, 10).value = 'SUMA MODULOS'; ws.getCell(filaBase + 2, 11).value = { formula: 'SUMIF($E$2:$E$' + lastRow + ',"SI",$C$2:$C$' + lastRow + ')', result: sumaModulos };
+      ws.getCell(filaBase + 3, 10).value = 'RESTANTE MODULOS'; ws.getCell(filaBase + 3, 11).value = { formula: 'K' + filaBase + '-K' + (filaBase + 2), result: restante };
 
       var filaCalc = filaBase + 5;
       [2, 3, 4, 5].forEach(function(n, i) {
         var row = filaCalc + i * 2;
+        var filaBaseN = filaBase + i;
         ws.getCell(row, 7).value = 'CALCULO MENSUAL ' + n + ' MODULOS + EXTRAS';
-        ws.getCell(row, 8).value = totalMontoTodos + (baseUnitaria * n);
+        ws.getCell(row, 8).value = { formula: 'SUM($C$2:$C$' + lastRow + ',H' + filaBaseN + ')', result: totalMontoTodos + (baseUnitaria * n) };
       });
 
       ws.columns = [{width:18},{width:22},{width:12},{width:13},{width:11},{width:2},{width:22},{width:14},{width:2},{width:20},{width:14}];
