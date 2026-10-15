@@ -275,6 +275,7 @@
   .mun-stat.s-cons .v { color: var(--red); }
   .mun-stat.s-ing .v { color: var(--green); }
   .mun-stat .v.neg { color: var(--red); }
+  .mun-stat-sub { font-size: 10px; font-weight: 700; color: var(--red); margin-top: 3px; }
   .mun-acts-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); padding: 10px 18px 4px; }
   .mun-act { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 9px 18px; border-top: 1px solid var(--border); cursor: pointer; }
   .mun-act:hover { background: #f5f7fa; }
@@ -396,15 +397,20 @@
       </div>
       <div class="form-group">
         <label class="form-label">Devuelto sin uso</label>
-        <input type="number" id="actDevueltoSinUso" min="0" step="1">
+        <input type="number" id="actDevueltoSinUso" min="0" step="1" oninput="calcularFaltante()">
         <span class="field-hint">Se calcula solo (retira − consumido), pero se puede ajustar a mano.</span>
       </div>
       <div class="form-group">
         <label class="form-label">Vainas</label>
         <input type="number" id="actVainas" min="0" step="1">
       </div>
+      <div class="form-group">
+        <label class="form-label">Faltante</label>
+        <input type="number" id="actFaltante" value="0" readonly style="background:#f5f5f5;font-weight:800;">
+        <span class="field-hint" id="actFaltanteHint">Se calcula solo: retira − consumido − devuelto. Se suma al consumo.</span>
+      </div>
       <div class="form-group full">
-        <label class="form-label">Observaciones</label>
+        <label class="form-label">Observaciones<span class="required-star" id="actObsStar" style="display:none;">* obligatoria si hay faltante</span></label>
         <textarea id="actObservaciones" placeholder="Presentismo, convocados/presentes/ausentes, etc."></textarea>
       </div>
     </div>
@@ -474,9 +480,9 @@
 
     <div class="table-card">
       <div class="section-title"><span class="ico">📦</span> Stock estimado por munición</div>
-      <div class="field-hint" style="margin-bottom:10px;">Ingresado − Consumido en actividades. Es un estimado a partir de lo cargado en el sistema, no reemplaza un recuento físico.</div>
+      <div class="field-hint" style="margin-bottom:10px;">Ingresado − Consumido − Faltantes en actividades. Es un estimado a partir de lo cargado en el sistema, no reemplaza un recuento físico.</div>
       <table>
-        <thead><tr><th>Munición</th><th>Ingresado</th><th>Consumido</th><th>Saldo estimado</th></tr></thead>
+        <thead><tr><th>Munición</th><th>Ingresado</th><th>Consumido</th><th>Faltantes</th><th>Saldo estimado</th></tr></thead>
         <tbody id="tbodyStock"></tbody>
       </table>
     </div>
@@ -538,7 +544,7 @@
       <table>
         <thead><tr>
           <th>Fecha</th><th>Horario</th><th>Actividad</th>
-          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th>
+          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Faltante</th><th>Vainas</th><th>Observaciones</th>
           <th class="action-col">Acciones</th>
         </tr></thead>
         <tbody id="tbodyActividades"></tbody>
@@ -598,7 +604,7 @@
       <table>
         <thead><tr>
           <th>Fecha</th><th>Horario</th><th>Actividad</th>
-          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th>
+          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Faltante</th><th>Vainas</th><th>Observaciones</th>
         </tr></thead>
         <tbody id="tbodyExportar"></tbody>
       </table>
@@ -940,6 +946,7 @@
     var totalConsumido = actividades.reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
     var totalRetirado = actividades.reduce(function(s,a){ return s + Number(a.retira||0); }, 0);
     var totalDevuelto = actividades.reduce(function(s,a){ return s + Number(a.devuelto_sin_uso||0); }, 0);
+    var totalFaltante = actividades.reduce(function(s,a){ return s + Number(a.faltante||0); }, 0);
 
     var kpis = [
       { label: 'Tipos de munición', val: configMuniciones.length, sub: 'cargados en Configuración', c: 'blue' },
@@ -947,7 +954,8 @@
       { label: 'Registros de actividad', val: actividades.length, sub: 'entregas de munición cargadas', c: 'purple' },
       { label: 'Total retirado', val: fmtNum(totalRetirado), sub: 'en todas las actividades', c: 'orange' },
       { label: 'Total consumido', val: fmtNum(totalConsumido), sub: 'en todas las actividades', c: 'red' },
-      { label: 'Devuelto sin uso', val: fmtNum(totalDevuelto), sub: 'total histórico', c: 'teal' }
+      { label: 'Devuelto sin uso', val: fmtNum(totalDevuelto), sub: 'total histórico', c: 'teal' },
+      { label: 'Faltantes', val: fmtNum(totalFaltante), sub: 'se descuentan del stock', c: 'gray' }
     ];
     document.getElementById('kpiGrid').innerHTML = kpis.map(function(k) {
       return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div><div class="kpi-sub">'+esc(k.sub)+'</div></div>';
@@ -966,17 +974,19 @@
 
     var filas = Object.keys(nombres).sort().map(function(m) {
       var ing = ingresos.filter(function(i){ return i.municion === m; }).reduce(function(s,i){ return s + Number(i.cantidad||0); }, 0);
-      var con = actividades.filter(function(a){ return a.municion === m; }).reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
-      return { m: m, ing: ing, con: con, saldo: ing - con };
-    }).filter(function(f){ return f.ing > 0 || f.con > 0; });
+      var acts = actividades.filter(function(a){ return a.municion === m; });
+      var con = acts.reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
+      var falt = acts.reduce(function(s,a){ return s + Number(a.faltante||0); }, 0);
+      return { m: m, ing: ing, con: con, falt: falt, saldo: ing - con - falt };
+    }).filter(function(f){ return f.ing > 0 || f.con > 0 || f.falt > 0; });
 
     filas.sort(function(a,b){ return b.ing - a.ing; });
 
     document.getElementById('tbodyStock').innerHTML = filas.length ? filas.map(function(f) {
       var badge = f.saldo < 0 ? 'b-red' : (f.saldo === 0 ? 'b-gray' : 'b-green');
-      return '<tr><td><b>'+esc(f.m)+'</b></td><td>'+fmtNum(f.ing)+'</td><td>'+fmtNum(f.con)+'</td>' +
+      return '<tr><td><b>'+esc(f.m)+'</b></td><td>'+fmtNum(f.ing)+'</td><td>'+fmtNum(f.con)+'</td><td>'+(f.falt > 0 ? '<span class="badge b-red">'+fmtNum(f.falt)+'</span>' : '0')+'</td>' +
         '<td><span class="badge '+badge+'">'+fmtNum(f.saldo)+'</span></td></tr>';
-    }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">Sin datos todavía</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">Sin datos todavía</td></tr>';
   }
 
   var _chartActividad = null, _chartSemanal = null;
@@ -1159,7 +1169,7 @@
     document.getElementById('tbodyActividades').innerHTML = filas.map(function(a) {
       return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
         '<td>'+esc(a.municion)+'</td>' +
-        '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td>' +
+        '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td><td>'+(Number(a.faltante)>0 ? '<span class="badge b-red">'+fmtNum(a.faltante)+'</span>' : '0')+'</td>' +
         '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td>' +
         '<td class="action-col">' +
         '<button class="btn btn-ghost btn-sm" onclick="abrirModalActividad(\''+a.id+'\')">✏️</button>' +
@@ -1182,12 +1192,16 @@
       document.getElementById('actDevueltoSinUso').value = a.devuelto_sin_uso || '';
       document.getElementById('actVainas').value = a.vainas != null ? a.vainas : '';
       document.getElementById('actObservaciones').value = a.observaciones || '';
+      document.getElementById('actFaltante').value = Number(a.faltante || 0);
+      actualizarAvisoFaltante(Number(a.faltante || 0), false);
     } else {
       document.getElementById('modalActividadTitulo').textContent = '➕ Nuevo registro de actividad';
       document.getElementById('actFecha').value = isoDate(new Date());
       ['actHorario','actRetiraCant','actConsumido','actDevueltoSinUso','actVainas','actObservaciones'].forEach(function(id) {
         document.getElementById(id).value = '';
       });
+      document.getElementById('actFaltante').value = 0;
+      actualizarAvisoFaltante(0, false);
       document.getElementById('actActividad').selectedIndex = 0;
       document.getElementById('actMunicion').selectedIndex = 0;
     }
@@ -1199,6 +1213,28 @@
     var retira = Number(document.getElementById('actRetiraCant').value || 0);
     var consumido = Number(document.getElementById('actConsumido').value || 0);
     document.getElementById('actDevueltoSinUso').value = Math.max(0, retira - consumido);
+    calcularFaltante();
+  }
+
+  // Faltante = retira − consumido − devuelto (si se ajusta a mano lo devuelto y no cierra la cuenta).
+  function calcularFaltante() {
+    var retira = Number(document.getElementById('actRetiraCant').value || 0);
+    var consumido = Number(document.getElementById('actConsumido').value || 0);
+    var devuelto = Number(document.getElementById('actDevueltoSinUso').value || 0);
+    var dif = retira - consumido - devuelto;
+    var faltante = Math.max(0, dif);
+    document.getElementById('actFaltante').value = faltante;
+    actualizarAvisoFaltante(faltante, dif < 0);
+  }
+
+  function actualizarAvisoFaltante(faltante, excede) {
+    var inp = document.getElementById('actFaltante');
+    var hint = document.getElementById('actFaltanteHint');
+    document.getElementById('actObsStar').style.display = faltante > 0 ? '' : 'none';
+    inp.style.color = faltante > 0 ? 'var(--red)' : '';
+    if (excede) hint.textContent = '⚠️ Consumido + devuelto supera lo que se retiró: revisá los números.';
+    else if (faltante > 0) hint.textContent = '⚠️ Faltan ' + fmtNum(faltante) + ' (no volvieron ni se consumieron). Se suman al consumo: explicá el motivo en Observaciones.';
+    else hint.textContent = 'Se calcula solo: retira − consumido − devuelto. Se suma al consumo.';
   }
 
   async function guardarActividad() {
@@ -1219,8 +1255,14 @@
       consumido: Number(document.getElementById('actConsumido').value || 0),
       devuelto_sin_uso: Number(document.getElementById('actDevueltoSinUso').value || 0),
       vainas: document.getElementById('actVainas').value === '' ? null : Number(document.getElementById('actVainas').value),
+      faltante: Number(document.getElementById('actFaltante').value || 0),
       observaciones: document.getElementById('actObservaciones').value || null
     };
+    if (payload.faltante > 0 && !str(payload.observaciones)) {
+      alertShow('topAlert', 'error', 'Hay ' + fmtNum(payload.faltante) + ' de faltante: escribí en Observaciones el motivo.');
+      document.getElementById('actObservaciones').focus();
+      return;
+    }
     showLoading('Guardando…');
     try {
       var res = id
@@ -1281,14 +1323,15 @@
     var totRetira = filas.reduce(function(s,a){ return s + Number(a.retira||0); }, 0);
     var totConsumido = filas.reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
     var totDevuelto = filas.reduce(function(s,a){ return s + Number(a.devuelto_sin_uso||0); }, 0);
+    var totFaltante = filas.reduce(function(s,a){ return s + Number(a.faltante||0); }, 0);
 
     document.getElementById('kpiSemana').innerHTML = [
       { label: 'Registros esta semana', val: filas.length, c: 'blue' },
       { label: 'Total retirado', val: fmtNum(totRetira), c: 'orange' },
-      { label: 'Total consumido', val: fmtNum(totConsumido), c: 'red' },
+      { label: 'Total consumido', val: fmtNum(totConsumido + totFaltante), c: 'red', sub: totFaltante > 0 ? 'incluye ' + fmtNum(totFaltante) + ' faltante(s)' : '' },
       { label: 'Devuelto sin uso', val: fmtNum(totDevuelto), c: 'teal' }
     ].map(function(k) {
-      return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div></div>';
+      return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div>' + (k.sub ? '<div class="kpi-sub">'+esc(k.sub)+'</div>' : '') + '</div>';
     }).join('');
 
     // Munición con movimiento en la semana (actividad o ingreso).
@@ -1304,22 +1347,25 @@
       var ingMun = ingSemana.filter(function(i){ return (i.municion || '') === key; });
       // Saldo al empezar la semana = todo lo ingresado − todo lo consumido ANTES del lunes.
       var inicial = suma(ingresos.filter(function(i){ return (i.municion || '') === key && i.fecha < inicioIso; }), 'cantidad')
-                  - suma(actividades.filter(function(a){ return (a.municion || '') === key && a.fecha < inicioIso; }), 'consumido');
+                  - suma(actividades.filter(function(a){ return (a.municion || '') === key && a.fecha < inicioIso; }), 'consumido')
+                  - suma(actividades.filter(function(a){ return (a.municion || '') === key && a.fecha < inicioIso; }), 'faltante');
       var ing = suma(ingMun, 'cantidad');
       var cons = suma(regs, 'consumido');
+      var falt = suma(regs, 'faltante');
       var porAct = {};
       regs.forEach(function(a) {
         var k = a.actividad || '(sin actividad)';
-        if (!porAct[k]) porAct[k] = { nombre: k, retira: 0, consumido: 0, devuelto: 0, vainas: 0, regs: [] };
+        if (!porAct[k]) porAct[k] = { nombre: k, retira: 0, consumido: 0, faltante: 0, devuelto: 0, vainas: 0, regs: [] };
         porAct[k].retira += Number(a.retira||0);
         porAct[k].consumido += Number(a.consumido||0);
+        porAct[k].faltante += Number(a.faltante||0);
         porAct[k].devuelto += Number(a.devuelto_sin_uso||0);
         porAct[k].vainas += Number(a.vainas||0);
         porAct[k].regs.push(a);
       });
-      var acts = Object.keys(porAct).map(function(k){ return porAct[k]; }).sort(function(x,y){ return y.consumido - x.consumido; });
+      var acts = Object.keys(porAct).map(function(k){ return porAct[k]; }).sort(function(x,y){ return (y.consumido + y.faltante) - (x.consumido + x.faltante); });
       return {
-        municion: m, inicial: inicial, ingreso: ing, consumido: cons, final: inicial + ing - cons,
+        municion: m, inicial: inicial, ingreso: ing, consumido: cons, faltante: falt, final: inicial + ing - cons - falt,
         retira: suma(regs, 'retira'), devuelto: suma(regs, 'devuelto_sin_uso'), vainas: suma(regs, 'vainas'),
         acts: acts, regs: regs, ingresos: ingMun
       };
@@ -1332,15 +1378,16 @@
       var stats = '<div class="mun-stats" style="grid-template-columns:repeat(' + (conIngreso ? 4 : 3) + ',1fr);">' +
         '<div class="mun-stat"><div class="l">Saldo inicial</div><div class="v' + (g.inicial < 0 ? ' neg' : '') + '">' + fmtNum(g.inicial) + '</div></div>' +
         (conIngreso ? '<div class="mun-stat s-ing"><div class="l">Ingresó</div><div class="v">+' + fmtNum(g.ingreso) + '</div></div>' : '') +
-        '<div class="mun-stat s-cons"><div class="l">Consumido</div><div class="v">' + fmtNum(g.consumido) + '</div></div>' +
+        '<div class="mun-stat s-cons"><div class="l">Consumido</div><div class="v">' + fmtNum(g.consumido + g.faltante) + '</div>' + (g.faltante > 0 ? '<div class="mun-stat-sub">incl. ' + fmtNum(g.faltante) + ' faltante(s)</div>' : '') + '</div>' +
         '<div class="mun-stat"><div class="l">Saldo final</div><div class="v' + (g.final < 0 ? ' neg' : '') + '">' + fmtNum(g.final) + '</div></div>' +
         '</div>';
-      var maxCons = g.acts.reduce(function(mx, a){ return Math.max(mx, a.consumido); }, 0);
+      var maxCons = g.acts.reduce(function(mx, a){ return Math.max(mx, a.consumido + a.faltante); }, 0);
       var acts = g.acts.length
         ? '<div class="mun-acts-title">Consumido por actividad</div>' + g.acts.map(function(a, ai) {
-            var pct = maxCons > 0 ? Math.round(a.consumido / maxCons * 100) : 0;
+            var tot = a.consumido + a.faltante;
+            var pct = maxCons > 0 ? Math.round(tot / maxCons * 100) : 0;
             return '<div class="mun-act" onclick="abrirDetalleSemana(' + gi + ',' + ai + ')" title="Ver detalle">' +
-              '<span class="mun-act-name">' + esc(a.nombre) + '</span><span class="mun-act-val">' + fmtNum(a.consumido) + '</span>' +
+              '<span class="mun-act-name">' + esc(a.nombre) + (a.faltante > 0 ? ' <span class="badge b-red" title="Faltante incluido en el consumo">' + fmtNum(a.faltante) + ' faltante</span>' : '') + '</span><span class="mun-act-val">' + fmtNum(tot) + '</span>' +
               '<div class="mun-act-bar"><span style="width:' + pct + '%;"></span></div></div>';
           }).join('')
         : '<div class="mun-sin-consumo">Sin consumo en actividades esta semana (solo ingreso de stock).</div>';
@@ -1362,11 +1409,12 @@
       chips = chip('Saldo inicial', fmtNum(g.inicial)) +
         (g.ingreso > 0 ? chip('Ingresó', '+' + fmtNum(g.ingreso), 'color:var(--green);') : '') +
         chip('Retira', fmtNum(g.retira)) + chip('Consumido', fmtNum(g.consumido), 'color:var(--red);') +
+        (g.faltante > 0 ? chip('Faltante', fmtNum(g.faltante), 'color:var(--red);') : '') +
         chip('Dev. sin uso', fmtNum(g.devuelto)) + chip('Vainas', fmtNum(g.vainas)) + chip('Saldo final', fmtNum(g.final));
       cuerpo = g.acts.length
-        ? '<table><thead><tr><th>Actividad</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Registros</th></tr></thead><tbody>' +
+        ? '<table><thead><tr><th>Actividad</th><th>Retira</th><th>Consumido</th><th>Faltante</th><th>Dev. sin uso</th><th>Vainas</th><th>Registros</th></tr></thead><tbody>' +
           g.acts.map(function(a) {
-            return '<tr><td>' + esc(a.nombre) + '</td><td>' + fmtNum(a.retira) + '</td><td><b>' + fmtNum(a.consumido) + '</b></td><td>' + fmtNum(a.devuelto) + '</td><td>' + fmtNum(a.vainas) + '</td><td>' + a.regs.length + '</td></tr>';
+            return '<tr><td>' + esc(a.nombre) + '</td><td>' + fmtNum(a.retira) + '</td><td><b>' + fmtNum(a.consumido) + '</b></td><td>' + (a.faltante > 0 ? '<span class="badge b-red">' + fmtNum(a.faltante) + '</span>' : '0') + '</td><td>' + fmtNum(a.devuelto) + '</td><td>' + fmtNum(a.vainas) + '</td><td>' + a.regs.length + '</td></tr>';
           }).join('') + '</tbody></table>'
         : '<div class="no-data"><div class="no-data-text">Sin registros de actividad esta semana</div></div>';
       if (g.ingresos.length) {
@@ -1378,11 +1426,12 @@
       if (!a) return;
       titulo = '🎯 ' + esc(a.nombre) + ' — ' + esc(g.municion);
       chips = chip('Retira', fmtNum(a.retira)) + chip('Consumido', fmtNum(a.consumido), 'color:var(--red);') +
+        (a.faltante > 0 ? chip('Faltante', fmtNum(a.faltante), 'color:var(--red);') : '') +
         chip('Dev. sin uso', fmtNum(a.devuelto)) + chip('Vainas', fmtNum(a.vainas));
       var regs = a.regs.slice().sort(function(x, y){ return (x.fecha + (x.horario||'')) < (y.fecha + (y.horario||'')) ? -1 : 1; });
-      cuerpo = '<table><thead><tr><th>Fecha</th><th>Horario</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th></tr></thead><tbody>' +
+      cuerpo = '<table><thead><tr><th>Fecha</th><th>Horario</th><th>Retira</th><th>Consumido</th><th>Faltante</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th></tr></thead><tbody>' +
         regs.map(function(r) {
-          return '<tr><td>' + fmtFecha(r.fecha) + '</td><td>' + fmtHorario(r.horario) + '</td><td>' + fmtNum(r.retira) + '</td><td><b>' + fmtNum(r.consumido) + '</b></td><td>' + fmtNum(r.devuelto_sin_uso) + '</td><td>' + (r.vainas != null ? fmtNum(r.vainas) : '—') + '</td><td>' + esc(r.observaciones || '') + '</td></tr>';
+          return '<tr><td>' + fmtFecha(r.fecha) + '</td><td>' + fmtHorario(r.horario) + '</td><td>' + fmtNum(r.retira) + '</td><td><b>' + fmtNum(r.consumido) + '</b></td><td>' + (Number(r.faltante) > 0 ? '<span class="badge b-red">' + fmtNum(r.faltante) + '</span>' : '0') + '</td><td>' + fmtNum(r.devuelto_sin_uso) + '</td><td>' + (r.vainas != null ? fmtNum(r.vainas) : '—') + '</td><td>' + esc(r.observaciones || '') + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
     document.getElementById('detalleSemanaTitulo').innerHTML = titulo;
@@ -1419,7 +1468,7 @@
     document.getElementById('tbodyExportar').innerHTML = lastExportRows.map(function(a) {
       return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
         '<td>'+esc(a.municion)+'</td>' +
-        '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td>' +
+        '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td><td>'+(Number(a.faltante)>0 ? '<span class="badge b-red">'+fmtNum(a.faltante)+'</span>' : '0')+'</td>' +
         '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td></tr>';
     }).join('');
   }
@@ -1437,13 +1486,13 @@
       ws.addRow(['Reporte de Consumo']);
       ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
       ws.addRow([]);
-      var headers = ['Fecha','Horario','Actividad','Munición','Retira','Consumido','Devuelto sin uso','Vainas','Observaciones'];
+      var headers = ['Fecha','Horario','Actividad','Munición','Retira','Consumido','Devuelto sin uso','Faltante','Vainas','Observaciones'];
       var headerRow = ws.addRow(headers);
       headerRow.font = { bold: true };
       lastExportRows.forEach(function(a) {
         ws.addRow([
           fmtFecha(a.fecha), fmtHorario(a.horario), a.actividad || '',
-          a.municion || '', Number(a.retira||0), Number(a.consumido||0), Number(a.devuelto_sin_uso||0),
+          a.municion || '', Number(a.retira||0), Number(a.consumido||0), Number(a.devuelto_sin_uso||0), Number(a.faltante||0),
           a.vainas != null ? Number(a.vainas) : '', a.observaciones || ''
         ]);
       });
