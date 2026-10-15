@@ -258,6 +258,37 @@
   .week-nav { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
   .week-nav .week-label { font-size: 15px; font-weight: 800; color: var(--primary); }
 
+
+  /* REPORTE SEMANAL — una caja por munición */
+  .mun-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; align-items: start; }
+  .mun-card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .mun-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 18px; background: var(--primary); color: white; cursor: pointer; }
+  .mun-head:hover { background: var(--primary-light); }
+  .mun-head-name { font-size: 17px; font-weight: 800; letter-spacing: .6px; }
+  .mun-head-hint { font-size: 11px; opacity: .7; white-space: nowrap; }
+  .mun-stats { display: grid; border-bottom: 1px solid var(--border); }
+  .mun-stat { padding: 12px 8px; text-align: center; border-right: 1px solid var(--border); }
+  .mun-stat:last-child { border-right: none; }
+  .mun-stat .l { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 4px; }
+  .mun-stat .v { font-size: 22px; font-weight: 900; line-height: 1.1; }
+  .mun-stat.s-cons { background: #fff5f5; }
+  .mun-stat.s-cons .v { color: var(--red); }
+  .mun-stat.s-ing .v { color: var(--green); }
+  .mun-stat .v.neg { color: var(--red); }
+  .mun-acts-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); padding: 10px 18px 4px; }
+  .mun-act { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 9px 18px; border-top: 1px solid var(--border); cursor: pointer; }
+  .mun-act:hover { background: #f5f7fa; }
+  .mun-act-name { font-size: 13px; font-weight: 600; }
+  .mun-act-val { font-size: 16px; font-weight: 800; color: var(--text); text-align: right; }
+  .mun-act-bar { grid-column: 1 / -1; height: 5px; background: #eceff1; border-radius: 3px; overflow: hidden; }
+  .mun-act-bar span { display: block; height: 100%; background: var(--red-light); border-radius: 3px; }
+  .mun-sin-consumo { padding: 12px 18px 14px; font-size: 12.5px; color: var(--muted); }
+  .detalle-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .detalle-chip { background: #f5f7fa; border-radius: 10px; padding: 9px 14px; min-width: 110px; }
+  .detalle-chip .l { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  .detalle-chip .v { font-size: 20px; font-weight: 900; }
+  @media (max-width: 480px) { .mun-grid { grid-template-columns: 1fr; } }
+
   @media (max-width: 900px) {
     .form-grid { grid-template-columns: 1fr 1fr; }
     .form-group.half { grid-column: span 2; }
@@ -381,6 +412,18 @@
       <button class="btn btn-ghost" onclick="cerrarModalActividad()">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarActividad()">💾 Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: detalle del reporte semanal -->
+<div class="modal-overlay" id="modalDetalleSemana">
+  <div class="modal" style="max-width:980px;">
+    <div class="modal-header">
+      <div class="modal-title" id="detalleSemanaTitulo">Detalle</div>
+      <button class="modal-close" onclick="cerrarDetalleSemana()">✕</button>
+    </div>
+    <div class="detalle-chips" id="detalleSemanaChips"></div>
+    <div id="detalleSemanaCuerpo" style="overflow-x:auto;"></div>
   </div>
 </div>
 
@@ -516,20 +559,13 @@
       <button class="btn btn-ghost btn-sm" onclick="cambiarSemana(0)">Esta semana</button>
     </div>
     <div class="kpi-grid" id="kpiSemana"></div>
-    <div class="table-card">
-      <div class="section-title"><span class="ico">🎯</span> Por actividad</div>
-      <table>
-        <thead><tr><th>Actividad</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th></tr></thead>
-        <tbody id="tbodySemanaActividad"></tbody>
-      </table>
+    <div class="field-hint" style="margin-bottom:14px;">Cada caja es una munición con movimiento en la semana: saldo al empezar, lo consumido por actividad y saldo al cierre (hasta lo cargado). Tocá una actividad o el nombre de la munición para ver el detalle completo.</div>
+    <div class="mun-grid" id="semanaMuniciones"></div>
+    <div class="no-data" id="semanaNoData" style="display:none;">
+      <div class="no-data-icon">📭</div>
+      <div class="no-data-text">Sin movimientos de munición en esta semana</div>
     </div>
-    <div class="table-card">
-      <div class="section-title"><span class="ico">📦</span> Por munición</div>
-      <table>
-        <thead><tr><th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th></tr></thead>
-        <tbody id="tbodySemanaMunicion"></tbody>
-      </table>
-    </div>
+    <div class="field-hint" style="margin-top:14px;">Saldo estimado = ingresos − consumido cargados en el sistema. No reemplaza un recuento físico.</div>
   </div>
 
   <!-- ==================== FILTROS Y EXPORTAR ==================== -->
@@ -1227,16 +1263,20 @@
   // ============================================================
   // REPORTE SEMANAL
   // ============================================================
+  var _semanaGrupos = [];   // munición -> actividades de la semana mostrada (para los modales de detalle)
+  var _semanaRango = '';
+
   function renderSemana() {
     var semanaActual = mondayOf(new Date());
     var inicio = new Date(semanaActual); inicio.setDate(inicio.getDate() + semanaOffset*7);
     var fin = new Date(inicio); fin.setDate(fin.getDate() + 6);
     var inicioIso = isoDate(inicio), finIso = isoDate(fin);
 
-    document.getElementById('semanaLabel').textContent = fmtFecha(inicioIso) + ' al ' + fmtFecha(finIso) +
-      (semanaOffset === 0 ? ' (esta semana)' : '');
+    _semanaRango = fmtFecha(inicioIso) + ' al ' + fmtFecha(finIso);
+    document.getElementById('semanaLabel').textContent = _semanaRango + (semanaOffset === 0 ? ' (esta semana)' : '');
 
     var filas = actividades.filter(function(a){ return a.fecha >= inicioIso && a.fecha <= finIso; });
+    var ingSemana = ingresos.filter(function(i){ return i.fecha >= inicioIso && i.fecha <= finIso; });
 
     var totRetira = filas.reduce(function(s,a){ return s + Number(a.retira||0); }, 0);
     var totConsumido = filas.reduce(function(s,a){ return s + Number(a.consumido||0); }, 0);
@@ -1251,29 +1291,106 @@
       return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+k.val+'</div></div>';
     }).join('');
 
-    function agrupar(campo) {
-      var m = {};
-      filas.forEach(function(a) {
-        var k = a[campo] || '(sin dato)';
-        if (!m[k]) m[k] = { retira:0, consumido:0, devuelto:0, vainas:0 };
-        m[k].retira += Number(a.retira||0);
-        m[k].consumido += Number(a.consumido||0);
-        m[k].devuelto += Number(a.devuelto_sin_uso||0);
-        m[k].vainas += Number(a.vainas||0);
+    // Munición con movimiento en la semana (actividad o ingreso).
+    var nombres = {};
+    filas.forEach(function(a){ nombres[a.municion || '(sin dato)'] = true; });
+    ingSemana.forEach(function(i){ nombres[i.municion || '(sin dato)'] = true; });
+
+    function suma(arr, campo) { return arr.reduce(function(s,x){ return s + Number(x[campo]||0); }, 0); }
+
+    _semanaGrupos = Object.keys(nombres).map(function(m) {
+      var key = m === '(sin dato)' ? '' : m;
+      var regs = filas.filter(function(a){ return (a.municion || '') === key; });
+      var ingMun = ingSemana.filter(function(i){ return (i.municion || '') === key; });
+      // Saldo al empezar la semana = todo lo ingresado − todo lo consumido ANTES del lunes.
+      var inicial = suma(ingresos.filter(function(i){ return (i.municion || '') === key && i.fecha < inicioIso; }), 'cantidad')
+                  - suma(actividades.filter(function(a){ return (a.municion || '') === key && a.fecha < inicioIso; }), 'consumido');
+      var ing = suma(ingMun, 'cantidad');
+      var cons = suma(regs, 'consumido');
+      var porAct = {};
+      regs.forEach(function(a) {
+        var k = a.actividad || '(sin actividad)';
+        if (!porAct[k]) porAct[k] = { nombre: k, retira: 0, consumido: 0, devuelto: 0, vainas: 0, regs: [] };
+        porAct[k].retira += Number(a.retira||0);
+        porAct[k].consumido += Number(a.consumido||0);
+        porAct[k].devuelto += Number(a.devuelto_sin_uso||0);
+        porAct[k].vainas += Number(a.vainas||0);
+        porAct[k].regs.push(a);
       });
-      return Object.keys(m).sort().map(function(k){ return Object.assign({ nombre:k }, m[k]); });
-    }
+      var acts = Object.keys(porAct).map(function(k){ return porAct[k]; }).sort(function(x,y){ return y.consumido - x.consumido; });
+      return {
+        municion: m, inicial: inicial, ingreso: ing, consumido: cons, final: inicial + ing - cons,
+        retira: suma(regs, 'retira'), devuelto: suma(regs, 'devuelto_sin_uso'), vainas: suma(regs, 'vainas'),
+        acts: acts, regs: regs, ingresos: ingMun
+      };
+    }).sort(function(a,b){ return (b.consumido - a.consumido) || a.municion.localeCompare(b.municion); });
 
-    function tablaHtml(rows) {
-      if (!rows.length) return '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">Sin registros esta semana</td></tr>';
-      return rows.map(function(r) {
-        return '<tr><td>'+esc(r.nombre)+'</td><td>'+fmtNum(r.retira)+'</td><td>'+fmtNum(r.consumido)+'</td><td>'+fmtNum(r.devuelto)+'</td><td>'+fmtNum(r.vainas)+'</td></tr>';
-      }).join('');
-    }
-
-    document.getElementById('tbodySemanaActividad').innerHTML = tablaHtml(agrupar('actividad'));
-    document.getElementById('tbodySemanaMunicion').innerHTML = tablaHtml(agrupar('municion'));
+    var cont = document.getElementById('semanaMuniciones');
+    document.getElementById('semanaNoData').style.display = _semanaGrupos.length ? 'none' : 'block';
+    cont.innerHTML = _semanaGrupos.map(function(g, gi) {
+      var conIngreso = g.ingreso > 0;
+      var stats = '<div class="mun-stats" style="grid-template-columns:repeat(' + (conIngreso ? 4 : 3) + ',1fr);">' +
+        '<div class="mun-stat"><div class="l">Saldo inicial</div><div class="v' + (g.inicial < 0 ? ' neg' : '') + '">' + fmtNum(g.inicial) + '</div></div>' +
+        (conIngreso ? '<div class="mun-stat s-ing"><div class="l">Ingresó</div><div class="v">+' + fmtNum(g.ingreso) + '</div></div>' : '') +
+        '<div class="mun-stat s-cons"><div class="l">Consumido</div><div class="v">' + fmtNum(g.consumido) + '</div></div>' +
+        '<div class="mun-stat"><div class="l">Saldo final</div><div class="v' + (g.final < 0 ? ' neg' : '') + '">' + fmtNum(g.final) + '</div></div>' +
+        '</div>';
+      var maxCons = g.acts.reduce(function(mx, a){ return Math.max(mx, a.consumido); }, 0);
+      var acts = g.acts.length
+        ? '<div class="mun-acts-title">Consumido por actividad</div>' + g.acts.map(function(a, ai) {
+            var pct = maxCons > 0 ? Math.round(a.consumido / maxCons * 100) : 0;
+            return '<div class="mun-act" onclick="abrirDetalleSemana(' + gi + ',' + ai + ')" title="Ver detalle">' +
+              '<span class="mun-act-name">' + esc(a.nombre) + '</span><span class="mun-act-val">' + fmtNum(a.consumido) + '</span>' +
+              '<div class="mun-act-bar"><span style="width:' + pct + '%;"></span></div></div>';
+          }).join('')
+        : '<div class="mun-sin-consumo">Sin consumo en actividades esta semana (solo ingreso de stock).</div>';
+      return '<div class="mun-card"><div class="mun-head" onclick="abrirDetalleSemana(' + gi + ',-1)" title="Ver detalle de esta munición">' +
+        '<span class="mun-head-name">' + esc(g.municion) + '</span><span class="mun-head-hint">ver detalle ›</span></div>' +
+        stats + acts + '</div>';
+    }).join('');
   }
+
+  // Modal de detalle: ai = -1 → toda la munición (resumen por actividad); ai >= 0 → una actividad (registro por registro).
+  function abrirDetalleSemana(gi, ai) {
+    var g = _semanaGrupos[gi];
+    if (!g) return;
+    var chips, titulo, cuerpo;
+    function chip(l, v, extra) { return '<div class="detalle-chip"><div class="l">' + l + '</div><div class="v"' + (extra ? ' style="' + extra + '"' : '') + '>' + v + '</div></div>'; }
+
+    if (ai < 0) {
+      titulo = '📦 ' + esc(g.municion) + ' — ' + esc(_semanaRango);
+      chips = chip('Saldo inicial', fmtNum(g.inicial)) +
+        (g.ingreso > 0 ? chip('Ingresó', '+' + fmtNum(g.ingreso), 'color:var(--green);') : '') +
+        chip('Retira', fmtNum(g.retira)) + chip('Consumido', fmtNum(g.consumido), 'color:var(--red);') +
+        chip('Dev. sin uso', fmtNum(g.devuelto)) + chip('Vainas', fmtNum(g.vainas)) + chip('Saldo final', fmtNum(g.final));
+      cuerpo = g.acts.length
+        ? '<table><thead><tr><th>Actividad</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Registros</th></tr></thead><tbody>' +
+          g.acts.map(function(a) {
+            return '<tr><td>' + esc(a.nombre) + '</td><td>' + fmtNum(a.retira) + '</td><td><b>' + fmtNum(a.consumido) + '</b></td><td>' + fmtNum(a.devuelto) + '</td><td>' + fmtNum(a.vainas) + '</td><td>' + a.regs.length + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '<div class="no-data"><div class="no-data-text">Sin registros de actividad esta semana</div></div>';
+      if (g.ingresos.length) {
+        cuerpo += '<div class="section-title" style="margin-top:18px;"><span class="ico">📥</span> Ingresos de la semana</div><table><thead><tr><th>Fecha</th><th>Cantidad</th></tr></thead><tbody>' +
+          g.ingresos.map(function(i){ return '<tr><td>' + fmtFecha(i.fecha) + '</td><td>' + fmtNum(i.cantidad) + '</td></tr>'; }).join('') + '</tbody></table>';
+      }
+    } else {
+      var a = g.acts[ai];
+      if (!a) return;
+      titulo = '🎯 ' + esc(a.nombre) + ' — ' + esc(g.municion);
+      chips = chip('Retira', fmtNum(a.retira)) + chip('Consumido', fmtNum(a.consumido), 'color:var(--red);') +
+        chip('Dev. sin uso', fmtNum(a.devuelto)) + chip('Vainas', fmtNum(a.vainas));
+      var regs = a.regs.slice().sort(function(x, y){ return (x.fecha + (x.horario||'')) < (y.fecha + (y.horario||'')) ? -1 : 1; });
+      cuerpo = '<table><thead><tr><th>Fecha</th><th>Horario</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th></tr></thead><tbody>' +
+        regs.map(function(r) {
+          return '<tr><td>' + fmtFecha(r.fecha) + '</td><td>' + fmtHorario(r.horario) + '</td><td>' + fmtNum(r.retira) + '</td><td><b>' + fmtNum(r.consumido) + '</b></td><td>' + fmtNum(r.devuelto_sin_uso) + '</td><td>' + (r.vainas != null ? fmtNum(r.vainas) : '—') + '</td><td>' + esc(r.observaciones || '') + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+    document.getElementById('detalleSemanaTitulo').innerHTML = titulo;
+    document.getElementById('detalleSemanaChips').innerHTML = chips;
+    document.getElementById('detalleSemanaCuerpo').innerHTML = cuerpo;
+    document.getElementById('modalDetalleSemana').classList.add('show');
+  }
+  function cerrarDetalleSemana() { document.getElementById('modalDetalleSemana').classList.remove('show'); }
 
   function cambiarSemana(delta) {
     semanaOffset = delta === 0 ? 0 : semanaOffset + delta;
