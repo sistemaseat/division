@@ -508,7 +508,7 @@
     </div>
     <div class="table-card">
       <table>
-        <thead><tr><th>Fecha</th><th>Munición</th><th>Cantidad</th><th class="action-col">Acciones</th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Munición</th><th>Cantidad</th><th>Cargado</th><th class="action-col">Acciones</th></tr></thead>
         <tbody id="tbodyIngresos"></tbody>
       </table>
       <div class="no-data" id="ingresosNoData" style="display:none;">
@@ -529,6 +529,14 @@
         <label class="ctrl-label">Munición</label>
         <select id="fActMunicion" onchange="renderActividadesTable()"><option value="">Todas</option></select>
       </div>
+      <div class="ctrl-group" style="min-width:170px;">
+        <label class="ctrl-label">Carga</label>
+        <select id="fActCarga" onchange="renderActividadesTable()">
+          <option value="">Todas</option>
+          <option value="hoy">Cargadas hoy</option>
+          <option value="dudosa">⚠️ Fecha dudosa</option>
+        </select>
+      </div>
       <div class="ctrl-group">
         <label class="ctrl-label">Desde</label>
         <input type="date" id="fActDesde" onchange="renderActividadesTable()">
@@ -544,7 +552,7 @@
       <table>
         <thead><tr>
           <th>Fecha</th><th>Horario</th><th>Actividad</th>
-          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Faltante</th><th>Vainas</th><th>Observaciones</th>
+          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Faltante</th><th>Vainas</th><th>Observaciones</th><th>Cargado</th>
           <th class="action-col">Acciones</th>
         </tr></thead>
         <tbody id="tbodyActividades"></tbody>
@@ -604,7 +612,7 @@
       <table>
         <thead><tr>
           <th>Fecha</th><th>Horario</th><th>Actividad</th>
-          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Faltante</th><th>Vainas</th><th>Observaciones</th>
+          <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Faltante</th><th>Vainas</th><th>Observaciones</th><th>Cargado</th>
         </tr></thead>
         <tbody id="tbodyExportar"></tbody>
       </table>
@@ -714,6 +722,39 @@
   }
   function fmtHorario(t) { return t ? String(t).slice(0,5) : '—'; }
   function fmtNum(n) { return Number(n || 0).toLocaleString('es-AR'); }
+
+  // Fecha y hora en que se CARGÓ el registro en el sistema (created_at), en hora de Argentina.
+  var TZ_AR = 'America/Argentina/Buenos_Aires';
+  function fmtCarga(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d)) return '—';
+    return d.toLocaleString('es-AR', { timeZone: TZ_AR, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  function diaCarga(iso) { // 'YYYY-MM-DD' del día de carga, hora de Argentina
+    if (!iso) return '';
+    var d = new Date(iso);
+    return isNaN(d) ? '' : d.toLocaleDateString('en-CA', { timeZone: TZ_AR });
+  }
+  function diasEntre(isoA, isoB) { // días entre dos 'YYYY-MM-DD' (B − A)
+    return Math.round((new Date(isoB + 'T00:00:00Z') - new Date(isoA + 'T00:00:00Z')) / 86400000);
+  }
+  // Texto de aviso si la fecha del registro no cuadra con el día en que se cargó
+  // (posible error de tipeo). Los registros del histórico importado (id_legacy) no se evalúan:
+  // su "carga" es la de la importación, no la real.
+  function avisoFecha(r) {
+    if (!r || r.id_legacy || !r.fecha || !r.created_at) return '';
+    var carga = diaCarga(r.created_at);
+    if (!carga) return '';
+    var dif = diasEntre(r.fecha, carga); // >0: la fecha es anterior a la carga
+    if (dif > 7) return 'Cargado ' + dif + ' días después de la fecha que figura.';
+    if (dif < -1) return 'La fecha que figura es ' + (-dif) + ' días posterior a la carga.';
+    return '';
+  }
+  function celdaCarga(r) {
+    var av = avisoFecha(r);
+    return fmtCarga(r.created_at) + (av ? ' <span class="badge b-yellow" title="' + esc(av) + '">⚠️ fecha dudosa</span>' : '');
+  }
 
   function showLoading(msg) {
     document.getElementById('loadingMsg').textContent = msg || 'Cargando…';
@@ -1074,7 +1115,7 @@
     document.getElementById('ingCountPill').textContent = filas.length + (filas.length === 1 ? ' ingreso' : ' ingresos');
     document.getElementById('ingresosNoData').style.display = filas.length ? 'none' : 'block';
     document.getElementById('tbodyIngresos').innerHTML = filas.map(function(i) {
-      return '<tr><td>'+fmtFecha(i.fecha)+'</td><td>'+esc(i.municion)+'</td><td>'+fmtNum(i.cantidad)+'</td>' +
+      return '<tr><td>'+fmtFecha(i.fecha)+'</td><td>'+esc(i.municion)+'</td><td>'+fmtNum(i.cantidad)+'</td><td style="white-space:nowrap;">'+celdaCarga(i)+'</td>' +
         '<td class="action-col">' +
         '<button class="btn btn-ghost btn-sm" onclick="abrirModalIngreso(\''+i.id+'\')">✏️</button>' +
         '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarIngreso(\''+i.id+'\')">🗑️</button>' +
@@ -1155,8 +1196,12 @@
     var fMunicion = document.getElementById('fActMunicion').value;
     var fDesde = document.getElementById('fActDesde').value;
     var fHasta = document.getElementById('fActHasta').value;
+    var fCarga = document.getElementById('fActCarga').value;
+    var hoyAR = new Date().toLocaleDateString('en-CA', { timeZone: TZ_AR });
 
     var filas = actividades.filter(function(a) {
+      if (fCarga === 'hoy' && diaCarga(a.created_at) !== hoyAR) return false;
+      if (fCarga === 'dudosa' && !avisoFecha(a)) return false;
       if (fActividad && a.actividad !== fActividad) return false;
       if (fMunicion && a.municion !== fMunicion) return false;
       if (fDesde && a.fecha < fDesde) return false;
@@ -1170,7 +1215,7 @@
       return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
         '<td>'+esc(a.municion)+'</td>' +
         '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td><td>'+(Number(a.faltante)>0 ? '<span class="badge b-red">'+fmtNum(a.faltante)+'</span>' : '0')+'</td>' +
-        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td>' +
+        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td><td style="white-space:nowrap;">'+celdaCarga(a)+'</td>' +
         '<td class="action-col">' +
         '<button class="btn btn-ghost btn-sm" onclick="abrirModalActividad(\''+a.id+'\')">✏️</button>' +
         '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarActividad(\''+a.id+'\')">🗑️</button>' +
@@ -1429,9 +1474,9 @@
         (a.faltante > 0 ? chip('Faltante', fmtNum(a.faltante), 'color:var(--red);') : '') +
         chip('Dev. sin uso', fmtNum(a.devuelto)) + chip('Vainas', fmtNum(a.vainas));
       var regs = a.regs.slice().sort(function(x, y){ return (x.fecha + (x.horario||'')) < (y.fecha + (y.horario||'')) ? -1 : 1; });
-      cuerpo = '<table><thead><tr><th>Fecha</th><th>Horario</th><th>Retira</th><th>Consumido</th><th>Faltante</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th></tr></thead><tbody>' +
+      cuerpo = '<table><thead><tr><th>Fecha</th><th>Horario</th><th>Retira</th><th>Consumido</th><th>Faltante</th><th>Dev. sin uso</th><th>Vainas</th><th>Observaciones</th><th>Cargado</th></tr></thead><tbody>' +
         regs.map(function(r) {
-          return '<tr><td>' + fmtFecha(r.fecha) + '</td><td>' + fmtHorario(r.horario) + '</td><td>' + fmtNum(r.retira) + '</td><td><b>' + fmtNum(r.consumido) + '</b></td><td>' + (Number(r.faltante) > 0 ? '<span class="badge b-red">' + fmtNum(r.faltante) + '</span>' : '0') + '</td><td>' + fmtNum(r.devuelto_sin_uso) + '</td><td>' + (r.vainas != null ? fmtNum(r.vainas) : '—') + '</td><td>' + esc(r.observaciones || '') + '</td></tr>';
+          return '<tr><td>' + fmtFecha(r.fecha) + '</td><td>' + fmtHorario(r.horario) + '</td><td>' + fmtNum(r.retira) + '</td><td><b>' + fmtNum(r.consumido) + '</b></td><td>' + (Number(r.faltante) > 0 ? '<span class="badge b-red">' + fmtNum(r.faltante) + '</span>' : '0') + '</td><td>' + fmtNum(r.devuelto_sin_uso) + '</td><td>' + (r.vainas != null ? fmtNum(r.vainas) : '—') + '</td><td>' + esc(r.observaciones || '') + '</td><td style="white-space:nowrap;">' + celdaCarga(r) + '</td></tr>';
         }).join('') + '</tbody></table>';
     }
     document.getElementById('detalleSemanaTitulo').innerHTML = titulo;
@@ -1469,7 +1514,7 @@
       return '<tr><td>'+fmtFecha(a.fecha)+'</td><td>'+fmtHorario(a.horario)+'</td><td>'+esc(a.actividad)+'</td>' +
         '<td>'+esc(a.municion)+'</td>' +
         '<td>'+fmtNum(a.retira)+'</td><td>'+fmtNum(a.consumido)+'</td><td>'+fmtNum(a.devuelto_sin_uso)+'</td><td>'+(Number(a.faltante)>0 ? '<span class="badge b-red">'+fmtNum(a.faltante)+'</span>' : '0')+'</td>' +
-        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td></tr>';
+        '<td>'+(a.vainas != null ? fmtNum(a.vainas) : '—')+'</td><td>'+esc(a.observaciones || '')+'</td><td style="white-space:nowrap;">'+celdaCarga(a)+'</td></tr>';
     }).join('');
   }
 
@@ -1486,14 +1531,14 @@
       ws.addRow(['Reporte de Consumo']);
       ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
       ws.addRow([]);
-      var headers = ['Fecha','Horario','Actividad','Munición','Retira','Consumido','Devuelto sin uso','Faltante','Vainas','Observaciones'];
+      var headers = ['Fecha','Horario','Actividad','Munición','Retira','Consumido','Devuelto sin uso','Faltante','Vainas','Observaciones','Cargado (fecha y hora)'];
       var headerRow = ws.addRow(headers);
       headerRow.font = { bold: true };
       lastExportRows.forEach(function(a) {
         ws.addRow([
           fmtFecha(a.fecha), fmtHorario(a.horario), a.actividad || '',
           a.municion || '', Number(a.retira||0), Number(a.consumido||0), Number(a.devuelto_sin_uso||0), Number(a.faltante||0),
-          a.vainas != null ? Number(a.vainas) : '', a.observaciones || ''
+          a.vainas != null ? Number(a.vainas) : '', a.observaciones || '', fmtCarga(a.created_at)
         ]);
       });
       ws.columns.forEach(function(c){ c.width = 18; });
