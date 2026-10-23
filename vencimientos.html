@@ -611,7 +611,7 @@
 
   function htmlModeloCelda(v) {
     if (!v.adjunto_path) return '<span style="color:var(--muted);">—</span>';
-    return '<span class="semana-item-modelo" onclick="descargarModelo(' + JSON.stringify(v.id) + ')" style="cursor:pointer; color:var(--teal); text-decoration:underline; font-size:12.5px;">📎 ' + esc(v.adjunto_nombre || 'Descargar') + '</span>';
+    return '<span class="semana-item-modelo" onclick="descargarModelo(' + esc(JSON.stringify(v.id)) + ')" style="cursor:pointer; color:var(--teal); text-decoration:underline; font-size:12.5px;">📎 ' + esc(v.adjunto_nombre || 'Descargar') + '</span>';
   }
 
   function renderDashboard() {
@@ -693,11 +693,11 @@
         '<td>' + esc(v.titulo) + '</td>' +
         '<td>' + esc(v.observaciones || '—') + '</td>' +
         '<td>' + htmlModeloCelda(v) +
-          (!v.adjunto_path ? ' <button class="btn btn-ghost btn-sm" onclick="adjuntarModeloExistente(' + JSON.stringify(v.id) + ')" title="Subir modelo">📎 Subir</button>' : ' <button class="btn btn-ghost btn-sm" onclick="adjuntarModeloExistente(' + JSON.stringify(v.id) + ')" title="Reemplazar modelo">🔄</button>') +
+          (!v.adjunto_path ? ' <button class="btn btn-ghost btn-sm" onclick="adjuntarModeloExistente(' + esc(JSON.stringify(v.id)) + ')" title="Subir modelo">📎 Subir</button>' : ' <button class="btn btn-ghost btn-sm" onclick="adjuntarModeloExistente(' + esc(JSON.stringify(v.id)) + ')" title="Reemplazar modelo">🔄</button>') +
         '</td>' +
         '<td class="action-col">' +
-          '<button class="btn btn-ghost btn-sm" onclick="abrirModalEditarVencimiento(' + JSON.stringify(v.id) + ')" title="Editar">✏️</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarVencimiento(' + JSON.stringify(v.id) + ')" title="Eliminar">🗑️</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="abrirModalEditarVencimiento(' + esc(JSON.stringify(v.id)) + ')" title="Editar">✏️</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarVencimiento(' + esc(JSON.stringify(v.id)) + ')" title="Eliminar">🗑️</button>' +
         '</td></tr>';
     }).join('');
   }

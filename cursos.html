@@ -1038,8 +1038,8 @@
         '<span>🎓 '+esc(c)+'</span>' +
         '<span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
           '<input type="text" value="'+esc(resol)+'" placeholder="Resol Nro. (ej: 286/ISSP/2023)" style="width:200px;" ' +
-            'onchange="actualizarResolucionCursoConfig('+JSON.stringify(c)+', this.value)">' +
-          '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarCursoConfig('+JSON.stringify(c)+')" title="Quitar de la lista">🗑️</button>' +
+            'onchange="actualizarResolucionCursoConfig(' + esc(JSON.stringify(c)) + ', this.value)">' +
+          '<button class="btn btn-danger btn-sm" onclick="confirmarEliminarCursoConfig(' + esc(JSON.stringify(c)) + ')" title="Quitar de la lista">🗑️</button>' +
         '</span></li>';
     }).join('');
   }
@@ -1141,7 +1141,7 @@
       document.getElementById('tipoGrid').innerHTML = Object.keys(porCurso).map(function(c) {
         var s = porCurso[c];
         var totalCurso = s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente;
-        return '<div class="tipo-card" onclick="irARegistrosPorCurso('+JSON.stringify(c)+')">' +
+        return '<div class="tipo-card" onclick="irARegistrosPorCurso(' + esc(JSON.stringify(c)) + ')">' +
           '<div class="tipo-card-header">'+esc(c)+'</div>' +
           '<div class="tipo-card-body">' +
             '<div class="tipo-stat aprobado"><div class="ts-num">'+s.Aprobado+'</div><div class="ts-label">Aprob.</div></div>' +
