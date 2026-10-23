@@ -914,21 +914,30 @@
   var actInternoItems = []; // [{id?,descripcion,horario,personal,orden}]
   var actEDTItems = [];     // [{actividad,horario,responsable,cantidad}] — solo lectura
   var _selectorInternoIdx = null;
+  var _spQuitados = 0;
   // Carga Diaria del día de Actividades (actFecha) — se recarga en cada
   // cargarActividades() y sirve para bloquear en el selector de personal
   // a quien esté de Licencia Anual, Franco de Servicio, o presente pero
   // afectado a un servicio (Fuera de Jurisdicción, Saturación, Espacios
   // Públicos) ese día.
   var _registroActFecha = { fecha: null, porLp: {} };
-  var MOTIVOS_NO_SELECCIONABLE = ['LICENCIA ANUAL', 'FRANCO DE SERVICIO'];
   var TIPOS_NO_SELECCIONABLE = ['SERVICIO FUERA DE JURISDICCION', 'SATURACION', 'ESPACIOS PUBLICOS'];
-  function _motivoNoDisponible(p) {
+  // Devuelve {motivo, ausente}. Cualquier persona AUSENTE ese día (franco,
+  // licencias, A.R.T., comisión, etc.) queda bloqueada sin importar el
+  // motivo. Además, los presentes afectados a ciertos servicios.
+  function _estadoNoDisponible(p) {
     var r = _registroActFecha.porLp[String(p.lp)];
-    if (!r) return '';
-    if (r.estado === 'AUSENTE' && MOTIVOS_NO_SELECCIONABLE.indexOf(up(r.motivo)) !== -1) return abrevEstado(up(r.motivo));
-    if (r.estado === 'PRESENTE' && TIPOS_NO_SELECCIONABLE.indexOf(up(r.tipo_presencia)) !== -1) return abrevEstado(up(r.tipo_presencia));
-    return '';
+    if (!r) return null;
+    if (up(r.estado) === 'AUSENTE') {
+      var m = up(r.motivo);
+      return { motivo: m ? abrevEstado(m) : 'AUSENTE', ausente: true };
+    }
+    if (up(r.estado) === 'PRESENTE' && TIPOS_NO_SELECCIONABLE.indexOf(up(r.tipo_presencia)) !== -1) {
+      return { motivo: abrevEstado(up(r.tipo_presencia)), ausente: false };
+    }
+    return null;
   }
+  function _motivoNoDisponible(p) { var e = _estadoNoDisponible(p); return e ? e.motivo : ''; }
   var _chartAsistencia = null, _chartTipos = null;
 
   // Control Recargos — valor de módulo por grado (editable) + Módulo
@@ -1809,19 +1818,28 @@
     _selectorInternoIdx = idx;
     var preseleccion = str(actInternoItems[idx].personal).split('|').map(function(s){ return s.trim(); }).filter(Boolean);
     var cont = document.getElementById('spLista');
+    _spQuitados = 0;
     cont.innerHTML = personal.map(function(p) {
       var texto = nombrePersona(p);
+      // No se puede tildar a quien esa fecha esté AUSENTE (franco, licencias,
+      // A.R.T., etc.): queda bloqueado y destildado aunque estuviera
+      // seleccionado de antes (se quita al confirmar). Para los presentes
+      // afectados a un servicio fuera de jurisdicción/saturación/espacios
+      // públicos se conserva la carga previa si ya estaban tildados.
+      var est = _estadoNoDisponible(p);
+      var motivo = est ? est.motivo : '';
       var checked = preseleccion.indexOf(texto) !== -1;
-      // No se puede tildar a quien esa fecha esté de Licencia Anual, Franco
-      // de Servicio o en Servicio Fuera de Jurisdicción — salvo que ya
-      // estuviera seleccionado de antes (para no perder una carga previa).
-      var motivo = _motivoNoDisponible(p);
-      var bloqueado = motivo && !checked;
+      var quitado = !!(est && est.ausente && checked);
+      if (quitado) { checked = false; _spQuitados++; }
+      var bloqueado = !!(est && (est.ausente || !checked));
       return '<div class="sp-item'+(bloqueado?' sp-item-bloqueado':'')+'" data-texto="'+esc(texto.toLowerCase())+'"'+(bloqueado?' title="No disponible: '+esc(motivo)+'"':'')+'>' +
         '<input type="checkbox" class="sp-check" value="'+esc(texto)+'" id="sp-'+esc(p.lp)+'" '+(checked?'checked':'')+' '+(bloqueado?'disabled':'')+' onchange="actualizarCountSelectorPersonal()">' +
         '<label for="sp-'+esc(p.lp)+'" style="flex:1;display:flex;justify-content:space-between;cursor:'+(bloqueado?'not-allowed':'pointer')+';'+(bloqueado?'opacity:.5;':'')+'"><span><strong>'+esc(p.grado)+'</strong> '+esc(p.apellido)+' '+esc(p.nombres)+(motivo?' <em style="font-style:normal;color:var(--danger,#c62828);font-size:11px;">— '+esc(motivo)+'</em>':'')+'</span><span style="color:var(--muted);font-size:12px">LP '+esc(p.lp)+'</span></label>' +
       '</div>';
     }).join('');
+    if (_spQuitados > 0) {
+      cont.insertAdjacentHTML('afterbegin', '<div style="padding:8px 10px;margin-bottom:6px;background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;font-size:12px;">'+_spQuitados+' persona'+(_spQuitados!==1?'s':'')+' de la selección anterior est'+(_spQuitados!==1?'án':'á')+' AUSENTE ese día y se quitar'+(_spQuitados!==1?'án':'á')+' al confirmar.</div>');
+    }
     document.getElementById('spBuscar').value = '';
     actualizarCountSelectorPersonal();
     document.getElementById('selectorPersonalModal').classList.add('show');
