@@ -1393,6 +1393,35 @@
   // ============================================================
   var _personalDebounce = null;
   var _personalResultados = [];
+  // Busca en nomina_general. Si lo escrito son solo números se trata como LP
+  // (legajo) y se trae EXACTAMENTE ese legajo — no los que lo contienen
+  // (7072 no trae 70722, 17072, etc.). Solo si no existe ese LP y tiene 7-8
+  // dígitos se prueba como DNI exacto. Si no son solo números, busca por
+  // apellido/nombre.
+  async function consultarNomina(q, cols) {
+    var qEsc = q.replace(/[%_,()*]/g, '').trim();
+    var base = function() { return supabaseClient.from('nomina_general').select(cols); };
+    if (/^\d+$/.test(qEsc)) {
+      var r = await base().eq('legajo', qEsc).limit(5);
+      if (r.error) return r;
+      if (r.data && r.data.length) return r;
+      // Por si el legajo quedó guardado con espacios/caracteres invisibles.
+      var r2 = await base().ilike('legajo', '%' + qEsc + '%').limit(60);
+      if (r2.error) return r2;
+      var exactos = (r2.data || []).filter(function(p) { return String(p.lp != null ? p.lp : p.legajo).trim() === qEsc; });
+      if (exactos.length) return { data: exactos, error: null };
+      if (qEsc.length >= 7) {
+        var r3 = await base().eq('dni', qEsc).limit(5);
+        if (r3.error) return r3;
+        if (r3.data && r3.data.length) return r3;
+      }
+      return { data: [], error: null, porLp: qEsc };
+    }
+    return await base()
+      .or('apellido.ilike.%' + qEsc + '%,nombre.ilike.%' + qEsc + '%')
+      .order('apellido').order('nombre').limit(15);
+  }
+
   function buscarPersonalCurso() {
     var q = document.getElementById('nPersonalBusqueda').value.trim();
     var listEl = document.getElementById('nPersonalSuggest');
@@ -1405,16 +1434,12 @@
     listEl.innerHTML = '<div class="autocomplete-empty">Buscando…</div>';
     listEl.classList.add('show');
     _personalDebounce = setTimeout(async function() {
-      var qEsc = q.replace(/[%_,]/g, '');
-      var res = await supabaseClient.from('nomina_general')
-        .select('lp:legajo,grado,apellido,nombre,dependencia,sexo,dni')
-        .or('legajo.ilike.%'+qEsc+'%,apellido.ilike.%'+qEsc+'%,nombre.ilike.%'+qEsc+'%')
-        .limit(10);
+      var res = await consultarNomina(q, 'lp:legajo,grado,apellido,nombre,dependencia,sexo,dni');
       if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
       var matches = res.data || [];
       _personalResultados = matches;
       if (!matches.length) {
-        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en la nómina.</div>';
+        listEl.innerHTML = '<div class="autocomplete-empty">' + (res.porLp ? 'No existe el LP ' + esc(res.porLp) + ' en la nómina general.' : 'Sin coincidencias en la nómina.') + '</div>';
       } else {
         listEl.innerHTML = matches.map(function(p, i) {
           return '<div class="autocomplete-item" onmousedown="seleccionarPersonalCurso('+i+')">' +
