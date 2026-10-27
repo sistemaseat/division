@@ -102,7 +102,7 @@
   .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 
   /* LAYOUT */
-  .content { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+  .content { padding: 22px 28px; max-width: 1760px; margin: 0 auto; }
   .tab-pane { display: none; }
   .tab-pane.active { display: block; }
 
@@ -158,6 +158,14 @@
   tbody tr:last-child td { border-bottom: none; }
   .action-col { white-space: nowrap; text-align: right; }
   .action-col button { margin-left: 4px; }
+  /* Tablas de registros de actividad: compactas para que entren todas las columnas (incl. acciones) en pantalla */
+  table.tabla-compacta { min-width: 0; table-layout: auto; }
+  table.tabla-compacta thead th { padding: 10px 7px; font-size: 11px; letter-spacing: 0; }
+  table.tabla-compacta tbody td { padding: 8px 7px; font-size: 12.5px; }
+  table.tabla-compacta td:nth-child(11) { min-width: 120px; max-width: 230px; white-space: normal; word-break: break-word; }
+  table.tabla-compacta thead th { white-space: nowrap; }
+  table.tabla-compacta .action-col { padding-left: 4px; padding-right: 4px; }
+  table.tabla-compacta .action-col button { margin-left: 2px; padding: 4px 7px; }
 
   /* BADGE */
   .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
@@ -572,7 +580,7 @@
       <button class="btn btn-primary" onclick="abrirModalActividad()">➕ Nuevo registro</button>
     </div>
     <div class="table-card">
-      <table>
+      <table class="tabla-compacta">
         <thead><tr>
           <th>Fecha</th><th>Horario</th><th>Actividad</th>
           <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Falt. munición</th><th>Vainas</th><th>Falt. vainas</th><th>Observaciones</th><th>Cargado</th>
@@ -632,7 +640,7 @@
         <span class="section-title-left"><span class="ico">📋</span> Resultado del filtro</span>
         <span class="count-pill" id="expCountPill">0 registros</span>
       </div>
-      <table>
+      <table class="tabla-compacta">
         <thead><tr>
           <th>Fecha</th><th>Horario</th><th>Actividad</th>
           <th>Munición</th><th>Retira</th><th>Consumido</th><th>Dev. sin uso</th><th>Falt. munición</th><th>Vainas</th><th>Falt. vainas</th><th>Observaciones</th><th>Cargado</th>
