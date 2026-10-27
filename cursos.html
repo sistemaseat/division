@@ -1948,7 +1948,7 @@
       var partes = [];
       var horarioTxt = (hDesde && hHasta) ? (' en el horario ' + hDesde + ' a ' + hHasta + ' horas') : '';
       var edicionTxt = edicion ? (' Edición nro. ' + edicion + ',') : '';
-      partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + frasesNros(nrosSel) + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
+      partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (edicion ? '' : frasesNros(nrosSel)) + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
       partes.push('');
       if (aprobados.length) {
         aprobados.forEach(function(p){ partes.push(lineaPersona(p, false)); });
