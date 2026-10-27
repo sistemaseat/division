@@ -674,8 +674,8 @@
             <div class="form-group full"><label class="form-label">Fecha<span class="required-star">*</span></label><input type="date" id="txdFecha" onchange="autocompletarEdicionDiario()"></div>
             <div class="form-group full">
               <label class="form-label">N° de curso</label>
-              <input type="text" id="txdNroCurso" placeholder="Ej: 1" oninput="autocompletarEdicionDiario()">
-              <div class="field-hint">Si ese día hubo más de un curso, indicá cuál. Si lo dejás vacío y hay uno solo, se toma solo.</div>
+              <input type="text" id="txdNroCurso" placeholder="Ej: 3  o  3,4  o  3 y 4" oninput="autocompletarEdicionDiario()">
+              <div class="field-hint">Si ese día hubo más de un curso, indicá cuál. Para juntar varios en un solo texto, escribí los números separados por coma (3,4). Si lo dejás vacío y hay uno solo, se toma solo.</div>
             </div>
             <div class="form-group full">
               <label class="form-label">Resolución Nro.</label>
@@ -1856,13 +1856,26 @@
     document.querySelectorAll('.subpane').forEach(function(p){ p.classList.toggle('active', p.id === 'sub-'+sub); });
   }
 
+  // El campo "N° de curso" del Resultado diario acepta uno o varios números
+  // ("3", "3,4", "3 y 4"): se separan por coma, espacio, "y", "e" o "/".
+  function parseNrosCurso(txt) {
+    var partes = String(txt || '').split(/[\s,;\/]+|\by\b|\be\b/i).map(function(x){ return x.trim(); }).filter(Boolean);
+    var out = [];
+    partes.forEach(function(x){ if (out.indexOf(x) === -1) out.push(x); });
+    return out;
+  }
+  function frasesNros(nros) {
+    if (!nros.length) return '';
+    if (nros.length === 1) return ' Nro. ' + nros[0];
+    return ' Nros. ' + nros.slice(0, -1).join(', ') + ' y ' + nros[nros.length - 1];
+  }
   function claveEdicion(curso, fecha, nro) { return 'edicion.' + curso + '.' + fecha + (nro ? '.n' + nro : ''); }
 
   function autocompletarEdicionDiario() {
     var curso = document.getElementById('txdCurso').value;
     var fecha = document.getElementById('txdFecha').value;
     if (!curso || !fecha) return;
-    var recordado = lsGet(claveEdicion(curso, fecha, str(document.getElementById('txdNroCurso').value)), '');
+    var recordado = lsGet(claveEdicion(curso, fecha, parseNrosCurso(document.getElementById('txdNroCurso').value).join(',')), '');
     if (recordado) document.getElementById('txdEdicion').value = recordado;
   }
 
@@ -1899,9 +1912,13 @@
       var filas = res.data || [];
       // N° de curso: si lo escribieron, se filtra por él; si no y ese día hay
       // más de uno, se pide que lo indiquen (para no mezclar cursos).
-      var nroCurso = str(document.getElementById('txdNroCurso').value);
-      if (nroCurso) {
-        filas = filas.filter(function(f){ return str(f.nro_curso) === nroCurso; });
+      var nrosSel = parseNrosCurso(document.getElementById('txdNroCurso').value);
+      var nroCurso = nrosSel.join(',');
+      if (nrosSel.length) {
+        filas = filas.filter(function(f){ return nrosSel.indexOf(str(f.nro_curso)) !== -1; });
+        // Si una persona figura en más de un curso de los elegidos, sale una sola vez por calificación.
+        var vistosLp = {};
+        filas = filas.filter(function(f){ var k = str(f.lp) + '|' + f.calificacion; if (vistosLp[k]) return false; vistosLp[k] = true; return true; });
       } else {
         var nros = [];
         filas.forEach(function(f){ var n = str(f.nro_curso); if (nros.indexOf(n) === -1) nros.push(n); });
@@ -1910,7 +1927,7 @@
           alertShow('topAlert', 'error', 'Ese día hay más de un curso cargado' + (conNro.length ? ' (N° ' + conNro.join(', ') + (nros.indexOf('') !== -1 ? ' y algunos sin número' : '') + ')' : '') + ': indicá el N° de curso para no mezclarlos.');
           return;
         }
-        if (nros.length === 1 && nros[0]) { nroCurso = nros[0]; document.getElementById('txdNroCurso').value = nroCurso; }
+        if (nros.length === 1 && nros[0]) { nrosSel = [nros[0]]; nroCurso = nros[0]; document.getElementById('txdNroCurso').value = nroCurso; }
       }
       var aprobados = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Aprobado'; }));
       var desaprobados = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Desaprobado'; }));
@@ -1918,7 +1935,7 @@
       var pendientes = filas.filter(function(f){ return f.calificacion === 'Pendiente'; });
 
       if (!aprobados.length && !desaprobados.length && !ausentes.length) {
-        alertShow('topAlert', 'error', 'No hay registros con calificación cargada para ese curso' + (nroCurso ? ' (N° ' + nroCurso + ')' : '') + ' en esa fecha.');
+        alertShow('topAlert', 'error', 'No hay registros con calificación cargada para ese curso' + (nrosSel.length ? ' (N° ' + nrosSel.join(', ') + ')' : '') + ' en esa fecha.');
         return;
       }
       if (pendientes.length) {
@@ -1931,7 +1948,7 @@
       var partes = [];
       var horarioTxt = (hDesde && hHasta) ? (' en el horario ' + hDesde + ' a ' + hHasta + ' horas') : '';
       var edicionTxt = edicion ? (' Edición nro. ' + edicion + ',') : '';
-      partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (nroCurso ? ' Nro. ' + nroCurso : '') + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
+      partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + frasesNros(nrosSel) + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
       partes.push('');
       if (aprobados.length) {
         aprobados.forEach(function(p){ partes.push(lineaPersona(p, false)); });
