@@ -590,6 +590,10 @@
           <option value="">Todos</option>
         </select>
       </div>
+      <div class="ctrl-group" style="min-width:110px; max-width:130px;">
+        <label class="ctrl-label">N° de curso</label>
+        <input type="text" id="fRegNroCurso" placeholder="Todos" oninput="debounceRegistros()">
+      </div>
       <div class="ctrl-group">
         <label class="ctrl-label">Calificación</label>
         <select id="fRegCalificacion" onchange="recargarRegistros(true)">
@@ -627,6 +631,10 @@
         <select id="fExpCurso">
           <option value="">Todos</option>
         </select>
+      </div>
+      <div class="ctrl-group" style="min-width:110px; max-width:130px;">
+        <label class="ctrl-label">N° de curso</label>
+        <input type="text" id="fExpNroCurso" placeholder="Todos">
       </div>
       <div class="ctrl-group">
         <label class="ctrl-label">Calificación</label>
@@ -1206,6 +1214,7 @@
     switchTab('registros');
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'registros'); });
     document.getElementById('fRegCurso').value = curso;
+    document.getElementById('fRegNroCurso').value = '';
     recargarRegistros(true);
   }
 
@@ -1213,6 +1222,7 @@
     switchTab('registros');
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'registros'); });
     document.getElementById('fRegCurso').value = '';
+    document.getElementById('fRegNroCurso').value = '';
     document.getElementById('fRegCalificacion').value = calif;
     recargarRegistros(true);
   }
@@ -1591,11 +1601,13 @@
     var curso = document.getElementById('fRegCurso').value;
     var calificacion = document.getElementById('fRegCalificacion').value;
     var buscar = str(document.getElementById('fRegBuscar').value);
+    var nroCurso = str(document.getElementById('fRegNroCurso').value);
 
     showLoading('Buscando registros…');
     try {
       var q = supabaseClient.from('cursos').select('*', { count: 'exact' });
       if (curso) q = q.eq('curso', curso);
+      if (nroCurso) q = q.eq('nro_curso', nroCurso);
       if (calificacion) q = q.eq('calificacion', calificacion);
       if (buscar) {
         var b = buscar.replace(/[%_,]/g, '');
@@ -1737,6 +1749,7 @@
   // ============================================================
   async function exportarCursosExcel() {
     var curso = document.getElementById('fExpCurso').value;
+    var nroCurso = str(document.getElementById('fExpNroCurso').value);
     var calificacion = document.getElementById('fExpCalificacion').value;
     var desde = document.getElementById('fExpDesde').value;
     var hasta = document.getElementById('fExpHasta').value;
@@ -1748,6 +1761,7 @@
       while (true) {
         var q = supabaseClient.from('cursos').select('*');
         if (curso) q = q.eq('curso', curso);
+        if (nroCurso) q = q.eq('nro_curso', nroCurso);
         if (calificacion) q = q.eq('calificacion', calificacion);
         if (desde) q = q.gte('fecha', desde);
         if (hasta) q = q.lte('fecha', hasta);
