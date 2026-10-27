@@ -1871,12 +1871,28 @@
   }
   function claveEdicion(curso, fecha, nro) { return 'edicion.' + curso + '.' + fecha + (nro ? '.n' + nro : ''); }
 
+  // "Edición nro." se completa sola, pero SOLO si el usuario no la escribió a
+  // mano: si el valor actual es el que puso el sistema (o está vacío) se
+  // reemplaza al cambiar el curso/fecha/N° de curso; si la tocó, se respeta.
+  // Con varios N° de curso (3,4,5,6) sin edición recordada se sugiere
+  // "03, 04, 05 y 06" (editable).
+  var _edicionAuto = '';
+  function sugerirEdicionDeNros(nros) {
+    if (nros.length < 2) return '';
+    var pad = nros.map(function(n){ return /^\d$/.test(n) ? '0' + n : n; });
+    return pad.slice(0, -1).join(', ') + ' y ' + pad[pad.length - 1];
+  }
   function autocompletarEdicionDiario() {
     var curso = document.getElementById('txdCurso').value;
     var fecha = document.getElementById('txdFecha').value;
     if (!curso || !fecha) return;
-    var recordado = lsGet(claveEdicion(curso, fecha, parseNrosCurso(document.getElementById('txdNroCurso').value).join(',')), '');
-    if (recordado) document.getElementById('txdEdicion').value = recordado;
+    var inp = document.getElementById('txdEdicion');
+    if (inp.value !== '' && inp.value !== _edicionAuto) return; // la escribió el usuario
+    var nros = parseNrosCurso(document.getElementById('txdNroCurso').value);
+    var recordado = lsGet(claveEdicion(curso, fecha, nros.join(',')), '');
+    var nuevo = recordado || sugerirEdicionDeNros(nros);
+    inp.value = nuevo;
+    _edicionAuto = nuevo;
   }
 
   function ordenarPersonas(filas) {
