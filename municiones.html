@@ -334,6 +334,24 @@
 </div>
 
 <!-- MODAL: nuevo/editar ingreso -->
+<div class="modal-overlay" id="modalEditConfig">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title" id="editConfigTitulo">✏️ Editar</div>
+      <button class="modal-close" onclick="cerrarEditConfig()">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre</label>
+      <input type="text" id="editConfigNombre" onkeydown="if(event.key==='Enter')guardarEditConfig()">
+      <span class="field-hint" id="editConfigHint"></span>
+    </div>
+    <div class="btn-row" style="justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="cerrarEditConfig()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEditConfig()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalIngreso">
   <div class="modal" style="max-width:560px;">
     <div class="modal-header">
@@ -837,7 +855,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['agregarConfigActividad', 'agregarConfigMunicion', 'eliminarActividad', 'eliminarConfigActividad', 'eliminarConfigMunicion', 'eliminarIngreso', 'guardarActividad', 'guardarIngreso', 'confirmarEliminarActividad', 'confirmarEliminarConfigActividad', 'confirmarEliminarConfigMunicion', 'confirmarEliminarIngreso', 'abrirModalActividad', 'abrirModalIngreso']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['agregarConfigActividad', 'agregarConfigMunicion', 'eliminarActividad', 'eliminarConfigActividad', 'eliminarConfigMunicion', 'eliminarIngreso', 'guardarActividad', 'guardarIngreso', 'confirmarEliminarActividad', 'confirmarEliminarConfigActividad', 'confirmarEliminarConfigMunicion', 'confirmarEliminarIngreso', 'abrirModalActividad', 'abrirModalIngreso', 'editarConfigItem', 'guardarEditConfig']);
       await cargarTodo();
     } finally {
       hideLoading();
@@ -1589,12 +1607,63 @@
   // CONFIGURACIÓN — listas de actividades y municiones
   // ============================================================
   function renderConfigLists() {
-    document.getElementById('listaConfigActividades').innerHTML = configActividades.map(function(a) {
-      return '<li><span>'+esc(a)+'</span><button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigActividad(\''+esc(a).replace(/'/g,"\\'")+'\')">🗑️</button></li>';
+    document.getElementById('listaConfigActividades').innerHTML = configActividades.map(function(a, i) {
+      return '<li><span>'+esc(a)+'</span><span style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" title="Editar nombre" onclick="editarConfigItem(\'actividad\','+i+')">✏️</button><button class="btn btn-danger btn-sm" title="Sacar de la lista" onclick="confirmarEliminarConfigActividad(\''+esc(a).replace(/'/g,"\\'")+'\')">🗑️</button></span></li>';
     }).join('') || '<li style="color:var(--muted);">Sin actividades cargadas</li>';
-    document.getElementById('listaConfigMuniciones').innerHTML = configMuniciones.map(function(m) {
-      return '<li><span>'+esc(m)+'</span><button class="btn btn-danger btn-sm" onclick="confirmarEliminarConfigMunicion(\''+esc(m).replace(/'/g,"\\'")+'\')">🗑️</button></li>';
+    document.getElementById('listaConfigMuniciones').innerHTML = configMuniciones.map(function(m, i) {
+      return '<li><span>'+esc(m)+'</span><span style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" title="Editar nombre" onclick="editarConfigItem(\'municion\','+i+')">✏️</button><button class="btn btn-danger btn-sm" title="Sacar de la lista" onclick="confirmarEliminarConfigMunicion(\''+esc(m).replace(/'/g,"\\'")+'\')">🗑️</button></span></li>';
     }).join('') || '<li style="color:var(--muted);">Sin municiones cargadas</li>';
+  }
+
+  // Editar el nombre de una actividad / munición de la lista. Como los
+  // registros guardan el nombre como texto, al renombrar también se actualizan
+  // los registros ya cargados (así el historial y el stock no se parten en dos).
+  var _editConfig = { tipo: null, viejo: null };
+  function editarConfigItem(tipo, idx) {
+    var lista = tipo === 'actividad' ? configActividades : configMuniciones;
+    var viejo = lista[idx];
+    if (viejo === undefined) return;
+    _editConfig = { tipo: tipo, viejo: viejo };
+    document.getElementById('editConfigTitulo').textContent = tipo === 'actividad' ? '✏️ Editar actividad' : '✏️ Editar munición';
+    document.getElementById('editConfigNombre').value = viejo;
+    document.getElementById('editConfigHint').textContent = 'Al guardar, también se cambia el nombre en todos los registros ya cargados' + (tipo === 'municion' ? ' (actividades e ingresos).' : '.');
+    document.getElementById('modalEditConfig').classList.add('show');
+    setTimeout(function(){ var i = document.getElementById('editConfigNombre'); i.focus(); i.select(); }, 50);
+  }
+  function cerrarEditConfig() { document.getElementById('modalEditConfig').classList.remove('show'); }
+  async function guardarEditConfig() {
+    var tipo = _editConfig.tipo, viejo = _editConfig.viejo;
+    var nuevo = str(document.getElementById('editConfigNombre').value).toUpperCase();
+    if (!tipo || !nuevo) { alertShow('topAlert', 'error', 'Escribí el nombre.'); return; }
+    if (nuevo === viejo) { cerrarEditConfig(); return; }
+    var lista = tipo === 'actividad' ? configActividades : configMuniciones;
+    if (lista.indexOf(nuevo) !== -1) { alertShow('topAlert', 'error', 'Ya existe "' + nuevo + '" en la lista.'); return; }
+    showLoading('Guardando…');
+    try {
+      var tablaCfg = tipo === 'actividad' ? 'municiones_config_actividades' : 'municiones_config_municiones';
+      var r1 = await supabaseClient.from(tablaCfg).update({ nombre: nuevo }).eq('nombre', viejo);
+      if (r1.error) throw r1.error;
+      var r2 = tipo === 'actividad'
+        ? await supabaseClient.from('municiones_actividades').update({ actividad: nuevo }).eq('actividad', viejo)
+        : await supabaseClient.from('municiones_actividades').update({ municion: nuevo }).eq('municion', viejo);
+      if (r2.error) throw r2.error;
+      if (tipo === 'municion') {
+        var r3 = await supabaseClient.from('municiones_ingresos').update({ municion: nuevo }).eq('municion', viejo);
+        if (r3.error) throw r3.error;
+      }
+      cerrarEditConfig();
+      await Promise.all([cargarConfig(), cargarIngresos(), cargarActividades()]);
+      renderConfigLists();
+      renderIngresosTable();
+      renderActividadesTable();
+      renderDashboard();
+      renderSemana();
+      alertShow('topAlert', 'success', '✅ Nombre actualizado: ' + viejo + ' → ' + nuevo + '.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al editar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
   }
 
   async function agregarConfigActividad() {
