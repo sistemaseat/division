@@ -434,9 +434,9 @@
     <div class="tipo-grid" id="tipoGrid"></div>
 
     <div class="table-card">
-      <div class="section-title"><span class="ico">⏳</span> Pendientes (más recientes primero)</div>
+      <div class="section-title"><span class="section-title-left"><span class="ico">⏳</span> Pendientes (más recientes primero)</span><span class="count-pill"><b id="pendientesCount">0</b> pendientes</span></div>
       <table>
-        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Curso</th><th>Fecha</th><th>Calificación</th></tr></thead>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Curso</th><th>N° Curso</th><th>Fecha</th><th>Calificación</th></tr></thead>
         <tbody id="tbodyPendientes"></tbody>
       </table>
       <div class="no-data" id="pendientesNoData" style="display:none;">
@@ -608,7 +608,7 @@
     </div>
     <div class="table-card">
       <table>
-        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Curso</th><th>Fecha</th><th>Calificación</th><th class="action-col">Acciones</th></tr></thead>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Curso</th><th>N° Curso</th><th>Fecha</th><th>Calificación</th><th class="action-col">Acciones</th></tr></thead>
         <tbody id="tbodyRegistros"></tbody>
       </table>
       <div class="no-data" id="registrosNoData" style="display:none;">
@@ -1122,10 +1122,25 @@
   async function cargarDashboard() {
     showLoading('Cargando estadísticas…');
     try {
+      // Pendientes: TODOS (no solo los últimos). Supabase devuelve como mucho
+      // 1000 filas por pedido, así que se piden de a páginas hasta traerlos todos.
+      var traerPendientes = async function() {
+        var todos = [], desde = 0, tam = 1000;
+        while (true) {
+          var r = await supabaseClient.from('cursos').select('id,grado,lp,apellido,nombre,dependencia,curso,nro_curso,fecha,fecha_hasta,calificacion')
+            .eq('calificacion', 'Pendiente').order('fecha', { ascending: false, nullsFirst: false }).order('id', { ascending: true })
+            .range(desde, desde + tam - 1);
+          if (r.error) return { error: r.error };
+          var lote = r.data || [];
+          todos = todos.concat(lote);
+          if (lote.length < tam) break;
+          desde += tam;
+        }
+        return { data: todos };
+      };
       var [statsRes, pendRes] = await Promise.all([
         supabaseClient.rpc('cursos_stats'),
-        supabaseClient.from('cursos').select('id,grado,lp,apellido,nombre,dependencia,curso,nro_curso,fecha,fecha_hasta,calificacion')
-          .eq('calificacion', 'Pendiente').order('fecha', { ascending: false, nullsFirst: false }).limit(30)
+        traerPendientes()
       ]);
       if (statsRes.error) throw statsRes.error;
       if (pendRes.error) throw pendRes.error;
@@ -1170,10 +1185,11 @@
       }).join('');
 
       var pend = pendRes.data || [];
+      document.getElementById('pendientesCount').textContent = fmtNum(pend.length);
       document.getElementById('pendientesNoData').style.display = pend.length ? 'none' : 'block';
       document.getElementById('tbodyPendientes').innerHTML = pend.map(function(r) {
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
-          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+(r.nro_curso ? ' <span class="badge-nro">N° '+esc(r.nro_curso)+'</span>' : '')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+(r.nro_curso ? '<span class="badge-nro">'+esc(r.nro_curso)+'</span>' : '—')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
           '<td><select class="estado-inline est-pendiente" data-prev="Pendiente" onchange="cambiarCalificacion(\''+r.id+'\',this.value,this)">' +
             CALIFICACIONES.map(function(e){ return '<option value="'+e+'"'+(e==='Pendiente'?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td></tr>';
@@ -1598,7 +1614,7 @@
       document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
         var cls = r.calificacion === 'Aprobado' ? 'est-aprobado' : r.calificacion === 'Desaprobado' ? 'est-desaprobado' : r.calificacion === 'Ausente' ? 'est-ausente' : 'est-pendiente';
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
-          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+(r.nro_curso ? ' <span class="badge-nro">N° '+esc(r.nro_curso)+'</span>' : '')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+(r.nro_curso ? '<span class="badge-nro">'+esc(r.nro_curso)+'</span>' : '—')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.calificacion)+'" onchange="cambiarCalificacion(\''+r.id+'\',this.value,this)">' +
             CALIFICACIONES.map(function(e){ return '<option value="'+e+'"'+(e===r.calificacion?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
