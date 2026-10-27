@@ -1038,6 +1038,7 @@
                   <option>NO POSEE</option><option>VIGENTE</option><option>VENCIDA</option>
                 </select>
               </div>
+              <div class="form-group"><label class="form-label">PIN</label><input type="text" id="fPin" autocomplete="off"></div>
             </div>
 
             <div class="form-section-title" style="margin-top:26px;">Fotos — Licencia municipal</div>
@@ -1205,6 +1206,7 @@
     'Licencia Conducir Municipal': 'licencia_conducir_municipal', 'Categoria Municipal': 'categoria_municipal', 'Vencimiento Licencia Municipal': 'vencimiento_licencia_municipal',
     'Habilitacion Flota Policial': 'habilitacion_flota_policial', 'Categoria Policial': 'categoria_policial', 'Vencimiento Licencia Policial': 'vencimiento_licencia_policial',
     'Licencia Profesional': 'licencia_profesional',
+    'PIN': 'pin',
     'CLU Tipo': 'clu_tipo', 'CLU Numero': 'clu_numero', 'CLU Vencimiento': 'clu_vencimiento', 'CLU Imagen Drive ID': 'clu_imagen_drive_id',
     'CLU2 Tipo': 'clu2_tipo', 'CLU2 Numero': 'clu2_numero', 'CLU2 Vencimiento': 'clu2_vencimiento', 'CLU2 Imagen Drive ID': 'clu2_imagen_drive_id',
     'Foto Drive ID': 'foto_drive_id', 'DNI Frente Drive ID': 'dni_frente_drive_id', 'DNI Dorso Drive ID': 'dni_dorso_drive_id',
@@ -1241,7 +1243,7 @@
     'Marca Armamento': true, 'Nro Armamento': true,
     'CLU Numero': true, 'CLU2 Numero': true,
     'Chaleco Marca': true, 'Modelo': true, 'Serie': true,
-    'Nro Esposas': true, 'Categoria Municipal': true, 'Categoria Policial': true
+    'Nro Esposas': true, 'Categoria Municipal': true, 'Categoria Policial': true, 'PIN': true
   };
 
   function pgVal(raw, esTextoNotNull) {
@@ -1718,6 +1720,7 @@
     fCategoriaPolicial: 'Categoria Policial',
     fVencLicPolicial: 'Vencimiento Licencia Policial',
     fLicenciaProfesional: 'Licencia Profesional',
+    fPin: 'PIN',
     fCluTipo: 'CLU Tipo',
     fCluNumero: 'CLU Numero',
     fCluVencimiento: 'CLU Vencimiento',
@@ -2984,7 +2987,7 @@
       ['Vencimiento lic. municipal', fmtFecha(f['Vencimiento Licencia Municipal'])],
       ['Habilitación flota policial', f['Habilitacion Flota Policial']], ['Categoría policial', f['Categoria Policial']],
       ['Vencimiento lic. policial', fmtFecha(f['Vencimiento Licencia Policial'])],
-      ['Licencia profesional', f['Licencia Profesional']]
+      ['Licencia profesional', f['Licencia Profesional']], ['PIN', f['PIN']]
     ], licMunFrenteHtml + licMunDorsoHtml + licPolFrenteHtml + licPolDorsoHtml);
 
     html += _fichaSeccion('Esposas', [
