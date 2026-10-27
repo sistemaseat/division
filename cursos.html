@@ -283,6 +283,8 @@
   .config-item:last-child { border-bottom: none; }
   .config-item span { flex: 1; }
 
+  .badge-nro { display:inline-block; background:#e3f2fd; color:#0277bd; border-radius:10px; padding:1px 8px; font-size:10px; font-weight:700; white-space:nowrap; }
+
   /* GENERAR TEXTO */
   .subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
   .subnav-btn {
@@ -361,6 +363,10 @@
       <div class="form-group full">
         <label class="form-label">Curso<span class="required-star">*</span></label>
         <select id="edRegCurso"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">N° de curso</label>
+        <input type="text" id="edRegNroCurso" placeholder="Ej: 1" maxlength="20">
       </div>
       <div class="form-group">
         <label class="form-label">Calificación<span class="required-star">*</span></label>
@@ -525,6 +531,11 @@
           <div class="field-hint">¿Falta un curso en la lista? Se agrega desde la pestaña ⚙️ Configuración.</div>
         </div>
         <div class="form-group">
+          <label class="form-label">N° de curso</label>
+          <input type="text" id="nNroCurso" placeholder="Ej: 1" maxlength="20">
+          <div class="field-hint">Opcional. Para diferenciar cursos del mismo día.</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Calificación<span class="required-star">*</span></label>
           <select id="nCalificacion">
             <option value="Pendiente" selected>◷ Pendiente</option>
@@ -653,6 +664,11 @@
               <select id="txdCurso" onchange="autocompletarEdicionDiario(); aplicarResolucionSegunCurso('txd');"></select>
             </div>
             <div class="form-group full"><label class="form-label">Fecha<span class="required-star">*</span></label><input type="date" id="txdFecha" onchange="autocompletarEdicionDiario()"></div>
+            <div class="form-group full">
+              <label class="form-label">N° de curso</label>
+              <input type="text" id="txdNroCurso" placeholder="Ej: 1" oninput="autocompletarEdicionDiario()">
+              <div class="field-hint">Si ese día hubo más de un curso, indicá cuál. Si lo dejás vacío y hay uno solo, se toma solo.</div>
+            </div>
             <div class="form-group full">
               <label class="form-label">Resolución Nro.</label>
               <input type="text" id="txdResolucion" placeholder="286/ISSP/2023">
@@ -1108,7 +1124,7 @@
     try {
       var [statsRes, pendRes] = await Promise.all([
         supabaseClient.rpc('cursos_stats'),
-        supabaseClient.from('cursos').select('id,grado,lp,apellido,nombre,dependencia,curso,fecha,fecha_hasta,calificacion')
+        supabaseClient.from('cursos').select('id,grado,lp,apellido,nombre,dependencia,curso,nro_curso,fecha,fecha_hasta,calificacion')
           .eq('calificacion', 'Pendiente').order('fecha', { ascending: false, nullsFirst: false }).limit(30)
       ]);
       if (statsRes.error) throw statsRes.error;
@@ -1157,7 +1173,7 @@
       document.getElementById('pendientesNoData').style.display = pend.length ? 'none' : 'block';
       document.getElementById('tbodyPendientes').innerHTML = pend.map(function(r) {
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
-          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+(r.nro_curso ? ' <span class="badge-nro">N° '+esc(r.nro_curso)+'</span>' : '')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
           '<td><select class="estado-inline est-pendiente" data-prev="Pendiente" onchange="cambiarCalificacion(\''+r.id+'\',this.value,this)">' +
             CALIFICACIONES.map(function(e){ return '<option value="'+e+'"'+(e==='Pendiente'?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td></tr>';
@@ -1494,6 +1510,7 @@
     var fecha = document.getElementById('nFecha').value;
     var fechaHasta = document.getElementById('nFechaHasta').value || fecha;
     var usuario = str(document.getElementById('nUsuario').value);
+    var nroCurso = str(document.getElementById('nNroCurso').value);
     var observaciones = document.getElementById('nObservaciones').value || null;
 
     if (!curso || !fecha) { alertShow('topAlert', 'error', 'Completá curso y fecha.'); return; }
@@ -1503,12 +1520,12 @@
     try {
       // Aviso si alguien ya figura en ese mismo curso y fecha (evita cargar dos veces la misma convocatoria).
       var lps = personalLote.map(function(p) { return str(p.lp); });
-      var ex = await supabaseClient.from('cursos').select('lp').eq('curso', curso).eq('fecha', fecha).in('lp', lps);
+      var ex = await supabaseClient.from('cursos').select('lp').eq('curso', curso).eq('fecha', fecha).eq('nro_curso', nroCurso).in('lp', lps);
       if (ex.error) throw ex.error;
       var yaCargados = (ex.data || []).map(function(r) { return str(r.lp); });
       var aGuardar = personalLote.filter(function(p) { return yaCargados.indexOf(str(p.lp)) === -1; });
       if (!aGuardar.length) {
-        alertShow('topAlert', 'error', 'Todas las personas de la lista ya estaban cargadas en ese curso y fecha.');
+        alertShow('topAlert', 'error', 'Todas las personas de la lista ya estaban cargadas en ese curso, N° y fecha.');
         return;
       }
 
@@ -1516,7 +1533,7 @@
       var filas = aGuardar.map(function(p) {
         var g = str(p.sexo).toUpperCase();
         return {
-          curso: curso, calificacion: calificacion, fecha: fecha, fecha_hasta: fechaHasta, fecha_texto: fechaTexto,
+          curso: curso, nro_curso: nroCurso, calificacion: calificacion, fecha: fecha, fecha_hasta: fechaHasta, fecha_texto: fechaTexto,
           usuario: usuario, observaciones: observaciones, dni: str(p.dni), genero: (g === 'M' || g === 'F') ? g : '',
           grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || ''
         };
@@ -1525,7 +1542,7 @@
       if (res.error) throw res.error;
       await cargarDashboard();
       limpiarFormularioNueva();
-      alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s).' + (yaCargados.length ? ' Se omitieron ' + yaCargados.length + ' que ya estaban cargados en ese curso y fecha.' : ''));
+      alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s).' + (yaCargados.length ? ' Se omitieron ' + yaCargados.length + ' que ya estaban cargados en ese curso, N° y fecha.' : ''));
     } catch (e) {
       alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
     } finally {
@@ -1538,6 +1555,7 @@
     document.getElementById('nCalificacion').value = 'Pendiente';
     document.getElementById('nFecha').value = isoDate(new Date());
     document.getElementById('nFechaHasta').value = '';
+    document.getElementById('nNroCurso').value = '';
     document.getElementById('nObservaciones').value = '';
     document.getElementById('nPersonalBusqueda').value = '';
     personalLote = [];
@@ -1580,7 +1598,7 @@
       document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
         var cls = r.calificacion === 'Aprobado' ? 'est-aprobado' : r.calificacion === 'Desaprobado' ? 'est-desaprobado' : r.calificacion === 'Ausente' ? 'est-ausente' : 'est-pendiente';
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
-          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+(r.nro_curso ? ' <span class="badge-nro">N° '+esc(r.nro_curso)+'</span>' : '')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.calificacion)+'" onchange="cambiarCalificacion(\''+r.id+'\',this.value,this)">' +
             CALIFICACIONES.map(function(e){ return '<option value="'+e+'"'+(e===r.calificacion?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
@@ -1656,6 +1674,7 @@
       [esc(r.grado), esc(r.apellido) + (r.nombre ? ', ' + esc(r.nombre) : ''), r.lp ? 'LP ' + esc(r.lp) : '', esc(r.dependencia)]
         .filter(function(x){ return x; }).join(' — ') || '—';
     document.getElementById('edRegCurso').value = r.curso || '';
+    document.getElementById('edRegNroCurso').value = r.nro_curso || '';
     document.getElementById('edRegCalificacion').value = r.calificacion || 'Pendiente';
     document.getElementById('edRegFecha').value = r.fecha || '';
     document.getElementById('edRegFechaHasta').value = (r.fecha_hasta && r.fecha_hasta !== r.fecha) ? r.fecha_hasta : '';
@@ -1674,10 +1693,11 @@
     var fechaHasta = document.getElementById('edRegFechaHasta').value || fecha;
     showLoading('Guardando cambios…');
     try {
-      // Solo se editan Curso/Calificación/Fecha/Observaciones — los datos de
+      // Solo se editan Curso/N° de curso/Calificación/Fecha/Observaciones — los datos de
       // identidad (Grado/LP/Apellido/Nombre/Dependencia) no se tocan acá.
       var res = await supabaseClient.from('cursos').update({
         curso: curso,
+        nro_curso: str(document.getElementById('edRegNroCurso').value),
         calificacion: document.getElementById('edRegCalificacion').value,
         fecha: fecha,
         fecha_hasta: fechaHasta,
@@ -1736,11 +1756,11 @@
       ws.addRow(['SISTEMA DE CURSOS — DIVISIÓN TIRO']);
       ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
       ws.addRow([]);
-      var headers = ['Curso','Grado','Legajo','DNI','Apellido','Nombre','Género','Dependencia','Fecha desde','Fecha hasta','Calificación','Usuario','Observaciones'];
+      var headers = ['Curso','N° de curso','Grado','Legajo','DNI','Apellido','Nombre','Género','Dependencia','Fecha desde','Fecha hasta','Calificación','Usuario','Observaciones'];
       var headerRow = ws.addRow(headers);
       headerRow.font = { bold: true };
       all.forEach(function(r) {
-        ws.addRow([r.curso||'', r.grado||'', r.lp||'', r.dni||'', r.apellido||'', r.nombre||'', r.genero||'', r.dependencia||'', fmtFecha(r.fecha), fmtFecha(r.fecha_hasta), r.calificacion||'', r.usuario||'', r.observaciones||'']);
+        ws.addRow([r.curso||'', r.nro_curso||'', r.grado||'', r.lp||'', r.dni||'', r.apellido||'', r.nombre||'', r.genero||'', r.dependencia||'', fmtFecha(r.fecha), fmtFecha(r.fecha_hasta), r.calificacion||'', r.usuario||'', r.observaciones||'']);
       });
       ws.columns.forEach(function(c){ c.width = 18; });
       var buffer = await wb.xlsx.writeBuffer();
@@ -1806,13 +1826,13 @@
     document.querySelectorAll('.subpane').forEach(function(p){ p.classList.toggle('active', p.id === 'sub-'+sub); });
   }
 
-  function claveEdicion(curso, fecha) { return 'edicion.' + curso + '.' + fecha; }
+  function claveEdicion(curso, fecha, nro) { return 'edicion.' + curso + '.' + fecha + (nro ? '.n' + nro : ''); }
 
   function autocompletarEdicionDiario() {
     var curso = document.getElementById('txdCurso').value;
     var fecha = document.getElementById('txdFecha').value;
     if (!curso || !fecha) return;
-    var recordado = lsGet(claveEdicion(curso, fecha), '');
+    var recordado = lsGet(claveEdicion(curso, fecha, str(document.getElementById('txdNroCurso').value)), '');
     if (recordado) document.getElementById('txdEdicion').value = recordado;
   }
 
@@ -1843,30 +1863,45 @@
 
     showLoading('Buscando registros…');
     try {
-      var res = await supabaseClient.from('cursos').select('grado,lp,dni,apellido,nombre,calificacion')
+      var res = await supabaseClient.from('cursos').select('grado,lp,dni,apellido,nombre,calificacion,nro_curso')
         .eq('curso', curso).lte('fecha', fecha).gte('fecha_hasta', fecha);
       if (res.error) throw res.error;
       var filas = res.data || [];
+      // N° de curso: si lo escribieron, se filtra por él; si no y ese día hay
+      // más de uno, se pide que lo indiquen (para no mezclar cursos).
+      var nroCurso = str(document.getElementById('txdNroCurso').value);
+      if (nroCurso) {
+        filas = filas.filter(function(f){ return str(f.nro_curso) === nroCurso; });
+      } else {
+        var nros = [];
+        filas.forEach(function(f){ var n = str(f.nro_curso); if (nros.indexOf(n) === -1) nros.push(n); });
+        if (nros.length > 1) {
+          var conNro = nros.filter(function(n){ return n; }).sort();
+          alertShow('topAlert', 'error', 'Ese día hay más de un curso cargado' + (conNro.length ? ' (N° ' + conNro.join(', ') + (nros.indexOf('') !== -1 ? ' y algunos sin número' : '') + ')' : '') + ': indicá el N° de curso para no mezclarlos.');
+          return;
+        }
+        if (nros.length === 1 && nros[0]) { nroCurso = nros[0]; document.getElementById('txdNroCurso').value = nroCurso; }
+      }
       var aprobados = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Aprobado'; }));
       var desaprobados = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Desaprobado'; }));
       var ausentes = ordenarPersonas(filas.filter(function(f){ return f.calificacion === 'Ausente'; }));
       var pendientes = filas.filter(function(f){ return f.calificacion === 'Pendiente'; });
 
       if (!aprobados.length && !desaprobados.length && !ausentes.length) {
-        alertShow('topAlert', 'error', 'No hay registros con calificación cargada para ese curso en esa fecha.');
+        alertShow('topAlert', 'error', 'No hay registros con calificación cargada para ese curso' + (nroCurso ? ' (N° ' + nroCurso + ')' : '') + ' en esa fecha.');
         return;
       }
       if (pendientes.length) {
         alertShow('topAlert', 'success', '⚠️ Hay ' + pendientes.length + ' registro(s) todavía Pendiente para esa fecha — no se incluyen en el texto.');
       }
 
-      if (edicion) lsSet(claveEdicion(curso, fecha), edicion);
+      if (edicion) lsSet(claveEdicion(curso, fecha, nroCurso), edicion);
       guardarCamposComunes('txd');
 
       var partes = [];
       var horarioTxt = (hDesde && hHasta) ? (' en el horario ' + hDesde + ' a ' + hHasta + ' horas') : '';
       var edicionTxt = edicion ? (' Edición nro. ' + edicion + ',') : '';
-      partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
+      partes.push('Por medio del presente, atento al "' + curso.toUpperCase() + '"' + (nroCurso ? ' Nro. ' + nroCurso : '') + (resolucion ? ' (Resol Nro ' + resolucion + ')' : '') + edicionTxt + ' a llevarse a cabo con fecha ' + fmtFecha(fecha) + horarioTxt + ', informo a esa Dependencia que los efectivos que se detallan a continuación APROBARON en el dia de la fecha la citada capacitación:');
       partes.push('');
       if (aprobados.length) {
         aprobados.forEach(function(p){ partes.push(lineaPersona(p, false)); });
@@ -1910,7 +1945,7 @@
 
     showLoading('Buscando ediciones…');
     try {
-      var res = await supabaseClient.from('cursos').select('grado,lp,dni,apellido,nombre,calificacion,fecha,fecha_hasta')
+      var res = await supabaseClient.from('cursos').select('grado,lp,dni,apellido,nombre,calificacion,fecha,fecha_hasta,nro_curso')
         .eq('curso', curso).gte('fecha', desde).lte('fecha', hasta).order('fecha', { ascending: true });
       if (res.error) throw res.error;
       _semanaFilas = res.data || [];
@@ -1924,16 +1959,16 @@
       var vistos = {};
       _semanaGrupos = [];
       _semanaFilas.forEach(function(f) {
-        var key = f.fecha + '|' + f.fecha_hasta;
+        var key = f.fecha + '|' + f.fecha_hasta + '|' + str(f.nro_curso);
         if (vistos[key]) return;
         vistos[key] = true;
-        _semanaGrupos.push({ fecha: f.fecha, fecha_hasta: f.fecha_hasta, edicion: lsGet(claveEdicion(curso, f.fecha), '') });
+        _semanaGrupos.push({ fecha: f.fecha, fecha_hasta: f.fecha_hasta, nro: str(f.nro_curso), edicion: lsGet(claveEdicion(curso, f.fecha, str(f.nro_curso)), '') });
       });
-      _semanaGrupos.sort(function(a,b){ return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0; });
+      _semanaGrupos.sort(function(a,b){ return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : (a.nro < b.nro ? -1 : a.nro > b.nro ? 1 : 0); });
 
       document.getElementById('txsEdicionesList').innerHTML = _semanaGrupos.map(function(g, i) {
-        var n = _semanaFilas.filter(function(f){ return f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta; }).length;
-        return '<div class="edicion-row"><span class="ed-fecha">' + fmtRangoFechas(g.fecha, g.fecha_hasta) + '</span>' +
+        var n = _semanaFilas.filter(function(f){ return f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta && str(f.nro_curso) === g.nro; }).length;
+        return '<div class="edicion-row"><span class="ed-fecha">' + fmtRangoFechas(g.fecha, g.fecha_hasta) + (g.nro ? ' <span class="badge-nro">Curso N° ' + esc(g.nro) + '</span>' : '') + '</span>' +
           '<span class="ed-count">' + n + ' registro(s)</span>' +
           '<input type="text" placeholder="Edición nro." value="' + esc(g.edicion) + '" data-idx="' + i + '" onchange="_semanaGrupos[' + i + '].edicion = this.value.trim();"></div>';
       }).join('');
@@ -1948,9 +1983,9 @@
   function bloquePorEdicion(grupos, filas, calificacion, conDni) {
     var out = [];
     grupos.forEach(function(g) {
-      var personas = ordenarPersonas(filas.filter(function(f){ return f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta && f.calificacion === calificacion; }));
+      var personas = ordenarPersonas(filas.filter(function(f){ return f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta && str(f.nro_curso) === g.nro && f.calificacion === calificacion; }));
       if (!personas.length) return;
-      out.push('EDICIÓN NRO. ' + (g.edicion || '?') + ':');
+      out.push('EDICIÓN NRO. ' + (g.edicion || '?') + (g.nro ? ' (CURSO NRO. ' + g.nro + ')' : '') + ':');
       out.push('');
       personas.forEach(function(p, i){ out.push(lineaPersona(p, conDni, i+1)); });
       out.push('');
@@ -1970,7 +2005,7 @@
       alertShow('topAlert', 'success', '⚠️ Falta el número de edición en alguna fecha — se generó el texto igual, con "?" en su lugar.');
     }
 
-    _semanaGrupos.forEach(function(g) { if (g.edicion) lsSet(claveEdicion(curso, g.fecha), g.edicion); });
+    _semanaGrupos.forEach(function(g) { if (g.edicion) lsSet(claveEdicion(curso, g.fecha, g.nro), g.edicion); });
     guardarCamposComunes('txs');
 
     var hayDesaprobados = _semanaFilas.some(function(f){ return f.calificacion === 'Desaprobado'; });
@@ -2003,7 +2038,7 @@
   function fraseEdicionesSemana(grupos) {
     var partes = grupos.map(function(g, i) {
       var pref = (i === 0 ? 'Edición nro. ' : 'Edición nro. ') + (g.edicion || '?') + (i === 0 ? ' a llevarse a cabo con fecha ' : ' con fecha ');
-      return pref + fmtFecha(g.fecha);
+      return pref + fmtFecha(g.fecha) + (g.nro ? ' (curso nro. ' + g.nro + ')' : '');
     });
     if (partes.length === 1) return partes[0];
     var ultima = 'la ' + partes[partes.length - 1];
