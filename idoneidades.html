@@ -364,6 +364,7 @@
           <option value="Idoneidad Halcon">Idoneidad Halcon</option>
           <option value="Idoneidad FMK3">Idoneidad FMK3</option>
           <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+          <option value="Idoneidad Personal Retirado">Idoneidad Personal Retirado</option>
         </select>
       </div>
       <div class="form-group">
@@ -480,6 +481,7 @@
           <option value="Idoneidad Halcon">Idoneidad Halcon</option>
           <option value="Idoneidad FMK3">Idoneidad FMK3</option>
           <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+          <option value="Idoneidad Personal Retirado">Idoneidad Personal Retirado</option>
         </select>
       </div>
       <button class="btn btn-ghost" onclick="limpiarFiltrosEstadisticas()">Limpiar filtros</button>
@@ -572,6 +574,7 @@
             <option value="Idoneidad Halcon">Idoneidad Halcon</option>
             <option value="Idoneidad FMK3">Idoneidad FMK3</option>
             <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+            <option value="Idoneidad Personal Retirado">Idoneidad Personal Retirado</option>
             <option value="Reingreso NICE">Reingreso NICE</option>
           </select>
         </div>
@@ -649,6 +652,7 @@
           <option value="Idoneidad Halcon">Idoneidad Halcon</option>
           <option value="Idoneidad FMK3">Idoneidad FMK3</option>
           <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+          <option value="Idoneidad Personal Retirado">Idoneidad Personal Retirado</option>
         </select>
       </div>
       <div class="ctrl-group">
@@ -720,6 +724,7 @@
           <option value="Idoneidad Halcon">Idoneidad Halcon</option>
           <option value="Idoneidad FMK3">Idoneidad FMK3</option>
           <option value="Idoneidad FN 303 - TIPPMAN">Idoneidad FN 303 - TIPPMAN</option>
+          <option value="Idoneidad Personal Retirado">Idoneidad Personal Retirado</option>
         </select>
       </div>
       <div class="ctrl-group">
@@ -746,6 +751,7 @@
       <button class="subnav-btn" data-sub="doc" onclick="mostrarTexto('doc')">📄 Solicitud de Documentación</button>
       <button class="subnav-btn" data-sub="beretta" onclick="mostrarTexto('beretta')">🔫 Resultado Beretta Px4</button>
       <button class="subnav-btn" data-sub="benelli" onclick="mostrarTexto('benelli')">🔫 Resultado Benelli M3</button>
+      <button class="subnav-btn" data-sub="retirados" onclick="mostrarTexto('retirados')">🎖️ Resultado Retirados</button>
     </div>
 
     <!-- ---- AVISO DE TURNO ---- -->
@@ -867,6 +873,34 @@
         </div>
       </div>
     </div>
+
+    <!-- ---- RESULTADO PERSONAL RETIRADO ---- -->
+    <div class="subpane" id="sub-retirados">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">🎖️</span> Resultado Idoneidad Personal Retirado</div>
+          <div class="form-group full">
+            <label class="form-label">Fecha de la idoneidad</label>
+            <input type="date" id="retiradosFecha" onchange="cargarResultadoIdoneidad('retirados')">
+          </div>
+          <div class="form-group full" style="margin-top:10px;">
+            <label class="form-label">Iniciales de quien redacta</label>
+            <input type="text" id="retiradosIniciales" placeholder="ECG - D.T.">
+            <div class="field-hint">Va al final del texto. Se recuerda para la próxima vez.</div>
+          </div>
+          <div id="retiradosPreview" style="margin-top:10px;"></div>
+          <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoRetirados()">Generar Texto</button>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoRetirados')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoRetirados"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -926,7 +960,7 @@
   verificarMantenimientoSupabase();
 
 
-  var TIPOS = ['Idoneidad Px4','Idoneidad Benelli','Idoneidad Armas Particulares','Idoneidad Halcon','Idoneidad FMK3','Idoneidad FN 303 - TIPPMAN'];
+  var TIPOS = ['Idoneidad Px4','Idoneidad Benelli','Idoneidad Armas Particulares','Idoneidad Halcon','Idoneidad FMK3','Idoneidad FN 303 - TIPPMAN','Idoneidad Personal Retirado'];
   var ESTADOS = ['Pendiente','Aprobado','Desaprobado','Ausente'];
 
   var nicePersonal = [];       // filas de idoneidades_nice (tabla chica, se carga entera)
@@ -2042,7 +2076,7 @@
   var _turnoPersonal = [];              // { legajo, grado, apellido, nombre } o { manual:true, texto }
   var _docPersonaSeleccionada = null;
   var _textoResultados = { turno: [], doc: [] }; // resultados de búsqueda vigentes, por scope
-  var _resultadoData = { beretta: null, benelli: null }; // filas de idoneidades para la fecha elegida
+  var _resultadoData = { beretta: null, benelli: null, retirados: null }; // filas de idoneidades para la fecha elegida
 
   function mostrarTexto(sub) {
     document.querySelectorAll('.subnav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.sub === sub); });
@@ -2179,7 +2213,7 @@
   }
 
   // ---- Resultado Beretta / Benelli: se auto-completa desde Registros ----
-  var TIPO_POR_SCOPE_RESULTADO = { beretta: 'Idoneidad Px4', benelli: 'Idoneidad Benelli' };
+  var TIPO_POR_SCOPE_RESULTADO = { beretta: 'Idoneidad Px4', benelli: 'Idoneidad Benelli', retirados: 'Idoneidad Personal Retirado' };
   var NOMBRE_BONITO_RESULTADO = { beretta: 'Pistola Pietro Beretta Px4 Storm', benelli: 'Escopeta Benelli M3 Super 90' };
 
   async function cargarResultadoIdoneidad(scope) {
@@ -2249,6 +2283,62 @@
       (usuarios.length ? '<br><br><b>Personal evaluador interviniente:</b><br>' + usuarios.map(esc).join('<br>') : '');
   }
 
+  // ---- Resultado Personal Retirado: texto corrido, listas numeradas "1) Grado L.P. 123 APELLIDO Nombre" ----
+  var ORDEN_GRADO_RET = ['Comisario General', 'Comisario Mayor', 'Comisario Inspector', 'Comisario', 'Subcomisario', 'Principal', 'Inspector', 'Oficial Mayor', 'Oficial Primero', 'Oficial'];
+  function _titulo(t) { return String(t || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|\s)\S/g, function(c){ return c.toUpperCase(); }); }
+  function _rankGradoRet(g) { var i = ORDEN_GRADO_RET.indexOf(_titulo(g)); return i === -1 ? ORDEN_GRADO_RET.length : i; }
+  function _ordenarRet(arr) {
+    return arr.slice().sort(function(a, b) {
+      var r = _rankGradoRet(a.grado) - _rankGradoRet(b.grado);
+      return r !== 0 ? r : String(a.apellido || '').localeCompare(String(b.apellido || ''), 'es');
+    });
+  }
+  function _lineaRet(r, i) {
+    return (i + 1) + ') ' + _titulo(r.grado) + ' L.P. ' + str(r.lp) + ' ' + String(r.apellido || '').trim().toUpperCase() + ' ' + _titulo(r.nombre);
+  }
+
+  function generarTextoRetirados() {
+    var fechaRaw = document.getElementById('retiradosFecha').value;
+    var filas = _resultadoData.retirados;
+    if (!fechaRaw) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    if (!filas || !filas.length) { alertShow('topAlert', 'error', 'No hay registros cargados en Registros para esa fecha.'); return; }
+
+    var iniciales = str(document.getElementById('retiradosIniciales').value);
+    try { window.localStorage.setItem('divisionTiroIdoneidades.retiradosIniciales', iniciales); } catch (e) { /* sin localStorage: no se recuerda */ }
+
+    var aprobados = _ordenarRet(filas.filter(function(r){ return r.estado === 'Aprobado'; }));
+    var desaprobados = _ordenarRet(filas.filter(function(r){ return r.estado === 'Desaprobado'; }));
+    var ausentes = _ordenarRet(filas.filter(function(r){ return r.estado === 'Ausente'; }));
+    var pendientes = filas.filter(function(r){ return r.estado === 'Pendiente'; });
+    if (!aprobados.length && !desaprobados.length && !ausentes.length) {
+      alertShow('topAlert', 'error', 'Todos los registros de esa fecha están Pendientes: cargales el resultado primero.');
+      return;
+    }
+    if (pendientes.length) {
+      alertShow('topAlert', 'success', '⚠️ Hay ' + pendientes.length + ' registro(s) todavía Pendiente — no se incluyen en el texto.');
+    }
+
+    var partes = [];
+    partes.push('Por medio de la presente, me dirijo a Ud. en relación al “Examen de Idoneidad en el Manejo de Armas de Fuego para Portadores” llevado a cabo el día ' + fmtFecha(fechaRaw) + ', informando los resultados del personal involucrado:');
+    function bloque(titulo, arr) {
+      if (!arr.length) return;
+      partes.push('');
+      partes.push(titulo + ':');
+      arr.forEach(function(r, i){ partes.push(_lineaRet(r, i)); });
+    }
+    bloque('APROBADOS', aprobados);
+    bloque('DESAPROBADOS', desaprobados);
+    bloque('AUSENTES', ausentes);
+    partes.push('');
+    partes.push('Se eleva la presente para conocimiento y prosecución administrativa.');
+    if (iniciales) { partes.push(''); partes.push(iniciales); }
+
+    document.getElementById('resultadoRetirados').innerHTML = partes.map(function(l){ return esc(l); }).join('<br>');
+  }
+  function cargarInicialesRetirados() {
+    try { var v = window.localStorage.getItem('divisionTiroIdoneidades.retiradosIniciales'); if (v) document.getElementById('retiradosIniciales').value = v; } catch (e) { /* ignorar */ }
+  }
+
   function copiarTexto(id) {
     var el = document.getElementById(id);
     var txt = el.innerText.trim();
@@ -2272,6 +2362,7 @@
     document.body.removeChild(tmp);
   }
 
+  cargarInicialesRetirados();
   initAuth();
 
 </script>
