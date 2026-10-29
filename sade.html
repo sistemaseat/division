@@ -1163,14 +1163,32 @@
   // ============================================================
   // CARGA DE DATOS
   // ============================================================
+  // Supabase devuelve como máximo 1000 filas por pedido (aunque haya más en la
+  // tabla). Para traer TODO se piden páginas de 1000 hasta que una venga
+  // incompleta. Se ordena también por id para que la paginación sea estable.
+  async function traerTodo(tabla, colOrden, ascendente) {
+    var todos = [], desde = 0, tam = 1000;
+    while (true) {
+      var r = await supabaseClient.from(tabla).select('*')
+        .order(colOrden, { ascending: ascendente }).order('id', { ascending: true })
+        .range(desde, desde + tam - 1);
+      if (r.error) return { error: r.error };
+      var lote = r.data || [];
+      todos = todos.concat(lote);
+      if (lote.length < tam) break;
+      desde += tam;
+    }
+    return { data: todos };
+  }
+
   async function cargarDatos() {
     showLoading('Cargando datos SADE…');
     try {
-      var r1 = await supabaseClient.from('sade_hilos').select('*').order('fecha_ingreso', { ascending: false });
+      var r1 = await traerTodo('sade_hilos', 'fecha_ingreso', false);
       if (r1.error) throw r1.error;
       allData = r1.data || [];
 
-      var r2 = await supabaseClient.from('sade_movimientos').select('*').order('fecha');
+      var r2 = await traerTodo('sade_movimientos', 'fecha', true);
       if (r2.error) throw r2.error;
       movimientosPorHilo = {};
       (r2.data || []).forEach(function(m) {
