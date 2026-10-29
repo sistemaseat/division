@@ -646,7 +646,12 @@
       if (!document.getElementById('mantenimientoModal').classList.contains('show')) { mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.'); }
         return;
       }
-      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      if (!res.data) {
+        // Cuenta "solo Nómina General": va directo a esa sección (no ve el resto).
+        var rn = await supabaseClient.from('usuarios_nomina').select('email').eq('email', email).maybeSingle();
+        if (rn.data) { window.location.href = 'nomina.html'; return; }
+        mostrarPantalla('denegado', session.user.email); return;
+      }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
       if (window.SOLO_LECTURA) aplicarModoSoloLectura([]);

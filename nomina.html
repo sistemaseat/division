@@ -268,7 +268,7 @@
     </div>
   </div>
   <div class="header-user">
-    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <a class="btn-cerrar-sesion" id="btnInicioNomina" href="index.html" style="text-decoration:none;">← Inicio</a>
     <div class="header-date" id="headerDate"></div>
     <div class="header-user-email" id="headerUserEmail"></div>
     <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
@@ -485,7 +485,21 @@
         mostrarPantalla('login');
         return;
       }
-      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      // Cuenta "solo Nómina" (tabla usuarios_nomina): no figura en
+      // usuarios_autorizados, así que no puede entrar a ninguna otra sección.
+      if (!res.data) {
+        var rn = await supabaseClient.from('usuarios_nomina').select('email').eq('email', email).maybeSingle();
+        if (rn.data) {
+          window.SOLO_NOMINA = true;
+          window.SOLO_LECTURA = true;
+          document.getElementById('btnInicioNomina').style.display = 'none'; // no hay otras secciones a las que volver
+          mostrarPantalla('app', session.user.email);
+          aplicarModoSoloLectura([]);
+          await cargarDashboard();
+          return;
+        }
+        mostrarPantalla('denegado', session.user.email); return;
+      }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
       if (window.SOLO_LECTURA) aplicarModoSoloLectura([]);
