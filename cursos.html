@@ -221,6 +221,11 @@
   .personal-selected.show { display: flex; }
   .personal-selected b { color: var(--primary); }
   .lote-vacio { font-size: 13px; color: var(--muted); padding: 10px 2px 14px; }
+  .xls-box { background: #f5f7ff; border: 1.5px dashed var(--primary); border-radius: 10px; padding: 12px 14px; font-size: 13px; margin-top: 12px; }
+  .xls-box.warn { background: #fff8e1; border-color: #f9a825; }
+  .xls-box .xls-linea { margin: 3px 0; }
+  .xls-box .xls-plan { font-weight: 700; color: var(--primary); }
+  .xls-faltan { margin-top: 8px; color: #c62828; font-size: 12px; }
   .btn-clear-personal { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 16px; margin-left: auto; }
 
   /* BUTTONS */
@@ -522,6 +527,42 @@
 
   <!-- ==================== NUEVA CURSO ==================== -->
   <div class="tab-pane" id="pane-nueva">
+    <div class="table-card" id="cardImportExcel">
+      <div class="section-title"><span class="ico">📥</span> Cargar desde un Excel de asignación</div>
+      <div class="field-hint" style="margin-bottom:10px;">Subí el "Reporte Consulta Asignación" tal como te lo dan (.xls o .xlsx). Toma la columna <b>Legajo</b> (los datos del personal salen de la nómina general), el <b>Plan</b> como nombre del curso y la <b>Convocatoria</b> para el número de edición. Las fechas las completás vos abajo y todos quedan en <b>Pendiente</b>.</div>
+      <input type="file" id="xlsAsignacion" accept=".xls,.xlsx" onchange="procesarExcelAsignacion(this)">
+      <div id="xlsPanel" style="display:none;">
+        <div class="form-grid" style="margin-top:12px;">
+          <div class="form-group full" id="xlsGrupoWrap" style="display:none;">
+            <label class="form-label">El Excel trae más de un curso/edición — elegí cuál cargar</label>
+            <select id="xlsGrupo" onchange="xlsSeleccionarGrupo()"></select>
+          </div>
+        </div>
+        <div class="xls-box" id="xlsInfo"></div>
+        <div class="form-grid" style="margin-top:12px;">
+          <div class="form-group half">
+            <label class="form-label">Curso en el sistema<span class="required-star">*</span></label>
+            <select id="xlsCurso" onchange="xlsCursoCambio()"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Edición nro.</label>
+            <input type="text" id="xlsEdicion" maxlength="20" placeholder="Ej: 11">
+          </div>
+        </div>
+        <div class="xls-box warn" id="xlsAgregarBox" style="display:none;">
+          <div class="xls-linea">⚠️ Este curso <b>todavía no está cargado</b> en el sistema. Elegí uno de la lista de arriba o agregalo ahora con este nombre (podés corregirlo):</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+            <input type="text" id="xlsNuevoCursoNombre" style="flex:1; min-width:260px;">
+            <button class="btn btn-success btn-sm" onclick="agregarCursoDesdeExcel()">➕ Agregar este curso a la lista</button>
+          </div>
+          <div class="field-hint" style="margin-top:6px;">La Resolución Nro. se completa después en ⚙️ Configuración.</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="cargarGrupoExcelAlFormulario()">⬇️ Cargar este personal al formulario</button>
+        </div>
+        <div class="xls-faltan" id="xlsFaltan" style="display:none;"></div>
+      </div>
+    </div>
     <div class="table-card">
       <div class="section-title"><span class="ico">➕</span> Registrar convocatoria (varias personas a la vez)</div>
       <div class="form-grid">
@@ -763,6 +804,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <script>
@@ -931,7 +973,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarCalificacion', 'eliminarRegistro', 'guardarCurso', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'agregarCursoConfig', 'confirmarEliminarCursoConfig', 'eliminarCursoConfig', 'actualizarResolucionCursoConfig']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarCalificacion', 'eliminarRegistro', 'guardarCurso', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'agregarCursoConfig', 'confirmarEliminarCursoConfig', 'eliminarCursoConfig', 'actualizarResolucionCursoConfig', 'procesarExcelAsignacion', 'cargarGrupoExcelAlFormulario', 'agregarCursoDesdeExcel']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await cargarCursosConfig();
@@ -1566,6 +1608,9 @@
       });
       var res = await supabaseClient.from('cursos').insert(filas);
       if (res.error) throw res.error;
+      // Si el personal vino de un Excel de asignación, la edición oficial queda
+      // recordada para Generar Texto (misma clave que usa "Edición nro.").
+      if (_importEdicion && _importCurso === curso) lsSet(claveEdicion(curso, fecha, nroCurso), _importEdicion);
       await cargarDashboard();
       limpiarFormularioNueva();
       alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s).' + (yaCargados.length ? ' Se omitieron ' + yaCargados.length + ' que ya estaban cargados en ese curso, N° y fecha.' : ''));
@@ -1585,7 +1630,201 @@
     document.getElementById('nObservaciones').value = '';
     document.getElementById('nPersonalBusqueda').value = '';
     personalLote = [];
+    _importEdicion = ''; _importCurso = '';
     renderLote();
+  }
+
+  // ============================================================
+  // CARGA DESDE EXCEL DE ASIGNACIÓN ("Reporte Consulta Asignación")
+  // El Excel se lee en el navegador (SheetJS). De cada fila se toma el
+  // Legajo; Plan = nombre del curso; Convocatoria = "... - ED.11" (de ahí
+  // sale la edición). El resto de los datos del personal sale de
+  // nomina_general. Las fechas no se toman del Excel: se completan a mano
+  // en el formulario y todo se guarda como Pendiente.
+  // ============================================================
+  var _xlsGrupos = [];        // [{ plan, convocatoria, edicion, legajos, estados }]
+  var _importEdicion = '';    // edición del último grupo cargado al formulario
+  var _importCurso = '';      // curso al que se aplica esa edición
+
+  function normTxt(s) {
+    return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function limpiarEspacios(s) { return String(s == null ? '' : s).replace(/[\u00a0\s]+/g, ' ').trim(); }
+  // "CURSO ... D.E.I.M - ED.11" / "... - EDICIÓN 02" / "... Ed. N° 3" -> "11" / "02" / "3"
+  function edicionDeConvocatoria(txt) {
+    var m = /\bed(?:ici[oó]n|\.)?\s*(?:n[°ºo.]*\s*)?(\d+)\s*$/i.exec(limpiarEspacios(txt));
+    return m ? m[1] : '';
+  }
+  function legajoDeCelda(v) {
+    var t = String(v == null ? '' : v).trim().replace(/\.0+$/, '');
+    return /^\d+$/.test(t) ? t : '';
+  }
+
+  async function procesarExcelAsignacion(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    if (typeof XLSX === 'undefined') { alertShow('topAlert', 'error', 'No se pudo cargar el lector de Excel (revisá la conexión) y probá de nuevo.'); return; }
+    showLoading('Leyendo el Excel…');
+    try {
+      var buf = await file.arrayBuffer();
+      var wb = XLSX.read(buf, { type: 'array' });
+      var grupos = null, errorMsg = 'No encontré las columnas "Legajo" y "Plan" en el Excel.';
+      for (var si = 0; si < wb.SheetNames.length && !grupos; si++) {
+        var filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[si]], { header: 1, defval: '', raw: false });
+        var hdr = -1, cLeg = -1, cPlan = -1, cConv = -1, cEst = -1;
+        for (var i = 0; i < filas.length && hdr === -1; i++) {
+          var nombres = filas[i].map(function(c) { return normTxt(c); });
+          var iL = nombres.indexOf('legajo'), iP = nombres.indexOf('plan');
+          if (iL !== -1 && iP !== -1) { hdr = i; cLeg = iL; cPlan = iP; cConv = nombres.indexOf('convocatoria'); cEst = nombres.indexOf('estado'); }
+        }
+        if (hdr === -1) continue;
+        var mapa = {}, orden = [];
+        for (var r = hdr + 1; r < filas.length; r++) {
+          var leg = legajoDeCelda(filas[r][cLeg]);
+          if (!leg) continue;
+          var plan = limpiarEspacios(filas[r][cPlan]);
+          var conv = cConv !== -1 ? limpiarEspacios(filas[r][cConv]) : '';
+          var clave = plan + '||' + conv;
+          if (!mapa[clave]) { mapa[clave] = { plan: plan, convocatoria: conv, edicion: edicionDeConvocatoria(conv), legajos: [], estados: {}, repetidos: 0 }; orden.push(clave); }
+          var g = mapa[clave];
+          if (g.legajos.indexOf(leg) !== -1) { g.repetidos++; continue; }
+          g.legajos.push(leg);
+          var est = cEst !== -1 ? limpiarEspacios(filas[r][cEst]) : '';
+          if (est) g.estados[est] = (g.estados[est] || 0) + 1;
+        }
+        if (orden.length) grupos = orden.map(function(k) { return mapa[k]; });
+        else errorMsg = 'Encontré las columnas pero no hay ningún legajo cargado debajo.';
+      }
+      if (!grupos) { alertShow('topAlert', 'error', errorMsg); document.getElementById('xlsPanel').style.display = 'none'; return; }
+      _xlsGrupos = grupos;
+      var sel = document.getElementById('xlsGrupo');
+      sel.innerHTML = grupos.map(function(g, i) {
+        return '<option value="' + i + '">' + esc(g.plan || '(sin Plan)') + (g.edicion ? ' — Ed. ' + esc(g.edicion) : '') + ' (' + g.legajos.length + ' persona' + (g.legajos.length === 1 ? '' : 's') + ')</option>';
+      }).join('');
+      document.getElementById('xlsGrupoWrap').style.display = grupos.length > 1 ? '' : 'none';
+      document.getElementById('xlsPanel').style.display = '';
+      xlsSeleccionarGrupo();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'No pude leer el archivo: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function xlsGrupoActual() { return _xlsGrupos[Number(document.getElementById('xlsGrupo').value) || 0]; }
+
+  function xlsSeleccionarGrupo() {
+    var g = xlsGrupoActual();
+    if (!g) return;
+    var estados = Object.keys(g.estados).map(function(k) { return esc(k) + ' (' + g.estados[k] + ')'; }).join(', ');
+    document.getElementById('xlsInfo').innerHTML =
+      '<div class="xls-linea">📚 Plan del Excel: <span class="xls-plan">' + esc(g.plan || '(vacío)') + '</span></div>' +
+      '<div class="xls-linea">🔢 Convocatoria: ' + esc(g.convocatoria || '(vacía)') + (g.edicion ? ' → <b>Edición ' + esc(g.edicion) + '</b>' : ' → no pude sacar el número de edición, escribilo abajo si lo necesitás') + '</div>' +
+      '<div class="xls-linea">👥 <b>' + g.legajos.length + '</b> legajo(s)' + (g.repetidos ? ' (' + g.repetidos + ' repetido(s) ignorado(s))' : '') + (estados ? ' — Estado: ' + estados : '') + '</div>';
+    document.getElementById('xlsEdicion').value = g.edicion;
+    // Curso: se preselecciona el que tenga el mismo nombre (sin importar mayúsculas, tildes ni espacios).
+    var opciones = CURSOS_DISPONIBLES.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    var selC = document.getElementById('xlsCurso');
+    selC.innerHTML = '<option value="">-- Elegir curso --</option>' + opciones;
+    var buscado = normTxt(g.plan);
+    var igual = CURSOS_DISPONIBLES.filter(function(c) { return normTxt(c) === buscado; })[0];
+    if (igual) selC.value = igual;
+    document.getElementById('xlsNuevoCursoNombre').value = g.plan;
+    xlsCursoCambio();
+    document.getElementById('xlsFaltan').style.display = 'none';
+  }
+
+  // El aviso de "curso no cargado" se muestra mientras no haya un curso elegido.
+  function xlsCursoCambio() {
+    document.getElementById('xlsAgregarBox').style.display = document.getElementById('xlsCurso').value ? 'none' : '';
+  }
+
+  async function agregarCursoDesdeExcel() {
+    var nombre = limpiarEspacios(document.getElementById('xlsNuevoCursoNombre').value);
+    if (!nombre) { alertShow('topAlert', 'error', 'Escribí el nombre del curso.'); return; }
+    if (CURSOS_DISPONIBLES.some(function(c) { return normTxt(c) === normTxt(nombre); })) {
+      alertShow('topAlert', 'error', 'Ya hay un curso con ese nombre en la lista: elegilo del desplegable.');
+      return;
+    }
+    showLoading('Agregando curso…');
+    try {
+      var res = await supabaseClient.from('cursos_config').insert({ nombre: nombre, resolucion: '' });
+      if (res.error) throw res.error;
+      await cargarCursosConfig();
+      // cargarCursosConfig repuebla los desplegables; se vuelve a armar el de esta tarjeta con el nuevo elegido.
+      var selC = document.getElementById('xlsCurso');
+      selC.innerHTML = '<option value="">-- Elegir curso --</option>' + CURSOS_DISPONIBLES.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+      selC.value = nombre;
+      xlsCursoCambio();
+      alertShow('topAlert', 'success', '✅ Curso agregado a la lista.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al agregar el curso: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+
+  async function cargarGrupoExcelAlFormulario() {
+    var g = xlsGrupoActual();
+    if (!g) return;
+    var curso = document.getElementById('xlsCurso').value;
+    if (!curso) { alertShow('topAlert', 'error', 'Elegí el curso del sistema (o agregalo) antes de cargar el personal.'); return; }
+    if (personalLote.length) {
+      showConfirm('Ya hay ' + personalLote.length + ' persona(s) en la lista de abajo. ¿Reemplazarla por las ' + g.legajos.length + ' del Excel?', function() { _cargarGrupoExcel(g, curso); }, { icon: '📥', textoOk: 'Reemplazar' });
+      return;
+    }
+    _cargarGrupoExcel(g, curso);
+  }
+
+  async function _cargarGrupoExcel(g, curso) {
+    var COLS = 'lp:legajo,grado,apellido,nombre,dependencia,sexo,dni';
+    showLoading('Buscando el personal en la nómina…');
+    try {
+      var porLp = {};
+      for (var i = 0; i < g.legajos.length; i += 150) {
+        var tanda = g.legajos.slice(i, i + 150);
+        var res = await supabaseClient.from('nomina_general').select(COLS).in('legajo', tanda);
+        if (res.error) throw res.error;
+        (res.data || []).forEach(function(p) { porLp[str(p.lp)] = p; });
+      }
+      // Los que no aparecen por coincidencia exacta se reintentan uno por uno (por si el legajo tiene espacios invisibles).
+      var faltan = g.legajos.filter(function(l) { return !porLp[l]; });
+      for (var j = 0; j < faltan.length; j++) {
+        var r2 = await consultarNomina(faltan[j], COLS);
+        if (r2.error) throw r2.error;
+        var hit = (r2.data || []).filter(function(p) { return str(p.lp) === faltan[j]; })[0];
+        if (hit) porLp[faltan[j]] = hit;
+      }
+      var lote = [], sinNomina = [];
+      g.legajos.forEach(function(l) { if (porLp[l]) lote.push(porLp[l]); else sinNomina.push(l); });
+      personalLote = lote;
+      renderLote();
+
+      document.getElementById('nCurso').value = curso;
+      document.getElementById('nCalificacion').value = 'Pendiente';
+      document.getElementById('nFecha').value = '';
+      document.getElementById('nFechaHasta').value = '';
+      var ed = str(document.getElementById('xlsEdicion').value);
+      _importEdicion = ed; _importCurso = curso;
+      var obs = document.getElementById('nObservaciones');
+      if (ed && !str(obs.value)) obs.value = 'Edición nro. ' + ed;
+
+      var cajaFaltan = document.getElementById('xlsFaltan');
+      if (sinNomina.length) {
+        cajaFaltan.innerHTML = '⚠️ <b>' + sinNomina.length + ' legajo(s) no están en la nómina general</b> y no se agregaron: ' + sinNomina.map(esc).join(', ') + '. Buscalos a mano más abajo si corresponde.';
+        cajaFaltan.style.display = '';
+      } else {
+        cajaFaltan.style.display = 'none';
+      }
+      alertShow('topAlert', 'success', '✅ ' + lote.length + ' persona(s) cargadas en la lista. Completá la Fecha desde/hasta y guardá.' + (sinNomina.length ? ' (' + sinNomina.length + ' sin nómina, ver aviso)' : ''));
+      var f = document.getElementById('nFecha');
+      f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      f.focus();
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al buscar el personal: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
   }
 
   // ============================================================
