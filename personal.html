@@ -760,7 +760,10 @@
     <div class="table-card">
       <div class="section-title" style="justify-content:space-between;">
         <span><span class="ico">🚗</span> Licencia de conducir</span>
-        <button class="btn btn-success btn-sm" onclick="exportarPlanillaLicencias()" id="btnExportLicencias">📥 Exportar planilla oficial</button>
+        <span style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-success btn-sm" onclick="exportarPlanillaLicencias()" id="btnExportLicencias">📥 Exportar planilla oficial</button>
+          <button class="btn btn-success btn-sm" onclick="exportarRelevamientoLicencias()" id="btnExportRelevamiento" title="Modelo RELEVAMIENTO DE LICENCIAS Y HABILITACIONES, con todo el personal">📥 Exportar relevamiento (modelo Dpcias)</button>
+        </span>
       </div>
       <div class="kpi-grid">
         <div class="kpi c-blue" onclick="abrirCajaModal('licMunicipal')">
@@ -2840,6 +2843,285 @@
       setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
     } catch (err) {
       alertShow('topAlert', 'error', 'Error al generar la planilla: ' + err.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---- Exporta el "RELEVAMIENTO DE LICENCIAS Y HABILITACIONES" (modelo de Dpcias) ----
+  // Mismo formato que el archivo que envían (hojas INSTRUCTIVO / RELEVAMIENTO y las
+  // hojas ocultas BASE_PERSONAL y LISTAS), pero cargado con TODO el personal activo de
+  // la División — tenga o no licencia. Las columnas de datos personales usan las mismas
+  // fórmulas del modelo (BUSCARV contra BASE_PERSONAL) y las de estado/control también,
+  // así el archivo sigue "vivo" al abrirlo en Excel (se recalculan con la fecha de hoy).
+  var REL_LISTA_LNC = ['A','B','C','D','E','A + B','A + C','A + D','A + E','B + C','B + D','B + E','C + D','C + E','D + E',
+    'A + B + C','A + B + D','A + B + E','A + C + D','A + C + E','A + D + E','B + C + D','B + C + E','B + D + E','C + D + E',
+    'A + B + C + D','A + B + C + E','A + B + D + E','A + C + D + E','B + C + D + E','A + B + C + D + E'];
+  var REL_LISTA_HAB = ['PATRULLERO','MOTO','CUATRICICLO','FLOTA PESADA','PATRULLERO + MOTO','PATRULLERO + CUATRICICLO',
+    'PATRULLERO + FLOTA PESADA','MOTO + CUATRICICLO','MOTO + FLOTA PESADA','CUATRICICLO + FLOTA PESADA',
+    'PATRULLERO + MOTO + CUATRICICLO','PATRULLERO + MOTO + FLOTA PESADA','PATRULLERO + CUATRICICLO + FLOTA PESADA',
+    'MOTO + CUATRICICLO + FLOTA PESADA','PATRULLERO + MOTO + CUATRICICLO + FLOTA PESADA'];
+
+  // "A1.4 - B1 - B2- D22" -> "A + B + D" (solo las letras A–E; el modelo no tiene otras).
+  function relCategoriasLNC(txt) {
+    var letras = {};
+    String(txt || '').split(/[\s,;\/+–-]+/).forEach(function(t) {
+      if (/^[A-Ea-e]\d*([.,]\d+)?$/.test(t)) letras[t.charAt(0).toUpperCase()] = true;
+    });
+    return Object.keys(letras).sort().join(' + ');
+  }
+  // "FL1 - FL2 - FL4 - FP1 - TA" -> "PATRULLERO + MOTO + CUATRICICLO + FLOTA PESADA".
+  // FL1 = patrullero, FL2 = moto, FL4 = cuatriciclo, FL3 y FP* = flota pesada (equivalencias
+  // deducidas del modelo que ya tenían cargado a mano). TA y VE no tienen equivalente.
+  function relCategoriasHab(txt) {
+    var s = String(txt || '').toUpperCase();
+    var tiene = { 'PATRULLERO': /\bFL1\b/.test(s) || /PATRULLERO/.test(s), 'MOTO': /\bFL2\b/.test(s) || /\bMOTO/.test(s),
+                  'CUATRICICLO': /\bFL4\b/.test(s) || /CUATRICICLO/.test(s), 'FLOTA PESADA': /\bFL3\b/.test(s) || /\bFP\d?\b/.test(s) || /FLOTA PESADA/.test(s) };
+    return ['PATRULLERO', 'MOTO', 'CUATRICICLO', 'FLOTA PESADA'].filter(function(k){ return tiene[k]; }).join(' + ');
+  }
+  function relFecha(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str(iso));
+    return m ? new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))) : null;
+  }
+
+  async function exportarRelevamientoLicencias() {
+    if (typeof ExcelJS === 'undefined') {
+      alertShow('topAlert', 'error', 'No se pudo cargar la librería para generar el Excel. Revisá tu conexión y probá de nuevo.');
+      return;
+    }
+    showLoading('Generando el relevamiento…');
+    try {
+      var personal = fichasActivas.slice();
+      if (!personal.length) { alertShow('topAlert', 'error', 'No hay personal activo para exportar.'); return; }
+
+      // Datos "oficiales" (grado, dependencia padre, sexo, etc.) desde la nómina general.
+      var nomina = {};
+      var lps = personal.map(function(f){ return str(f['LP']); }).filter(Boolean);
+      for (var i = 0; i < lps.length; i += 150) {
+        var r = await supabaseClient.from('nomina_general')
+          .select('legajo,grado,apellido,nombre,dependencia,dependencia_padre,dni,sexo,fecha_nac').in('legajo', lps.slice(i, i + 150));
+        if (r.error) throw r.error;
+        (r.data || []).forEach(function(p){ nomina[str(p.legajo)] = p; });
+      }
+      var sinNomina = [];
+
+      var filas = personal.map(function(f) {
+        var lp = str(f['LP']);
+        var n = nomina[lp];
+        if (!n) sinNomina.push(lp);
+        var base = {
+          lp: lp,
+          grado: str(n ? n.grado : f['Grado']).toUpperCase(),
+          apellido: str(n ? n.apellido : f['Apellido']).toUpperCase(),
+          nombres: str(n ? n.nombre : f['Nombres']).toUpperCase(),
+          dependencia: str(n ? n.dependencia : f['Dependencia']),
+          depPadre: str(n ? n.dependencia_padre : f['Dependencia']),
+          dni: str(n ? n.dni : f['DNI']),
+          sexo: str(n ? n.sexo : f['Sexo']).toUpperCase(),
+          nac: relFecha(n ? n.fecha_nac : f['Fecha de Nacimiento'])
+        };
+        var lic = str(f['Licencia Conducir Municipal']).toUpperCase();
+        var hab = str(f['Habilitacion Flota Policial']).toUpperCase();
+        var o = { base: base, L: (lic === 'SI' || lic === 'NO') ? lic : '', M: '', N: null, O: '', P: '', Q: null };
+        if (o.L === 'SI') {
+          o.M = relCategoriasLNC(f['Categoria Municipal']);
+          o.N = relFecha(f['Vencimiento Licencia Municipal']);
+          var corresponde = /[AD]/.test(o.M);
+          // La habilitación solo se informa si la categoría de LNC incluye A o D (regla del modelo),
+          // salvo que la ficha diga SI: ahí se vuelca igual para que el control lo marque.
+          if (hab === 'SI' || (hab === 'NO' && corresponde)) {
+            o.O = hab;
+            if (hab === 'SI') { o.P = relCategoriasHab(f['Categoria Policial']); o.Q = relFecha(f['Vencimiento Licencia Policial']); }
+          }
+        }
+        return o;
+      });
+
+      // ---- Resultados de las fórmulas (para que también se vean en visores que no recalculan) ----
+      var hoy = new Date(); hoy = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()));
+      var en30 = new Date(hoy.getTime() + 30 * 86400000);
+      var conteoLP = {}; filas.forEach(function(o){ conteoLP[o.base.lp] = (conteoLP[o.base.lp] || 0) + 1; });
+      function estadoLNC(o) {
+        if (o.L === 'NO') return 'SIN LNC';
+        if (o.L !== 'SI') return 'FALTA INFORMAR LNC';
+        if (!o.M) return 'FALTA CATEGORÍA';
+        if (!o.N) return 'FALTA VENCIMIENTO';
+        if (o.N < hoy) return 'LNC VENCIDA';
+        if (o.N <= en30) return 'VENCE <=30 DÍAS';
+        return 'LNC VIGENTE';
+      }
+      function estadoHab(o) {
+        if (o.L !== 'SI') return 'NO CORRESPONDE';
+        if (!/[AD]/.test(o.M)) return 'NO CORRESPONDE';
+        if (o.O === 'NO') return 'SIN HABILITACIÓN';
+        if (o.O !== 'SI') return 'FALTA INFORMAR';
+        if (!o.P) return 'FALTA CATEGORÍA';
+        if (!o.Q) return 'FALTA VENCIMIENTO';
+        if (o.Q < hoy) return 'HABILITACIÓN VENCIDA';
+        if (o.Q <= en30) return 'VENCE <=30 DÍAS';
+        return 'HABILITACIÓN VIGENTE';
+      }
+      function situacion(o) {
+        if (conteoLP[o.base.lp] > 1) return 'LP DUPLICADO';
+        if (!o.L) return 'FALTA INFORMAR LNC';
+        if (o.L === 'NO' && (o.M || o.N || o.O || o.P || o.Q)) return 'DATOS INCONSISTENTES: LNC=NO';
+        if (o.L === 'SI' && (!o.M || !o.N)) return 'FALTAN DATOS LNC';
+        if (o.O && !/[AD]/.test(o.M)) return 'HABILITACIÓN NO CORRESPONDE';
+        if (o.O === 'NO' && (o.P || o.Q)) return 'DATOS INCONSISTENTES: HABILITACIÓN=NO';
+        if (o.O === 'SI' && (!o.P || !o.Q)) return 'FALTAN DATOS HABILITACIÓN';
+        return 'OK';
+      }
+
+      // ---- Libro ----
+      var wb = new ExcelJS.Workbook();
+      wb.calcProperties = { fullCalcOnLoad: true };
+      var AZUL_OSC = 'FF1F4E78', AZUL = 'FF4472C4', GRIS = 'FFE7E6E6', AMARILLO = 'FFFFF2CC', CELESTE = 'FFD9EAF7';
+      var relleno = function(argb){ return { type: 'pattern', pattern: 'solid', fgColor: { argb: argb } }; };
+      var fino = { style: 'thin' }, medio = { style: 'medium' };
+
+      // INSTRUCTIVO
+      var wi = wb.addWorksheet('INSTRUCTIVO', { views: [{ showGridLines: false }] });
+      wi.columns = [{ width: 5 }, { width: 6 }, { width: 100 }];
+      for (var c = 4; c <= 14; c++) wi.getColumn(c).width = 9;
+      wi.mergeCells('B2:N2');
+      Object.assign(wi.getCell('B2'), { value: 'RELEVAMIENTO DE LICENCIAS Y HABILITACIÓN POLICIAL',
+        font: { bold: true, size: 20, color: { argb: 'FFFFFFFF' } }, fill: relleno(AZUL_OSC), alignment: { horizontal: 'center', vertical: 'middle' } });
+      wi.getRow(2).height = 32;
+      wi.mergeCells('B5:N5');
+      Object.assign(wi.getCell('B5'), { value: 'INSTRUCCIONES DE USO',
+        font: { bold: true, size: 18, color: { argb: 'FFFFFFFF' } }, fill: relleno(AZUL), alignment: { horizontal: 'center', vertical: 'middle' } });
+      wi.getRow(5).height = 32;
+      var instrucciones = [
+        '1. Cargar los LP: ingresar o pegar únicamente los números de LP del personal en la columna habilitada. Los datos personales e institucionales se completarán automáticamente.',
+        '2. Completar datos de licencia: informar si posee LNC. En caso afirmativo, seleccionar la/s categoría/s correspondiente/s y consignar la fecha de vencimiento.',
+        '3. Habilitación Policial: estos campos sólo se habilitarán cuando la categoría de LNC incluya A y/o D. Si corresponde, informar si posee habilitación, su/s categoría/s y vencimiento.',
+        '4. Respetar los campos habilitados: sólo podrán modificarse las celdas destinadas a LP, LNC y Habilitación Policial. No intentar desproteger, modificar, eliminar o alterar fórmulas, hojas ni estructura del archivo.',
+        '5. Guardar y remitir: una vez finalizada la carga y efectuado el control, guardar el archivo sin cambiar su formato ni estructura y remitirlo por el canal establecido.'
+      ];
+      instrucciones.forEach(function(t, k) {
+        var rr = 7 + k;
+        wi.mergeCells('B' + rr + ':N' + rr);
+        Object.assign(wi.getCell('B' + rr), { value: t, font: { bold: true, size: 12 }, fill: relleno('FFD9D9D9'),
+          alignment: { horizontal: 'left', vertical: 'middle', wrapText: true } });
+        wi.getRow(rr).height = 32;
+      });
+
+      // RELEVAMIENTO
+      var ws = wb.addWorksheet('RELEVAMIENTO', { views: [{ state: 'frozen', xSplit: 2, ySplit: 7, zoomScale: 80 }] });
+      var anchos = [10, 10, 21, 22, 20, 24, 60, 60, 12, 10, 13, 13.5, 24, 18.5, 18, 50, 19, 27.5, 25, 41, 30];
+      ws.columns = anchos.map(function(w){ return { width: w }; });
+      for (var rr2 = 1; rr2 <= 6; rr2++) ws.getRow(rr2).height = 30;
+      ws.mergeCells('A1:U3');
+      Object.assign(ws.getCell('A1'), { value: 'POLICIA DE LA CIUDAD', font: { bold: true, size: 72, color: { argb: 'FFFFFFFF' } },
+        fill: relleno(AZUL_OSC), alignment: { horizontal: 'center', vertical: 'middle' } });
+      ws.mergeCells('A4:B6');
+      ws.mergeCells('C4:U6');
+      Object.assign(ws.getCell('C4'), { value: 'RELEVAMIENTO DE LICENCIAS Y HABILITACIONES', font: { bold: true, size: 72 },
+        alignment: { horizontal: 'center', vertical: 'middle' } });
+      var cab = ['ORDEN', 'LP', 'ESTADO', 'GRADO', 'APELLIDO', 'NOMBRES', 'DEPENDENCIA', 'DEPENDENCIA PADRE', 'DNI', 'SEXO', 'FECHA NAC.',
+        '¿POSEE LNC?', 'CATEGORÍA/S LNC', 'VENCIMIENTO LNC', '¿POSEE HABILITACIÓN POLICIAL?', 'CATEGORÍA/S HABILITACIÓN', 'VENCIMIENTO HABILITACIÓN',
+        'ESTADO LNC', 'ESTADO HABILITACIÓN', 'SITUACIÓN / CONTROL', 'OBSERVACIONES DIV. ESCUELAS'];
+      ws.getRow(7).height = 46.2;
+      cab.forEach(function(t, k) {
+        var cell = ws.getCell(7, k + 1);
+        cell.value = t;
+        cell.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+        cell.fill = relleno(AZUL);
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = { left: k === 0 ? medio : fino, right: k === cab.length - 1 ? medio : fino, top: medio, bottom: medio };
+      });
+
+      var nFilas = filas.length, ultima = 7 + nFilas, baseUlt = nFilas + 1;
+      var rangoBase = 'BASE_PERSONAL!$A$2:$J$' + baseUlt;
+      filas.forEach(function(o, idx) {
+        var rr = 8 + idx, b = o.base;
+        var vlook = function(col) { return 'IF($B' + rr + '="","",IFERROR(VLOOKUP($B' + rr + ',' + rangoBase + ',' + col + ',FALSE),""))'; };
+        var r = ws.getRow(rr);
+        r.height = 30;
+        var lpNum = /^\d+$/.test(b.lp) ? Number(b.lp) : b.lp;
+        var dniNum = /^\d+$/.test(b.dni) ? Number(b.dni) : b.dni;
+        var vals = [
+          { formula: 'IF($B' + rr + '="","",ROW()-7)', result: idx + 1 },
+          lpNum,
+          { formula: 'IF($B' + rr + '="","",IF(COUNTIF(BASE_PERSONAL!$A$2:$A$' + baseUlt + ',$B' + rr + ')=0,"LP NO ENCONTRADO","OK"))', result: 'OK' },
+          { formula: vlook(3), result: b.grado },
+          { formula: vlook(4), result: b.apellido },
+          { formula: vlook(5), result: b.nombres },
+          { formula: vlook(6), result: b.dependencia },
+          { formula: vlook(7), result: b.depPadre },
+          { formula: vlook(8), result: dniNum },
+          { formula: vlook(9), result: b.sexo },
+          { formula: vlook(10), result: b.nac },
+          o.L || null, o.M || null, o.N, o.O || null, o.P || null, o.Q,
+          { formula: 'IF($B' + rr + '="","",IF($C' + rr + '<>"OK","REVISAR LP",IF($L' + rr + '="NO","SIN LNC",IF($L' + rr + '<>"SI","FALTA INFORMAR LNC",IF($M' + rr + '="","FALTA CATEGORÍA",IF($N' + rr + '="","FALTA VENCIMIENTO",IF($N' + rr + '<TODAY(),"LNC VENCIDA",IF($N' + rr + '<=TODAY()+30,"VENCE <=30 DÍAS","LNC VIGENTE"))))))))', result: estadoLNC(o) },
+          { formula: 'IF($B' + rr + '="","",IF($C' + rr + '<>"OK","REVISAR LP",IF($L' + rr + '<>"SI","NO CORRESPONDE",IF(NOT(OR(ISNUMBER(SEARCH("A",$M' + rr + ')),ISNUMBER(SEARCH("D",$M' + rr + ')))),"NO CORRESPONDE",IF($O' + rr + '="NO","SIN HABILITACIÓN",IF($O' + rr + '<>"SI","FALTA INFORMAR",IF($P' + rr + '="","FALTA CATEGORÍA",IF($Q' + rr + '="","FALTA VENCIMIENTO",IF($Q' + rr + '<TODAY(),"HABILITACIÓN VENCIDA",IF($Q' + rr + '<=TODAY()+30,"VENCE <=30 DÍAS","HABILITACIÓN VIGENTE"))))))))))', result: estadoHab(o) },
+          { formula: 'IF($B' + rr + '="","",IF($C' + rr + '<>"OK","REVISAR LP",IF(COUNTIF($B$8:$B$' + ultima + ',$B' + rr + ')>1,"LP DUPLICADO",IF($L' + rr + '="","FALTA INFORMAR LNC",IF(AND($L' + rr + '="NO",OR($M' + rr + '<>"",$N' + rr + '<>"",$O' + rr + '<>"",$P' + rr + '<>"",$Q' + rr + '<>"")),"DATOS INCONSISTENTES: LNC=NO",IF(AND($L' + rr + '="SI",OR($M' + rr + '="",$N' + rr + '="")),"FALTAN DATOS LNC",IF(AND($O' + rr + '<>"",NOT(OR(ISNUMBER(SEARCH("A",$M' + rr + ')),ISNUMBER(SEARCH("D",$M' + rr + '))))),"HABILITACIÓN NO CORRESPONDE",IF(AND($O' + rr + '="NO",OR($P' + rr + '<>"",$Q' + rr + '<>"")),"DATOS INCONSISTENTES: HABILITACIÓN=NO",IF(AND($O' + rr + '="SI",OR($P' + rr + '="",$Q' + rr + '="")),"FALTAN DATOS HABILITACIÓN","OK")))))))))', result: situacion(o) },
+          null
+        ];
+        vals.forEach(function(v, k) {
+          var cell = r.getCell(k + 1);
+          if (v !== null && v !== undefined) cell.value = v;
+          var editable = (k === 1) || (k >= 11 && k <= 16) || k === 20;
+          cell.fill = relleno(k >= 17 && k <= 19 ? CELESTE : (editable ? AMARILLO : GRIS));
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.font = { size: 11 };
+          cell.border = { left: k === 0 ? medio : fino, right: k === 20 ? medio : fino, top: idx === 0 ? fino : undefined, bottom: fino };
+          if (k === 10 || k === 13 || k === 16) cell.numFmt = 'dd/mm/yyyy';
+        });
+        ['L', 'O'].forEach(function(col) {
+          ws.getCell(col + rr).dataValidation = { type: 'list', allowBlank: true, formulae: ['LISTAS!$B$2:$B$3'], showErrorMessage: true, errorTitle: 'Valor no válido', error: 'Seleccione SI o NO.' };
+        });
+        ws.getCell('M' + rr).dataValidation = { type: 'list', allowBlank: true, formulae: ['LISTAS!$A$2:$A$32'], showErrorMessage: true, errorTitle: 'Valor no válido', error: 'Elegí una combinación de la lista (A, B, C, D, E).' };
+        ws.getCell('P' + rr).dataValidation = { type: 'list', allowBlank: true, formulae: ['LISTAS!$C$2:$C$16'], showErrorMessage: true, errorTitle: 'Valor no válido', error: 'Elegí una opción de la lista.' };
+      });
+
+      var rg = function(col) { return col + '8:' + col + ultima; };
+      var gris = { font: { color: { argb: 'FF7F7F7F' } }, fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD9D9D9' } } };
+      ws.addConditionalFormatting({ ref: 'M8:N' + ultima, rules: [{ type: 'expression', priority: 2, formulae: ['$L8<>"SI"'], style: gris }] });
+      ws.addConditionalFormatting({ ref: 'O8:Q' + ultima, rules: [{ type: 'expression', priority: 3, formulae: ['AND($B8<>"",OR($L8<>"SI",NOT(OR(ISNUMBER(SEARCH("A",$M8)),ISNUMBER(SEARCH("D",$M8))))))'], style: gris }] });
+      ws.addConditionalFormatting({ ref: 'P8:Q' + ultima, rules: [{ type: 'expression', priority: 4, formulae: ['$O8<>"SI"'], style: gris }] });
+      ws.addConditionalFormatting({ ref: rg('T'), rules: [
+        { type: 'expression', priority: 5, formulae: ['AND($T8<>"",$T8<>"OK")'], style: { font: { bold: true, color: { argb: 'FF9C0006' } }, fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF4CCCC' } } } },
+        { type: 'expression', priority: 6, formulae: ['$T8="OK"'], style: { font: { bold: true, color: { argb: 'FF274E13' } }, fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD9EAD3' } } } }
+      ] });
+
+      // BASE_PERSONAL (oculta): la que usan las fórmulas BUSCARV del RELEVAMIENTO.
+      var wbp = wb.addWorksheet('BASE_PERSONAL', { state: 'hidden', views: [{ state: 'frozen', ySplit: 1 }] });
+      wbp.columns = [{ width: 12 }, { width: 9 }, { width: 24 }, { width: 22 }, { width: 28 }, { width: 42 }, { width: 46 }, { width: 14 }, { width: 10 }, { width: 14 }];
+      wbp.addRow(['LP', 'ORDEN', 'GRADO', 'APELLIDO', 'NOMBRES', 'DEPENDENCIA', 'DEPENDENCIA PADRE', 'DNI', 'SEXO', 'FECHA NAC.']);
+      wbp.getRow(1).font = { bold: true };
+      filas.forEach(function(o, idx) {
+        var b = o.base;
+        var row = wbp.addRow([/^\d+$/.test(b.lp) ? Number(b.lp) : b.lp, idx + 1, b.grado, b.apellido, b.nombres, b.dependencia, b.depPadre,
+          /^\d+$/.test(b.dni) ? Number(b.dni) : b.dni, b.sexo, b.nac]);
+        row.getCell(10).numFmt = 'dd/mm/yyyy';
+      });
+
+      // LISTAS (oculta): desplegables.
+      var wl = wb.addWorksheet('LISTAS', { state: 'hidden' });
+      wl.getRow(1).values = ['CATEGORÍAS LNC', 'SÍ / NO', 'CATEGORÍAS HABILITACIÓN', 'FUNCIÓN', 'VACÍO'];
+      wl.getRow(1).font = { bold: true };
+      wl.getColumn(1).width = 32; wl.getColumn(3).width = 46;
+      REL_LISTA_LNC.forEach(function(v, k){ wl.getCell(k + 2, 1).value = v; });
+      ['SI', 'NO'].forEach(function(v, k){ wl.getCell(k + 2, 2).value = v; });
+      REL_LISTA_HAB.forEach(function(v, k){ wl.getCell(k + 2, 3).value = v; });
+      ['PATRULLERO', 'MOTOCICLISTA', 'CUATRICICLO', 'FLOTA PESADA', 'OTRA FUNCIÓN'].forEach(function(v, k){ wl.getCell(k + 2, 4).value = v; });
+
+      wb.views = [{ activeTab: 1 }];
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'RELEVAMIENTO_LICENCIAS_Y_HABILITACIONES_Division_Tiro_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+      alertShow('topAlert', 'success', '✅ Relevamiento generado con ' + nFilas + ' persona(s).' +
+        (sinNomina.length ? ' ' + sinNomina.length + ' no figuran en la nómina general y se usaron los datos de su ficha (LP ' + sinNomina.join(', ') + ').' : ''));
+    } catch (err) {
+      alertShow('topAlert', 'error', 'Error al generar el relevamiento: ' + (err.message || err));
     } finally {
       hideLoading();
     }
