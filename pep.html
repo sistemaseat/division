@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plan de Entrenamiento Progresivo PEP — División Tiro</title>
+<title>PEP — División Tiro</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -296,7 +296,7 @@
   <div class="brand">
     <div class="brand-logo">PEP</div>
     <div>
-      <div class="brand-title">PLAN DE ENTRENAMIENTO PROGRESIVO PEP</div>
+      <div class="brand-title">PEP</div>
       <div class="brand-sub">DIVISIÓN TIRO</div>
     </div>
   </div>
@@ -310,6 +310,7 @@
 
 <nav class="tabs">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="estadisticas" onclick="switchTab('estadisticas')">📈 Estadísticas</button>
   <button class="tab-btn" data-tab="historial" onclick="switchTab('historial')">📋 Historial</button>
 </nav>
 
@@ -456,6 +457,83 @@
     </div><!-- /dashContent -->
   </div><!-- /pane-dashboard -->
 
+  <!-- ═══════════ ESTADÍSTICAS ═══════════ -->
+  <div class="tab-pane" id="pane-estadisticas">
+    <div class="alert" id="alertEst"></div>
+
+    <div class="dash-controls">
+      <span class="ctrl-label">Año</span>
+      <select id="estAnio" onchange="onCambioAnioEst()"></select>
+      <span class="ctrl-label">Período</span>
+      <select id="estMes" onchange="renderEstadisticas()"><option value="">— Todo el año —</option></select>
+      <label id="estDetalleWrap" style="display:none; font-size:12px; color:var(--muted); font-weight:600; cursor:pointer;"><input type="checkbox" id="estIncluirDetalle" style="margin-right:5px;">Incluir anexo con el detalle de cada día en el PDF</label>
+      <button class="btn-nueva" id="btnExportPdf" style="background:var(--red);" onclick="exportarInformePDF()">📄 Exportar informe PDF</button>
+      <div class="date-pill" id="estPill">Sin datos</div>
+    </div>
+
+    <div class="no-data" id="estNoData">
+      <div class="no-data-icon">📈</div>
+      <div class="no-data-text">No hay datos cargados aún</div>
+      <div class="no-data-sub">Cuando cargues días en el Dashboard, acá vas a ver las estadísticas por mes y por año.</div>
+    </div>
+
+    <div id="estContent" style="display:none">
+      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);">
+        <div class="kpi c-blue"><div class="kpi-label">Días de entrenamiento</div><div class="kpi-val" id="e-dias">–</div><div class="kpi-sub" id="e-prom-sub"></div></div>
+        <div class="kpi c-blue"><div class="kpi-label">Convocados</div><div class="kpi-val" id="e-conv">–</div><div class="kpi-sub">personas citadas</div></div>
+        <div class="kpi c-green"><div class="kpi-label">Presentes</div><div class="kpi-val" id="e-pres">–</div><div class="kpi-sub">asistentes</div></div>
+        <div class="kpi c-red"><div class="kpi-label">Ausentes</div><div class="kpi-val" id="e-ausen">–</div><div class="kpi-sub" id="e-pausen-sub"></div></div>
+        <div class="kpi c-orange"><div class="kpi-label">% Asistencia</div><div class="kpi-val" id="e-pasist">–</div><div class="pct-bar"><div class="pct-fill g" id="e-bar-asist" style="width:0%"></div></div></div>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);">
+        <div class="kpi c-green"><div class="kpi-label">Aprobados</div><div class="kpi-val" id="e-aprob">–</div><div class="kpi-sub">calificados OK</div></div>
+        <div class="kpi c-red"><div class="kpi-label">Desaprobados</div><div class="kpi-val" id="e-desap">–</div><div class="kpi-sub" id="e-pdesap-sub"></div></div>
+        <div class="kpi c-purple"><div class="kpi-label">% Aprobación</div><div class="kpi-val" id="e-paprob">–</div><div class="pct-bar"><div class="pct-fill g" id="e-bar-aprob" style="width:0%"></div></div></div>
+        <div class="kpi c-teal"><div class="kpi-label">Fuego vivo</div><div class="kpi-val" id="e-fv">–</div><div class="kpi-sub" id="e-fv-sub"></div></div>
+        <div class="kpi c-teal"><div class="kpi-label">Virtual</div><div class="kpi-val" id="e-virt">–</div><div class="kpi-sub" id="e-virt-sub"></div></div>
+      </div>
+
+      <div class="charts-3">
+        <div class="chart-card">
+          <div class="chart-title" id="estTituloEvol">Presentes y ausentes</div>
+          <div class="chart-sub" id="estSubEvol"></div>
+          <div class="chart-wrap" style="height:260px"><canvas id="cEstEvol"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Calificación</div>
+          <div class="chart-sub">Aprobados vs desaprobados</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="cEstCalif"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Modalidad</div>
+          <div class="chart-sub">Fuego vivo vs virtual</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="cEstModal"></canvas></div>
+        </div>
+      </div>
+      <div class="charts-2">
+        <div class="chart-card">
+          <div class="chart-title" id="estTituloPct">Evolución de % asistencia y % aprobación</div>
+          <div class="chart-sub">Porcentajes sobre convocados (asistencia) y sobre presentes (aprobación)</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="cEstPct"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Comparativo por turno</div>
+          <div class="chart-sub">Convocados, presentes y aprobados</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="cEstTurno"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="section-title">Detalle por turno</div>
+        <table><thead id="estTurnoHead"></thead><tbody id="estTurnoBody"></tbody></table>
+      </div>
+      <div class="table-card">
+        <div class="section-title" id="estTituloTabla">Detalle</div>
+        <table><thead id="estPeriodoHead"></thead><tbody id="estPeriodoBody"></tbody></table>
+      </div>
+    </div>
+  </div><!-- /pane-estadisticas -->
+
   <!-- ═══════════ HISTORIAL ═══════════ -->
   <div class="tab-pane" id="pane-historial">
     <div class="alert" id="alertHist"></div>
@@ -585,6 +663,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 
   // ============================================================
@@ -755,6 +835,7 @@
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
     document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
     if (tab === 'historial') renderHistorial();
+    if (tab === 'estadisticas') renderEstadisticas();
   }
 
   // ============================================================
@@ -1070,6 +1151,395 @@
     descargarWorkbook(wb, 'PEP_' + hoyISO() + '.xlsx')
       .then(function() { alertShow('alertHist', 'success', 'Excel exportado.'); })
       .catch(function(err) { alertShow('alertHist', 'error', 'No se pudo exportar: ' + err.message); });
+  }
+
+  // ============================================================
+  // ESTADÍSTICAS — resumen por mes / año con gráficos y exportación
+  // a un informe PDF (jsPDF + autoTable, se arma todo en el navegador).
+  // Definiciones (las mismas del Dashboard): % Asistencia = presentes /
+  // convocados; % Aprobación = aprobados / presentes. El TOTAL siempre
+  // se calcula sumando los 4 turnos de cada día.
+  // ============================================================
+  var estCharts = {};
+  var estActual = null;   // { fechas, label, esAnual, anio, mes, stats } de lo que se ve en pantalla
+
+  function pct(a, b) { return b > 0 ? (a / b * 100) : 0; }
+  function fmtPct(x) { return (Math.round(x * 10) / 10).toFixed(1).replace('.', ',') + '%'; }
+  function fmtNum(x) { return Number(x || 0).toLocaleString('es-AR'); }
+  function pl(cant, sing, plur) { return cant + ' ' + (cant === 1 ? sing : plur); }
+
+  function statsDe(fechas) {
+    var regs = fechas.map(function(f){ return registros.find(function(r){ return r.fecha === f; }); }).filter(Boolean);
+    var tot = {}; CAMPOS.forEach(function(c){ tot[c] = 0; });
+    var turnos = [1,2,3,4].map(function(){ var o = {}; CAMPOS.forEach(function(c){ o[c] = 0; }); return o; });
+    var porDia = [];
+    regs.forEach(function(r) {
+      var t = calcTotal(r);
+      CAMPOS.forEach(function(c){ tot[c] += t[c]; });
+      for (var i = 1; i <= 4; i++) { var ti = turnoDe(r, i); CAMPOS.forEach(function(c){ turnos[i-1][c] += ti[c]; }); }
+      porDia.push({ fecha: r.fecha, t: t });
+    });
+    porDia.sort(function(a, b){ return a.fecha < b.fecha ? -1 : 1; });
+    var conActividad = porDia.filter(function(d){ return d.t.convocados > 0; });
+    var mejor = null, peor = null;
+    conActividad.forEach(function(d) {
+      var p = pct(d.t.presentes, d.t.convocados);
+      if (!mejor || p > mejor.p) mejor = { fecha: d.fecha, p: p };
+      if (!peor || p < peor.p) peor = { fecha: d.fecha, p: p };
+    });
+    var ultimo = regs.length ? regs.slice().sort(function(a, b){ return a.fecha < b.fecha ? 1 : -1; })[0] : null;
+    return { dias: regs.length, tot: tot, turnos: turnos, porDia: porDia, mejorDia: mejor, peorDia: peor,
+             acum: ultimo ? acumDe(ultimo) : null, acumFecha: ultimo ? ultimo.fecha : null,
+             pAsist: pct(tot.presentes, tot.convocados), pAprob: pct(tot.aprobados, tot.presentes) };
+  }
+
+  function mesesDelAnio(anio) {
+    return getMonths().filter(function(m){ return m.key.indexOf(String(anio)) === 0; });
+  }
+
+  function poblarSelectoresEstadisticas() {
+    var selA = document.getElementById('estAnio');
+    var actual = selA.value;
+    var anios = getYears();
+    selA.innerHTML = anios.map(function(y){ return '<option value="' + y + '">' + y + '</option>'; }).join('');
+    if (anios.indexOf(actual) !== -1) selA.value = actual; else if (anios.length) selA.value = anios[anios.length - 1];
+    poblarMesesEstadisticas();
+  }
+  function poblarMesesEstadisticas() {
+    var selM = document.getElementById('estMes');
+    var actual = selM.value;
+    var meses = mesesDelAnio(document.getElementById('estAnio').value);
+    selM.innerHTML = '<option value="">— Todo el año —</option>' + meses.map(function(m){ return '<option value="' + m.key + '">' + m.label + '</option>'; }).join('');
+    if (actual && meses.some(function(m){ return m.key === actual; })) selM.value = actual;
+  }
+  function onCambioAnioEst() { poblarMesesEstadisticas(); renderEstadisticas(); }
+
+  function killEst(id) { if (estCharts[id]) { estCharts[id].destroy(); delete estCharts[id]; } }
+  // Fondo blanco en el PNG (si no, el PDF muestra los gráficos sobre negro/transparente).
+  var pluginFondoBlanco = { id: 'fondoBlanco', beforeDraw: function(chart) {
+    var ctx = chart.ctx; ctx.save(); ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, chart.width, chart.height); ctx.restore();
+  } };
+
+  function renderEstadisticas() {
+    var anio = document.getElementById('estAnio').value;
+    var mesKey = document.getElementById('estMes').value;
+    var hayDatos = !!anio;
+    document.getElementById('estNoData').style.display = hayDatos ? 'none' : 'block';
+    document.getElementById('estContent').style.display = hayDatos ? 'block' : 'none';
+    document.getElementById('btnExportPdf').disabled = !hayDatos;
+    if (!hayDatos) { estActual = null; return; }
+
+    var esAnual = !mesKey;
+    var mesInfo = esAnual ? null : getMonths().find(function(m){ return m.key === mesKey; });
+    var fechas = esAnual ? fechasOrdenadas().filter(function(f){ return String(fechaObjDe(f).getFullYear()) === String(anio); }) : (mesInfo ? mesInfo.fechas : []);
+    var label = esAnual ? ('Año ' + anio) : (mesInfo ? mesInfo.label : mesKey);
+    var st = statsDe(fechas);
+    estActual = { fechas: fechas, label: label, esAnual: esAnual, anio: anio, mesKey: mesKey, mesInfo: mesInfo, stats: st };
+
+    document.getElementById('estPill').textContent = label;
+    document.getElementById('btnExportPdf').textContent = '📄 Exportar informe PDF — ' + (esAnual ? 'todo ' + anio : label);
+    document.getElementById('estDetalleWrap').style.display = esAnual ? '' : 'none';
+
+    var t = st.tot;
+    set('e-dias', st.dias); set('e-conv', fmtNum(t.convocados)); set('e-pres', fmtNum(t.presentes)); set('e-ausen', fmtNum(t.ausentes));
+    set('e-pasist', fmtPct(st.pAsist)); set('e-aprob', fmtNum(t.aprobados)); set('e-desap', fmtNum(t.desaprobados)); set('e-paprob', fmtPct(st.pAprob));
+    set('e-fv', fmtNum(t.fuego_vivo)); set('e-virt', fmtNum(t.virtual));
+    set('e-pausen-sub', fmtPct(pct(t.ausentes, t.convocados)) + ' de los convocados');
+    set('e-pdesap-sub', fmtPct(pct(t.desaprobados, t.presentes)) + ' de los presentes');
+    set('e-prom-sub', st.dias ? ('promedio ' + fmtPct(0).replace('0,0%', '') + (Math.round(t.presentes / st.dias * 10) / 10).toString().replace('.', ',') + ' presentes por día') : '');
+    var mod = t.fuego_vivo + t.virtual;
+    set('e-fv-sub', mod ? fmtPct(pct(t.fuego_vivo, mod)) + ' de las modalidades' : '—');
+    set('e-virt-sub', mod ? fmtPct(pct(t.virtual, mod)) + ' de las modalidades' : '—');
+    pctBar('e-bar-asist', Math.min(100, st.pAsist)); pctBar('e-bar-aprob', Math.min(100, st.pAprob));
+
+    // Series para los gráficos: por mes (año completo) o por día (un mes).
+    var etiquetas, presentes, ausentes, pAs, pAp;
+    if (esAnual) {
+      var meses = mesesDelAnio(anio);
+      etiquetas = meses.map(function(m){ return m.label.split(' ')[0]; });
+      var sm = meses.map(function(m){ return statsDe(m.fechas); });
+      presentes = sm.map(function(s){ return s.tot.presentes; }); ausentes = sm.map(function(s){ return s.tot.ausentes; });
+      pAs = sm.map(function(s){ return Math.round(s.pAsist * 10) / 10; }); pAp = sm.map(function(s){ return Math.round(s.pAprob * 10) / 10; });
+      set('estTituloEvol', 'Presentes y ausentes por mes'); set('estSubEvol', 'Año ' + anio);
+      set('estTituloPct', 'Evolución mensual de % asistencia y % aprobación');
+    } else {
+      etiquetas = st.porDia.map(function(d){ return fmtFecha(d.fecha).slice(0, 5); });
+      presentes = st.porDia.map(function(d){ return d.t.presentes; }); ausentes = st.porDia.map(function(d){ return d.t.ausentes; });
+      pAs = st.porDia.map(function(d){ return Math.round(pct(d.t.presentes, d.t.convocados) * 10) / 10; });
+      pAp = st.porDia.map(function(d){ return Math.round(pct(d.t.aprobados, d.t.presentes) * 10) / 10; });
+      set('estTituloEvol', 'Presentes y ausentes por día'); set('estSubEvol', label);
+      set('estTituloPct', 'Evolución diaria de % asistencia y % aprobación');
+    }
+
+    killEst('evol');
+    estCharts.evol = new Chart(document.getElementById('cEstEvol'), { type: 'bar', plugins: [pluginFondoBlanco],
+      data: { labels: etiquetas, datasets: [ { label: 'Presentes', data: presentes, backgroundColor: '#4caf50', borderRadius: 4 }, { label: 'Ausentes', data: ausentes, backgroundColor: '#ef5350', borderRadius: 4 } ] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false }, ticks: { maxTicksLimit: 16 } } } } });
+    killEst('pct');
+    estCharts.pct = new Chart(document.getElementById('cEstPct'), { type: 'line', plugins: [pluginFondoBlanco],
+      data: { labels: etiquetas, datasets: [
+        { label: '% Asistencia', data: pAs, borderColor: '#0277bd', backgroundColor: 'rgba(2,119,189,0.08)', tension: .3, pointRadius: 3 },
+        { label: '% Aprobación', data: pAp, borderColor: '#4caf50', backgroundColor: 'rgba(76,175,80,0.08)', tension: .3, pointRadius: 3 } ] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: 'top' } }, scales: { y: { min: 0, max: 100, ticks: { callback: function(v){ return v + '%'; } } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 16 } } } } });
+    var donut = function(id, labels, data, colors) {
+      killEst(id);
+      estCharts[id] = new Chart(document.getElementById(id), { type: 'doughnut', plugins: [pluginFondoBlanco],
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '62%', plugins: { legend: { position: 'bottom' },
+          tooltip: { callbacks: { label: function(ctx){ var tot = ctx.dataset.data.reduce(function(a, b){ return a + b; }, 0); return ctx.label + ': ' + ctx.parsed + ' (' + fmtPct(pct(ctx.parsed, tot)) + ')'; } } } } } });
+    };
+    donut('cEstCalif', ['Aprobados', 'Desaprobados'], [t.aprobados, t.desaprobados], ['#4caf50', '#ef5350']);
+    donut('cEstModal', ['Fuego vivo', 'Virtual'], [t.fuego_vivo, t.virtual], ['#ff7043', '#42a5f5']);
+    killEst('turno');
+    estCharts.turno = new Chart(document.getElementById('cEstTurno'), { type: 'bar', plugins: [pluginFondoBlanco],
+      data: { labels: ['Turno 1', 'Turno 2', 'Turno 3', 'Turno 4'], datasets: [
+        { label: 'Convocados', data: st.turnos.map(function(x){ return x.convocados; }), backgroundColor: '#90a4ae', borderRadius: 4 },
+        { label: 'Presentes', data: st.turnos.map(function(x){ return x.presentes; }), backgroundColor: '#4caf50', borderRadius: 4 },
+        { label: 'Aprobados', data: st.turnos.map(function(x){ return x.aprobados; }), backgroundColor: '#1a237e', borderRadius: 4 } ] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } } });
+
+    // Tablas en pantalla
+    var filaE = function(lbl, x, cls, dias) {
+      return '<tr class="' + (cls || '') + '"><td>' + esc(lbl) + '</td>' + (dias !== undefined ? '<td>' + dias + '</td>' : '') +
+        '<td>' + fmtNum(x.convocados) + '</td><td>' + fmtNum(x.presentes) + '</td><td>' + fmtNum(x.ausentes) + '</td><td>' + fmtPct(pct(x.presentes, x.convocados)) + '</td>' +
+        '<td>' + fmtNum(x.aprobados) + '</td><td>' + fmtNum(x.desaprobados) + '</td><td>' + fmtPct(pct(x.aprobados, x.presentes)) + '</td><td>' + fmtNum(x.fuego_vivo) + '</td><td>' + fmtNum(x.virtual) + '</td></tr>';
+    };
+    var thE = function(primera, conDias) {
+      return '<tr><th>' + primera + '</th>' + (conDias ? '<th>Días</th>' : '') + '<th>Convo.</th><th>Pres.</th><th>Ausen.</th><th>% Asist.</th><th>Aprob.</th><th>Desap.</th><th>% Aprob.</th><th>FV</th><th>Virt.</th></tr>';
+    };
+    document.getElementById('estTurnoHead').innerHTML = thE('Turno', false);
+    document.getElementById('estTurnoBody').innerHTML = st.turnos.map(function(x, i){ return filaE('Turno ' + (i + 1), x, ''); }).join('') + filaE('TOTAL', st.tot, 'row-total');
+    if (esAnual) {
+      set('estTituloTabla', 'Detalle por mes — ' + anio);
+      document.getElementById('estPeriodoHead').innerHTML = thE('Mes', true);
+      document.getElementById('estPeriodoBody').innerHTML = mesesDelAnio(anio).map(function(m){ var s = statsDe(m.fechas); return filaE(m.label.split(' ')[0], s.tot, '', s.dias); }).join('') + filaE('TOTAL ' + anio, st.tot, 'row-total', st.dias);
+    } else {
+      set('estTituloTabla', 'Detalle por día — ' + label);
+      document.getElementById('estPeriodoHead').innerHTML = thE('Fecha', false);
+      document.getElementById('estPeriodoBody').innerHTML = st.porDia.map(function(d){ return filaE(fmtFecha(d.fecha), d.t, ''); }).join('') + filaE('TOTAL MES', st.tot, 'row-total');
+    }
+  }
+
+  // Texto de "lectura del período" (se muestra también en el PDF).
+  function conclusionesEst(e) {
+    var st = e.stats, t = st.tot, out = [];
+    var periodoTxt = e.esAnual ? ('el año ' + e.anio) : (e.mesInfo ? (e.mesInfo.label.split(' ')[0].toLowerCase() + ' de ' + e.mesInfo.label.split(' ')[1]) : e.label);
+    out.push('Durante ' + periodoTxt + ' se registraron ' + pl(st.dias, 'jornada', 'jornadas') + ' de entrenamiento con ' + fmtNum(t.convocados) + ' convocados: asistieron ' + fmtNum(t.presentes) + ' (' + fmtPct(st.pAsist) + ') y hubo ' + fmtNum(t.ausentes) + ' ausentes (' + fmtPct(pct(t.ausentes, t.convocados)) + ').');
+    out.push('De los ' + fmtNum(t.presentes) + ' presentes, ' + fmtNum(t.aprobados) + ' resultaron aprobados (' + fmtPct(st.pAprob) + ') y ' + fmtNum(t.desaprobados) + ' desaprobados (' + fmtPct(pct(t.desaprobados, t.presentes)) + ').');
+    var mod = t.fuego_vivo + t.virtual;
+    if (mod) out.push('Por modalidad, el fuego vivo concentró ' + fmtNum(t.fuego_vivo) + ' registros (' + fmtPct(pct(t.fuego_vivo, mod)) + ') y la modalidad virtual ' + fmtNum(t.virtual) + ' (' + fmtPct(pct(t.virtual, mod)) + ').');
+    if (st.dias > 1 && st.mejorDia && st.peorDia && st.mejorDia.fecha !== st.peorDia.fecha) {
+      out.push('La mayor asistencia se dio el ' + fmtFecha(st.mejorDia.fecha) + ' (' + fmtPct(st.mejorDia.p) + ') y la menor el ' + fmtFecha(st.peorDia.fecha) + ' (' + fmtPct(st.peorDia.p) + ').');
+    }
+    var conv = st.turnos.map(function(x){ return x.convocados; });
+    if (Math.max.apply(null, conv) > 0) {
+      var iMasPres = 0, iMejorAs = 0;
+      st.turnos.forEach(function(x, i) {
+        if (x.presentes > st.turnos[iMasPres].presentes) iMasPres = i;
+        if (pct(x.presentes, x.convocados) > pct(st.turnos[iMejorAs].presentes, st.turnos[iMejorAs].convocados)) iMejorAs = i;
+      });
+      out.push('El turno con más presentes fue el Turno ' + (iMasPres + 1) + ' (' + fmtNum(st.turnos[iMasPres].presentes) + ') y el de mayor asistencia relativa, el Turno ' + (iMejorAs + 1) + ' (' + fmtPct(pct(st.turnos[iMejorAs].presentes, st.turnos[iMejorAs].convocados)) + ').');
+    }
+    if (e.esAnual) {
+      var ms = mesesDelAnio(e.anio).map(function(m){ return { l: m.label.split(' ')[0], s: statsDe(m.fechas) }; }).filter(function(x){ return x.s.tot.convocados > 0; });
+      if (ms.length > 1) {
+        var mejor = ms.reduce(function(a, b){ return b.s.pAsist > a.s.pAsist ? b : a; });
+        var peor = ms.reduce(function(a, b){ return b.s.pAsist < a.s.pAsist ? b : a; });
+        var masConv = ms.reduce(function(a, b){ return b.s.tot.convocados > a.s.tot.convocados ? b : a; });
+        out.push('El mes de mayor asistencia fue ' + mejor.l + ' (' + fmtPct(mejor.s.pAsist) + ') y el de menor, ' + peor.l + ' (' + fmtPct(peor.s.pAsist) + '); el de mayor convocatoria fue ' + masConv.l + ' (' + fmtNum(masConv.s.tot.convocados) + ' convocados).');
+      }
+    } else if (e.mesInfo) {
+      var todos = getMonths(), idx = todos.findIndex(function(m){ return m.key === e.mesKey; });
+      if (idx > 0) {
+        var ant = todos[idx - 1], sa = statsDe(ant.fechas);
+        if (sa.tot.convocados > 0) {
+          var dA = st.pAsist - sa.pAsist, dP = st.pAprob - sa.pAprob;
+          var verbo = function(d) { return Math.abs(d) < 0.05 ? 'se mantuvo igual' : (d > 0 ? 'subió ' : 'bajó ') + fmtPct(Math.abs(d)).replace('%', '') + ' puntos porcentuales'; };
+          out.push('Respecto de ' + ant.label.split(' ')[0].toLowerCase() + ', la asistencia ' + verbo(dA) + ' (de ' + fmtPct(sa.pAsist) + ' a ' + fmtPct(st.pAsist) + ') y la aprobación ' + verbo(dP) + ' (de ' + fmtPct(sa.pAprob) + ' a ' + fmtPct(st.pAprob) + ').');
+        }
+      }
+    }
+    if (st.acum && st.acumFecha) {
+      out.push('El acumulado histórico al ' + fmtFecha(st.acumFecha) + ' es de ' + fmtNum(st.acum.convocados) + ' convocados, ' + fmtNum(st.acum.presentes) + ' presentes, ' + fmtNum(st.acum.aprobados) + ' aprobados y ' + fmtNum(st.acum.desaprobados) + ' desaprobados.');
+    }
+    return out;
+  }
+
+  // ── Informe PDF ──────────────────────────────────────────────
+  function exportarInformePDF() {
+    var e = estActual;
+    if (!e || !e.fechas.length) { alertShow('alertEst', 'error', 'No hay datos para ese período.'); return; }
+    if (!window.jspdf || !window.jspdf.jsPDF) { alertShow('alertEst', 'error', 'No se pudo cargar la librería de PDF. Revisá tu conexión y probá de nuevo.'); return; }
+    showLoading('Armando el informe PDF…');
+    // Se deja respirar al navegador para que muestre el "Armando…" antes del trabajo pesado.
+    setTimeout(function() {
+      try { generarPDF(e); alertShow('alertEst', 'success', 'Informe PDF generado.'); }
+      catch (err) { console.error(err); alertShow('alertEst', 'error', 'No se pudo generar el PDF: ' + (err.message || err)); }
+      finally { hideLoading(); }
+    }, 60);
+  }
+
+  function generarPDF(e) {
+    var st = e.stats, t = st.tot;
+    var doc = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    var W = 210, H = 297, M = 14, CW = W - 2 * M, PIE = H - 16;
+    var NAVY = [26, 35, 126], AMARILLO = [255, 214, 0], GRIS = [117, 117, 117], TEXTO = [33, 33, 33];
+    var tituloInforme = e.esAnual ? 'INFORME ESTADÍSTICO ANUAL' : 'INFORME ESTADÍSTICO MENSUAL';
+    var periodo = e.esAnual ? ('Año ' + e.anio) : e.label;
+    var ahora = new Date();
+    var generado = ahora.toLocaleDateString('es-AR') + ' ' + ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    var rango = st.porDia.length ? ('Del ' + fmtFecha(st.porDia[0].fecha) + ' al ' + fmtFecha(st.porDia[st.porDia.length - 1].fecha)) : '';
+
+    // Portada / encabezado
+    doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]); doc.rect(0, 0, W, 38, 'F');
+    doc.setFillColor(AMARILLO[0], AMARILLO[1], AMARILLO[2]); doc.rect(0, 38, W, 1.8, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(30); doc.text('PEP', M, 20);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('DIVISIÓN TIRO', M, 28);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(tituloInforme, W - M, 15, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.text(periodo, W - M, 23, { align: 'right' });
+    doc.setFontSize(8.5); doc.setTextColor(210, 214, 240);
+    if (rango) doc.text(rango, W - M, 29.5, { align: 'right' });
+    doc.text('Generado el ' + generado, W - M, 34, { align: 'right' });
+
+    var y = 50;
+    var nuevaPagina = function() { doc.addPage(); y = 20; };
+    var asegurar = function(alto) { if (y + alto > PIE) nuevaPagina(); };
+    var titulo = function(txt) {
+      asegurar(14);
+      doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.text(txt.toUpperCase(), M, y);
+      doc.setDrawColor(AMARILLO[0], AMARILLO[1], AMARILLO[2]); doc.setLineWidth(0.7); doc.line(M, y + 1.8, M + 22, y + 1.8);
+      doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.line(M + 22, y + 1.8, W - M, y + 1.8);
+      y += 8;
+    };
+
+    // 1) Resumen — tarjetas
+    titulo('Resumen del período');
+    var kpis = [
+      ['DÍAS DE ENTRENAMIENTO', String(st.dias), st.dias ? ('prom. ' + (Math.round(t.presentes / st.dias * 10) / 10).toString().replace('.', ',') + ' presentes/día') : '', [2, 119, 189]],
+      ['CONVOCADOS', fmtNum(t.convocados), 'personas citadas', [2, 119, 189]],
+      ['PRESENTES', fmtNum(t.presentes), 'asistentes', [76, 175, 80]],
+      ['AUSENTES', fmtNum(t.ausentes), fmtPct(pct(t.ausentes, t.convocados)) + ' de los convocados', [239, 83, 80]],
+      ['% ASISTENCIA', fmtPct(st.pAsist), 'presentes / convocados', [255, 160, 0]],
+      ['APROBADOS', fmtNum(t.aprobados), 'calificados OK', [76, 175, 80]],
+      ['DESAPROBADOS', fmtNum(t.desaprobados), fmtPct(pct(t.desaprobados, t.presentes)) + ' de los presentes', [239, 83, 80]],
+      ['% APROBACIÓN', fmtPct(st.pAprob), 'aprobados / presentes', [106, 27, 154]],
+      ['FUEGO VIVO', fmtNum(t.fuego_vivo), (t.fuego_vivo + t.virtual) ? fmtPct(pct(t.fuego_vivo, t.fuego_vivo + t.virtual)) + ' de las modalidades' : '', [255, 112, 67]],
+      ['VIRTUAL', fmtNum(t.virtual), (t.fuego_vivo + t.virtual) ? fmtPct(pct(t.virtual, t.fuego_vivo + t.virtual)) + ' de las modalidades' : '', [66, 165, 245]]
+    ];
+    var gap = 3, kw = (CW - 4 * gap) / 5, kh = 22;
+    kpis.forEach(function(k, i) {
+      var cx = M + (i % 5) * (kw + gap), cy = y + Math.floor(i / 5) * (kh + gap);
+      doc.setFillColor(245, 247, 250); doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.roundedRect(cx, cy, kw, kh, 1.5, 1.5, 'FD');
+      doc.setFillColor(k[3][0], k[3][1], k[3][2]); doc.rect(cx, cy + 1, 1.3, kh - 2, 'F');
+      doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.3); doc.text(k[0], cx + 3.5, cy + 5.2);
+      doc.setTextColor(TEXTO[0], TEXTO[1], TEXTO[2]); doc.setFontSize(16); doc.text(k[1], cx + 3.5, cy + 13.2);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]); doc.setFontSize(6.2);
+      doc.text(doc.splitTextToSize(k[2], kw - 5).slice(0, 2), cx + 3.5, cy + 17.6);
+    });
+    y += 2 * kh + gap + 8;
+
+    // 2) Lectura del período
+    titulo('Lectura del período');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(TEXTO[0], TEXTO[1], TEXTO[2]);
+    conclusionesEst(e).forEach(function(p) {
+      var lineas = doc.splitTextToSize(p, CW - 6);
+      asegurar(lineas.length * 4.6 + 2);
+      doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]); doc.circle(M + 1.2, y - 1.1, 0.7, 'F');
+      doc.text(lineas, M + 5, y);
+      y += lineas.length * 4.6 + 1.8;
+    });
+    y += 4;
+
+    // 3) Gráficos (se toman de los canvas de la pantalla de Estadísticas)
+    var imagen = function(canvasId) {
+      var cv = document.getElementById(canvasId);
+      return { data: cv.toDataURL('image/png'), r: cv.height / (cv.width || 1) };
+    };
+    var ponerGrafico = function(canvasId, tituloG, ancho, x0, alturaMax) {
+      var im = imagen(canvasId);
+      var h = Math.min(ancho * im.r, alturaMax || 70);
+      var w = h / im.r;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(TEXTO[0], TEXTO[1], TEXTO[2]); doc.text(tituloG, x0, y);
+      doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.rect(x0, y + 2, ancho, h + 2);
+      doc.addImage(im.data, 'PNG', x0 + (ancho - w) / 2, y + 3, w, h);
+      return h + 8;
+    };
+    titulo('Evolución y distribución');
+    var tEvol = e.esAnual ? 'Presentes y ausentes por mes' : 'Presentes y ausentes por día';
+    asegurar(75); y += ponerGrafico('cEstEvol', tEvol, CW, M, 62) + 2;
+    var tPct = e.esAnual ? 'Evolución mensual de % asistencia y % aprobación' : 'Evolución diaria de % asistencia y % aprobación';
+    asegurar(75); y += ponerGrafico('cEstPct', tPct, CW, M, 62) + 2;
+    asegurar(78);
+    var mitad = (CW - 6) / 2;
+    var y0 = y;
+    var h1 = ponerGrafico('cEstCalif', 'Calificación (sobre presentes)', mitad, M, 64);
+    y = y0;
+    var h2 = ponerGrafico('cEstModal', 'Modalidad de práctica', mitad, M + mitad + 6, 64);
+    y = y0 + Math.max(h1, h2) + 2;
+    asegurar(75); y += ponerGrafico('cEstTurno', 'Comparativo por turno (convocados, presentes y aprobados)', CW, M, 62) + 2;
+
+    // 4) Tablas
+    var cabecera = function(primera, conDias) { return [[primera].concat(conDias ? ['Días'] : []).concat(['Convo.', 'Pres.', 'Ausen.', '% Asist.', 'Aprob.', 'Desap.', '% Aprob.', 'Fuego V.', 'Virtual'])]; };
+    var fila = function(lbl, x, dias) { return [lbl].concat(dias !== undefined ? [String(dias)] : []).concat([fmtNum(x.convocados), fmtNum(x.presentes), fmtNum(x.ausentes), fmtPct(pct(x.presentes, x.convocados)), fmtNum(x.aprobados), fmtNum(x.desaprobados), fmtPct(pct(x.aprobados, x.presentes)), fmtNum(x.fuego_vivo), fmtNum(x.virtual)]); };
+    var estiloTabla = function(conDias) {
+      return { theme: 'grid', margin: { left: M, right: M, top: 18, bottom: 20 },
+        styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.8, halign: 'center', lineColor: [224, 224, 224], lineWidth: 0.2, textColor: TEXTO },
+        headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: { 0: { halign: 'left', fontStyle: 'bold', textColor: NAVY } },
+        alternateRowStyles: { fillColor: [250, 251, 253] },
+        didParseCell: function(d) { if (d.section === 'body' && String(d.row.raw[0]).indexOf('TOTAL') === 0) { d.cell.styles.fillColor = [255, 249, 196]; d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = TEXTO; } } };
+    };
+    var tabla = function(tituloT, head, body, conDias) {
+      // Si la tabla entra en una página, no se parte: pasa entera a la siguiente.
+      var altoEst = 10 + (body.length + 1) * 7;
+      asegurar(altoEst <= (PIE - 20) ? altoEst : 30); titulo(tituloT);
+      var opts = estiloTabla(conDias); opts.head = head; opts.body = body; opts.startY = y;
+      doc.autoTable(opts);
+      y = doc.lastAutoTable.finalY + 8;
+    };
+
+    tabla('Detalle por turno', cabecera('Turno', false), st.turnos.map(function(x, i){ return fila('Turno ' + (i + 1), x); }).concat([fila('TOTAL', t)]), false);
+    if (e.esAnual) {
+      var ms = mesesDelAnio(e.anio);
+      tabla('Detalle por mes — ' + e.anio, cabecera('Mes', true), ms.map(function(m){ var s = statsDe(m.fechas); return fila(m.label.split(' ')[0], s.tot, s.dias); }).concat([fila('TOTAL ' + e.anio, t, st.dias)]), true);
+      if (document.getElementById('estIncluirDetalle').checked) {
+        tabla('Anexo — Detalle por día', cabecera('Fecha', false), st.porDia.map(function(d){ return fila(fmtFecha(d.fecha), d.t); }).concat([fila('TOTAL AÑO', t)]), false);
+      }
+    } else {
+      tabla('Detalle por día — ' + e.label, cabecera('Fecha', false), st.porDia.map(function(d){ return fila(fmtFecha(d.fecha), d.t); }).concat([fila('TOTAL MES', t)]), false);
+    }
+
+    // 5) Acumulado histórico
+    if (st.acum) {
+      asegurar(34); titulo('Acumulado histórico al ' + fmtFecha(st.acumFecha));
+      var a = st.acum;
+      doc.autoTable({ head: [['Convocados', 'Presentes', 'Ausentes', 'Aprobados', 'Desaprobados', 'Fuego vivo', 'Virtual']], body: [[fmtNum(a.convocados), fmtNum(a.presentes), fmtNum(a.ausentes), fmtNum(a.aprobados), fmtNum(a.desaprobados), fmtNum(a.fuego_vivo), fmtNum(a.virtual)]],
+        startY: y, theme: 'grid', margin: { left: M, right: M, top: 18, bottom: 20 },
+        styles: { fontSize: 9, cellPadding: 2.4, halign: 'center', lineColor: [197, 202, 233], lineWidth: 0.2 },
+        headStyles: { fillColor: NAVY, textColor: 255 }, bodyStyles: { fillColor: [232, 234, 246], fontStyle: 'bold', textColor: NAVY } });
+      y = doc.lastAutoTable.finalY + 6;
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]);
+      doc.text('Valor histórico de la planilla al último día del período (no se recalcula a partir de los registros del sistema).', M, y);
+    }
+
+    // Encabezado de páginas interiores + pie con numeración
+    var total = doc.getNumberOfPages();
+    for (var p = 1; p <= total; p++) {
+      doc.setPage(p);
+      if (p > 1) {
+        doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]); doc.rect(0, 0, W, 11, 'F');
+        doc.setFillColor(AMARILLO[0], AMARILLO[1], AMARILLO[2]); doc.rect(0, 11, W, 0.9, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text('PEP', M, 7.2);
+        doc.setFont('helvetica', 'normal'); doc.text(tituloInforme + ' — ' + periodo, W - M, 7.2, { align: 'right' });
+      }
+      doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.line(M, H - 13, W - M, H - 13);
+      doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+      doc.text('PEP — División Tiro · Informe estadístico · Generado el ' + generado, M, H - 8.5);
+      doc.text('Página ' + p + ' de ' + total, W - M, H - 8.5, { align: 'right' });
+    }
+
+    var nombre = e.esAnual ? ('PEP_Informe_Anual_' + e.anio + '.pdf') : ('PEP_Informe_' + e.label.replace(/\s+/g, '_') + '.pdf');
+    doc.save(nombre);
   }
 
   // ============================================================
@@ -1425,6 +1895,8 @@
         document.getElementById('noData').style.display = 'block';
       }
       renderHistorial();
+      poblarSelectoresEstadisticas();
+      if (document.getElementById('pane-estadisticas').classList.contains('active')) renderEstadisticas();
     } catch (e) {
       console.error(e);
       alertShow('alertDash', 'error', 'Error al cargar los datos: ' + (e.message || e));
