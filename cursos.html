@@ -288,6 +288,10 @@
   .config-item:last-child { border-bottom: none; }
   .config-item span { flex: 1; }
 
+  .vh-badge { display:inline-block; border-radius:10px; padding:1px 8px; font-size:11px; font-weight:700; white-space:nowrap; }
+  .vh-ok { background:#e8f5e9; color:#2e7d32; }
+  .vh-pronto { background:#fff3e0; color:#e65100; }
+  .vh-vencido { background:#ffebee; color:#c62828; }
   .badge-nro { display:inline-block; background:#e3f2fd; color:#0277bd; border-radius:10px; padding:1px 8px; font-size:10px; font-weight:700; white-space:nowrap; }
 
   /* GENERAR TEXTO */
@@ -389,6 +393,10 @@
       <div class="form-group">
         <label class="form-label">Fecha hasta</label>
         <input type="date" id="edRegFechaHasta">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Válido hasta</label>
+        <input type="date" id="edRegValidoHasta">
       </div>
       <div class="form-group full">
         <label class="form-label">Observaciones</label>
@@ -595,6 +603,11 @@
           <div class="field-hint">Dejar vacío si el curso es de un solo día.</div>
         </div>
         <div class="form-group">
+          <label class="form-label">Válido hasta</label>
+          <input type="date" id="nValidoHasta">
+          <div class="field-hint">Opcional. Hasta cuándo vale la certificación (se aplica a todos).</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Usuario</label>
           <input type="text" id="nUsuario" placeholder="Quién registra">
         </div>
@@ -645,6 +658,16 @@
           <option value="Ausente">Ausente</option>
         </select>
       </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Vigencia</label>
+        <select id="fRegVigencia" onchange="recargarRegistros(true)">
+          <option value="">Todas</option>
+          <option value="vigente">Vigentes</option>
+          <option value="pronto">Vencen en 90 días</option>
+          <option value="vencido">Vencidos</option>
+          <option value="con">Con fecha "Válido hasta"</option>
+        </select>
+      </div>
       <div class="ctrl-group" style="flex:1; min-width:220px;">
         <label class="ctrl-label">Buscar (legajo, apellido, nombre)</label>
         <input type="text" id="fRegBuscar" oninput="debounceRegistros()">
@@ -653,7 +676,7 @@
     </div>
     <div class="table-card">
       <table>
-        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Curso</th><th>N° Curso</th><th>Fecha</th><th>Calificación</th><th class="action-col">Acciones</th></tr></thead>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Curso</th><th>N° Curso</th><th>Fecha</th><th>Válido hasta</th><th>Calificación</th><th class="action-col">Acciones</th></tr></thead>
         <tbody id="tbodyRegistros"></tbody>
       </table>
       <div class="no-data" id="registrosNoData" style="display:none;">
@@ -892,6 +915,15 @@
     if (!desde) return '—';
     if (!hasta || hasta === desde) return fmtFecha(desde);
     return fmtFecha(desde) + ' al ' + fmtFecha(hasta);
+  }
+  // "Válido hasta": verde = vigente, naranja = vence en los próximos 90 días, rojo = vencido.
+  function badgeValidoHasta(iso) {
+    if (!iso) return '—';
+    var hoy = isoDate(new Date());
+    var lim = new Date(); lim.setDate(lim.getDate() + 90);
+    var cls = iso < hoy ? 'vh-vencido' : (iso <= isoDate(lim) ? 'vh-pronto' : 'vh-ok');
+    var tit = iso < hoy ? 'Vencido' : (cls === 'vh-pronto' ? 'Vence en menos de 90 días' : 'Vigente');
+    return '<span class="vh-badge ' + cls + '" title="' + tit + '">' + fmtFecha(iso) + '</span>';
   }
   function fmtNum(n) { return Number(n || 0).toLocaleString('es-AR'); }
   function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
@@ -1257,6 +1289,7 @@
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'registros'); });
     document.getElementById('fRegCurso').value = curso;
     document.getElementById('fRegNroCurso').value = '';
+    document.getElementById('fRegVigencia').value = '';
     recargarRegistros(true);
   }
 
@@ -1265,6 +1298,7 @@
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === 'registros'); });
     document.getElementById('fRegCurso').value = '';
     document.getElementById('fRegNroCurso').value = '';
+    document.getElementById('fRegVigencia').value = '';
     document.getElementById('fRegCalificacion').value = calif;
     recargarRegistros(true);
   }
@@ -1579,6 +1613,7 @@
     var fechaHasta = document.getElementById('nFechaHasta').value || fecha;
     var usuario = str(document.getElementById('nUsuario').value);
     var nroCurso = str(document.getElementById('nNroCurso').value);
+    var validoHasta = document.getElementById('nValidoHasta').value || null;
     var observaciones = document.getElementById('nObservaciones').value || null;
 
     if (!curso || !fecha) { alertShow('topAlert', 'error', 'Completá curso y fecha.'); return; }
@@ -1601,7 +1636,7 @@
       var filas = aGuardar.map(function(p) {
         var g = str(p.sexo).toUpperCase();
         return {
-          curso: curso, nro_curso: nroCurso, calificacion: calificacion, fecha: fecha, fecha_hasta: fechaHasta, fecha_texto: fechaTexto,
+          curso: curso, nro_curso: nroCurso, calificacion: calificacion, fecha: fecha, fecha_hasta: fechaHasta, fecha_texto: fechaTexto, valido_hasta: validoHasta,
           usuario: usuario, observaciones: observaciones, dni: str(p.dni), genero: (g === 'M' || g === 'F') ? g : '',
           grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || ''
         };
@@ -1626,6 +1661,7 @@
     document.getElementById('nCalificacion').value = 'Pendiente';
     document.getElementById('nFecha').value = isoDate(new Date());
     document.getElementById('nFechaHasta').value = '';
+    document.getElementById('nValidoHasta').value = '';
     document.getElementById('nNroCurso').value = '';
     document.getElementById('nObservaciones').value = '';
     document.getElementById('nPersonalBusqueda').value = '';
@@ -1848,6 +1884,14 @@
       if (curso) q = q.eq('curso', curso);
       if (nroCurso) q = q.eq('nro_curso', nroCurso);
       if (calificacion) q = q.eq('calificacion', calificacion);
+      var vig = document.getElementById('fRegVigencia').value;
+      if (vig) {
+        var hoyIso = isoDate(new Date()), limD = new Date(); limD.setDate(limD.getDate() + 90); var limIso = isoDate(limD);
+        if (vig === 'con') q = q.not('valido_hasta', 'is', null);
+        else if (vig === 'vencido') q = q.lt('valido_hasta', hoyIso);
+        else if (vig === 'pronto') q = q.gte('valido_hasta', hoyIso).lte('valido_hasta', limIso);
+        else if (vig === 'vigente') q = q.gte('valido_hasta', hoyIso);
+      }
       if (buscar) {
         var b = buscar.replace(/[%_,]/g, '');
         q = q.or('lp.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%');
@@ -1865,7 +1909,7 @@
       document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
         var cls = r.calificacion === 'Aprobado' ? 'est-aprobado' : r.calificacion === 'Desaprobado' ? 'est-desaprobado' : r.calificacion === 'Ausente' ? 'est-ausente' : 'est-pendiente';
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
-          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+(r.nro_curso ? '<span class="badge-nro">'+esc(r.nro_curso)+'</span>' : '—')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+(r.nro_curso ? '<span class="badge-nro">'+esc(r.nro_curso)+'</span>' : '—')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td><td>'+badgeValidoHasta(r.valido_hasta)+'</td>' +
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.calificacion)+'" onchange="cambiarCalificacion(\''+r.id+'\',this.value,this)">' +
             CALIFICACIONES.map(function(e){ return '<option value="'+e+'"'+(e===r.calificacion?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
@@ -1945,6 +1989,7 @@
     document.getElementById('edRegCalificacion').value = r.calificacion || 'Pendiente';
     document.getElementById('edRegFecha').value = r.fecha || '';
     document.getElementById('edRegFechaHasta').value = (r.fecha_hasta && r.fecha_hasta !== r.fecha) ? r.fecha_hasta : '';
+    document.getElementById('edRegValidoHasta').value = r.valido_hasta || '';
     document.getElementById('edRegObservaciones').value = r.observaciones || '';
     document.getElementById('editarRegistroModal').classList.add('show');
   }
@@ -1960,7 +2005,7 @@
     var fechaHasta = document.getElementById('edRegFechaHasta').value || fecha;
     showLoading('Guardando cambios…');
     try {
-      // Solo se editan Curso/N° de curso/Calificación/Fecha/Observaciones — los datos de
+      // Solo se editan Curso/N° de curso/Calificación/Fecha/Válido hasta/Observaciones — los datos de
       // identidad (Grado/LP/Apellido/Nombre/Dependencia) no se tocan acá.
       var res = await supabaseClient.from('cursos').update({
         curso: curso,
@@ -1969,6 +2014,7 @@
         fecha: fecha,
         fecha_hasta: fechaHasta,
         fecha_texto: fmtRangoFechas(fecha, fechaHasta),
+        valido_hasta: document.getElementById('edRegValidoHasta').value || null,
         observaciones: document.getElementById('edRegObservaciones').value || null
       }).eq('id', editandoRegistroId);
       if (res.error) throw res.error;
@@ -2025,11 +2071,11 @@
       ws.addRow(['SISTEMA DE CURSOS — DIVISIÓN TIRO']);
       ws.addRow(['Fecha de emisión:', new Date().toLocaleDateString('es-AR')]);
       ws.addRow([]);
-      var headers = ['Curso','N° de curso','Grado','Legajo','DNI','Apellido','Nombre','Género','Dependencia','Fecha desde','Fecha hasta','Calificación','Usuario','Observaciones'];
+      var headers = ['Curso','N° de curso','Grado','Legajo','DNI','Apellido','Nombre','Género','Dependencia','Fecha desde','Fecha hasta','Válido hasta','Calificación','Usuario','Observaciones'];
       var headerRow = ws.addRow(headers);
       headerRow.font = { bold: true };
       all.forEach(function(r) {
-        ws.addRow([r.curso||'', r.nro_curso||'', r.grado||'', r.lp||'', r.dni||'', r.apellido||'', r.nombre||'', r.genero||'', r.dependencia||'', fmtFecha(r.fecha), fmtFecha(r.fecha_hasta), r.calificacion||'', r.usuario||'', r.observaciones||'']);
+        ws.addRow([r.curso||'', r.nro_curso||'', r.grado||'', r.lp||'', r.dni||'', r.apellido||'', r.nombre||'', r.genero||'', r.dependencia||'', fmtFecha(r.fecha), fmtFecha(r.fecha_hasta), r.valido_hasta ? fmtFecha(r.valido_hasta) : '', r.calificacion||'', r.usuario||'', r.observaciones||'']);
       });
       ws.columns.forEach(function(c){ c.width = 18; });
       var buffer = await wb.xlsx.writeBuffer();
