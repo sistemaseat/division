@@ -453,6 +453,18 @@
 
   <!-- ==================== ESTADÍSTICAS ==================== -->
   <div class="tab-pane" id="pane-estadisticas">
+    <div class="search-bar" style="border-left:4px solid var(--accent);">
+      <div class="ctrl-group">
+        <label class="ctrl-label">📄 Informe PDF — Año</label>
+        <select id="infAnio" onchange="infPoblarMeses()"></select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label">Período</label>
+        <select id="infMes" onchange="infActualizarBoton()"><option value="">— Todo el año —</option></select>
+      </div>
+      <button class="btn btn-danger" id="btnInformePdf" onclick="infExportar()" disabled>📄 Exportar informe PDF</button>
+      <span style="font-size:12px; color:var(--muted); max-width:340px;">Informe profesional por tipo de idoneidad (mensual o anual). Es independiente de los filtros de más abajo.</span>
+    </div>
     <div class="search-bar">
       <div class="ctrl-group">
         <label class="ctrl-label">Desde</label>
@@ -909,6 +921,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <script>
 
@@ -1270,6 +1284,21 @@
     if (_serieData) { renderEstadisticas(); renderRankingGrado(); } else { cargarEstadisticas(); }
   }
 
+  async function rpcPaginado(nombre, columnasOrden) {
+    var todo = [], desde = 0, paso = 1000;
+    while (true) {
+      var q = supabaseClient.rpc(nombre);
+      columnasOrden.forEach(function(c) { q = q.order(c, { ascending: true, nullsFirst: true }); });
+      var res = await q.range(desde, desde + paso - 1);
+      if (res.error) return { data: null, error: res.error };
+      var filas = res.data || [];
+      todo = todo.concat(filas);
+      if (filas.length < paso) break;
+      desde += paso;
+    }
+    return { data: todo, error: null };
+  }
+
   async function cargarEstadisticas() {
     showLoading('Cargando estadísticas…');
     try {
@@ -1277,14 +1306,18 @@
       // son pocas filas (agregadas por día, no por registro individual), y así
       // el filtro de Desde/Hasta y la Comparación interanual se recalculan del
       // lado del cliente sin volver a pedirle nada a Supabase.
+      // Supabase devuelve como máximo 1000 filas por consulta (también en rpc),
+      // y la serie por día/tipo/estado/sexo supera ese número: se pide por
+      // páginas con un orden fijo para no perder ni repetir filas.
       var [serieRes, gradoRes] = await Promise.all([
-        supabaseClient.rpc('idoneidades_stats_serie'),
-        supabaseClient.rpc('idoneidades_stats_grado')
+        rpcPaginado('idoneidades_stats_serie', ['fecha', 'tipo', 'estado', 'sexo']),
+        rpcPaginado('idoneidades_stats_grado', ['fecha', 'grado', 'estado'])
       ]);
       if (serieRes.error) throw serieRes.error;
       if (gradoRes.error) throw gradoRes.error;
       _serieData = serieRes.data || [];
       _rankingGradoData = gradoRes.data || [];
+      infPoblarSelectores();
       renderEstadisticas();
       renderRankingGrado();
     } catch (e) {
@@ -1561,6 +1594,397 @@
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  }
+
+  // ============================================================
+  // INFORME PDF (mensual / anual) — por tipo de idoneidad.
+  // Sale de las mismas series que ya usa la pestaña Estadísticas
+  // (_serieData y _rankingGradoData), pero es independiente de los
+  // filtros Desde/Hasta de arriba: se elige Año y, opcionalmente, Mes.
+  // Definiciones (las mismas de la pantalla): Tasa de aprobación =
+  // Aprobados / (Aprobados + Desaprobados); Ausentismo = Ausentes /
+  // Total. No incluye Reingreso NICE (se registra en otra tabla).
+  // ============================================================
+  var INF_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var INF_COLORES_TIPO = ['#1a237e','#0277bd','#00897b','#7cb342','#fb8c00','#8e24aa','#6d4c41','#546e7a'];
+
+  function infPct(a, b) { return b > 0 ? (a / b * 100) : 0; }
+  function infFmtPct(x) { return (Math.round(x * 10) / 10).toFixed(1).replace('.', ',') + '%'; }
+  function infVacio() { return { Total: 0, Pendiente: 0, Aprobado: 0, Desaprobado: 0, Ausente: 0 }; }
+  function infSumar(o, estado, n) { o.Total += n; if (o[estado] !== undefined) o[estado] += n; }
+  function infTasaAprob(o) { return infPct(o.Aprobado, o.Aprobado + o.Desaprobado); }
+  function infTasaAus(o) { return infPct(o.Ausente, o.Total); }
+  function infTipoCorto(t) { return String(t).replace(/^Idoneidad\s+/i, ''); }
+  function infFechaFmt(iso) { var p = String(iso).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function infUltimoDia(anio, mes) { return new Date(Number(anio), Number(mes), 0).getDate(); }
+
+  function infAniosDisponibles() {
+    var set = {};
+    (_serieData || []).forEach(function(r) { if (r.fecha) set[String(r.fecha).slice(0, 4)] = true; });
+    return Object.keys(set).sort();
+  }
+  function infMesesDelAnio(anio) {
+    var set = {};
+    (_serieData || []).forEach(function(r) { if (r.fecha && String(r.fecha).slice(0, 4) === String(anio)) set[String(r.fecha).slice(5, 7)] = true; });
+    return Object.keys(set).sort();
+  }
+
+  function infPoblarSelectores() {
+    var selA = document.getElementById('infAnio');
+    if (!selA) return;
+    var previo = selA.value;
+    var anios = infAniosDisponibles();
+    selA.innerHTML = anios.map(function(y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+    if (anios.indexOf(previo) !== -1) selA.value = previo; else if (anios.length) selA.value = anios[anios.length - 1];
+    infPoblarMeses();
+  }
+  function infPoblarMeses() {
+    var selM = document.getElementById('infMes');
+    var previo = selM.value;
+    var anio = document.getElementById('infAnio').value;
+    var meses = infMesesDelAnio(anio);
+    selM.innerHTML = '<option value="">— Todo el año —</option>' + meses.map(function(m) { return '<option value="' + m + '">' + INF_MESES[Number(m) - 1] + ' ' + anio + '</option>'; }).join('');
+    if (previo && meses.indexOf(previo) !== -1) selM.value = previo;
+    infActualizarBoton();
+  }
+  function infActualizarBoton() {
+    var anio = document.getElementById('infAnio').value;
+    var mes = document.getElementById('infMes').value;
+    var btn = document.getElementById('btnInformePdf');
+    btn.disabled = !anio;
+    btn.textContent = !anio ? '📄 Exportar informe PDF' : ('📄 Exportar informe PDF — ' + (mes ? INF_MESES[Number(mes) - 1] + ' ' + anio : 'todo ' + anio));
+  }
+
+  // Reúne todo lo que necesita el informe para un período.
+  function infArmarDatos(anio, mes) {
+    var esAnual = !mes;
+    var desde = esAnual ? (anio + '-01-01') : (anio + '-' + mes + '-01');
+    var hasta = esAnual ? (anio + '-12-31') : (anio + '-' + mes + '-' + String(infUltimoDia(anio, mes)).padStart(2, '0'));
+    var d = { esAnual: esAnual, anio: anio, mes: mes, desde: desde, hasta: hasta,
+              label: esAnual ? ('Año ' + anio) : (INF_MESES[Number(mes) - 1] + ' ' + anio),
+              tot: infVacio(), porTipo: {}, tipos: [], porGenero: { M: infVacio(), F: infVacio(), 'Sin dato': infVacio() },
+              buckets: {}, grados: [], primera: null, ultima: null };
+    var tiposVistos = {};
+    (_serieData || []).forEach(function(r) {
+      if (!r.fecha || r.fecha < desde || r.fecha > hasta) return;
+      var n = Number(r.total || 0), tipo = r.tipo || '(Sin tipo)';
+      infSumar(d.tot, r.estado, n);
+      if (!d.porTipo[tipo]) d.porTipo[tipo] = infVacio();
+      infSumar(d.porTipo[tipo], r.estado, n);
+      tiposVistos[tipo] = true;
+      infSumar(d.porGenero[r.sexo === 'M' ? 'M' : (r.sexo === 'F' ? 'F' : 'Sin dato')], r.estado, n);
+      var key = esAnual ? r.fecha.slice(0, 7) : r.fecha;
+      if (!d.buckets[key]) { d.buckets[key] = infVacio(); d.buckets[key].tipos = {}; }
+      infSumar(d.buckets[key], r.estado, n);
+      d.buckets[key].tipos[tipo] = (d.buckets[key].tipos[tipo] || 0) + n;
+      if (!d.primera || r.fecha < d.primera) d.primera = r.fecha;
+      if (!d.ultima || r.fecha > d.ultima) d.ultima = r.fecha;
+    });
+    // Orden de los tipos: primero los conocidos (en su orden), después cualquier otro que aparezca.
+    d.tipos = TIPOS.filter(function(t) { return tiposVistos[t]; }).concat(Object.keys(tiposVistos).filter(function(t) { return TIPOS.indexOf(t) === -1; }).sort());
+    d.bucketKeys = Object.keys(d.buckets).sort();
+    var porGrado = {};
+    (_rankingGradoData || []).forEach(function(r) {
+      if (!r.fecha || r.fecha < desde || r.fecha > hasta) return;
+      var g = r.grado || '(Sin grado)';
+      if (!porGrado[g]) porGrado[g] = infVacio();
+      infSumar(porGrado[g], r.estado, Number(r.total || 0));
+    });
+    d.grados = Object.keys(porGrado).map(function(g) { var o = porGrado[g]; o.grado = g; return o; }).sort(function(a, b) { return b.Total - a.Total; });
+
+    // Período de comparación: mes anterior (informe mensual) o mismo tramo del año anterior (anual).
+    var cDesde, cHasta, cLabel;
+    if (esAnual) {
+      var anioAnt = String(Number(anio) - 1);
+      var hoy = isoDate(new Date());
+      cDesde = anioAnt + '-01-01';
+      cHasta = (hoy < hasta && hoy >= desde) ? (anioAnt + hoy.slice(4)) : (anioAnt + '-12-31');
+      cLabel = anioAnt + (cHasta.slice(5) !== '12-31' ? ' (hasta el ' + cHasta.slice(8) + '/' + cHasta.slice(5, 7) + ')' : '');
+    } else {
+      var m0 = Number(mes) - 1, a0 = Number(anio);
+      if (m0 === 0) { m0 = 12; a0 -= 1; }
+      var mm = String(m0).padStart(2, '0');
+      cDesde = a0 + '-' + mm + '-01'; cHasta = a0 + '-' + mm + '-' + String(infUltimoDia(a0, m0)).padStart(2, '0');
+      cLabel = INF_MESES[m0 - 1] + ' ' + a0;
+    }
+    d.comp = { tot: infVacio(), label: cLabel };
+    (_serieData || []).forEach(function(r) { if (r.fecha && r.fecha >= cDesde && r.fecha <= cHasta) infSumar(d.comp.tot, r.estado, Number(r.total || 0)); });
+    return d;
+  }
+
+  function infConclusiones(d) {
+    var t = d.tot, out = [];
+    var per = d.esAnual ? ('el año ' + d.anio) : (INF_MESES[Number(d.mes) - 1].toLowerCase() + ' de ' + d.anio);
+    out.push('Durante ' + per + ' se registraron ' + fmtNum(t.Total) + ' evaluaciones de idoneidad en ' + d.tipos.length + (d.tipos.length === 1 ? ' tipo' : ' tipos') + ': ' + fmtNum(t.Aprobado) + ' aprobadas (' + infFmtPct(infPct(t.Aprobado, t.Total)) + '), ' + fmtNum(t.Desaprobado) + ' desaprobadas (' + infFmtPct(infPct(t.Desaprobado, t.Total)) + '), ' + fmtNum(t.Ausente) + ' ausencias (' + infFmtPct(infTasaAus(t)) + ') y ' + fmtNum(t.Pendiente) + ' pendientes.');
+    out.push('Sobre las evaluaciones efectivamente rendidas (aprobadas + desaprobadas), la tasa de aprobación fue de ' + infFmtPct(infTasaAprob(t)) + '.');
+    if (d.tipos.length > 1) {
+      var masEval = d.tipos.reduce(function(a, b) { return d.porTipo[b].Total > d.porTipo[a].Total ? b : a; });
+      out.push('El tipo con más evaluaciones fue ' + infTipoCorto(masEval) + ' (' + fmtNum(d.porTipo[masEval].Total) + ', ' + infFmtPct(infPct(d.porTipo[masEval].Total, t.Total)) + ' del total).');
+      var conDec = d.tipos.filter(function(x) { return d.porTipo[x].Aprobado + d.porTipo[x].Desaprobado >= 5; });
+      if (conDec.length > 1) {
+        var mejor = conDec.reduce(function(a, b) { return infTasaAprob(d.porTipo[b]) > infTasaAprob(d.porTipo[a]) ? b : a; });
+        var peor = conDec.reduce(function(a, b) { return infTasaAprob(d.porTipo[b]) < infTasaAprob(d.porTipo[a]) ? b : a; });
+        if (mejor !== peor) out.push('La mayor tasa de aprobación se dio en ' + infTipoCorto(mejor) + ' (' + infFmtPct(infTasaAprob(d.porTipo[mejor])) + ') y la menor en ' + infTipoCorto(peor) + ' (' + infFmtPct(infTasaAprob(d.porTipo[peor])) + '), considerando los tipos con al menos 5 evaluaciones rendidas.');
+      }
+      var conTot = d.tipos.filter(function(x) { return d.porTipo[x].Total >= 5; });
+      if (conTot.length > 1) {
+        var masAus = conTot.reduce(function(a, b) { return infTasaAus(d.porTipo[b]) > infTasaAus(d.porTipo[a]) ? b : a; });
+        if (d.porTipo[masAus].Ausente > 0) out.push('El mayor ausentismo se observó en ' + infTipoCorto(masAus) + ' (' + infFmtPct(infTasaAus(d.porTipo[masAus])) + ' de sus convocatorias).');
+      }
+    }
+    if (d.bucketKeys.length > 1) {
+      var kMax = d.bucketKeys.reduce(function(a, b) { return d.buckets[b].Total > d.buckets[a].Total ? b : a; });
+      if (d.esAnual) {
+        var mMax = INF_MESES[Number(kMax.slice(5)) - 1];
+        var conDecM = d.bucketKeys.filter(function(k) { return d.buckets[k].Aprobado + d.buckets[k].Desaprobado >= 5; });
+        var txt = 'El mes de mayor actividad fue ' + mMax + ' (' + fmtNum(d.buckets[kMax].Total) + ' evaluaciones)';
+        if (conDecM.length > 1) {
+          var kMej = conDecM.reduce(function(a, b) { return infTasaAprob(d.buckets[b]) > infTasaAprob(d.buckets[a]) ? b : a; });
+          var kPeor = conDecM.reduce(function(a, b) { return infTasaAprob(d.buckets[b]) < infTasaAprob(d.buckets[a]) ? b : a; });
+          if (kMej !== kPeor) txt += '; la mejor tasa de aprobación se registró en ' + INF_MESES[Number(kMej.slice(5)) - 1] + ' (' + infFmtPct(infTasaAprob(d.buckets[kMej])) + ') y la menor en ' + INF_MESES[Number(kPeor.slice(5)) - 1] + ' (' + infFmtPct(infTasaAprob(d.buckets[kPeor])) + ')';
+        }
+        out.push(txt + '.');
+      } else {
+        out.push('El día de mayor actividad fue el ' + infFechaFmt(kMax) + ' (' + fmtNum(d.buckets[kMax].Total) + ' evaluaciones), sobre ' + d.bucketKeys.length + ' jornadas con registros.');
+      }
+    }
+    var ct = d.comp.tot;
+    if (ct.Total > 0) {
+      var dv = (t.Total - ct.Total) / ct.Total * 100;
+      var dA = infTasaAprob(t) - infTasaAprob(ct);
+      out.push('Respecto de ' + (d.esAnual ? 'igual tramo de ' : '') + d.comp.label + ' (' + fmtNum(ct.Total) + ' evaluaciones), el total ' + (Math.abs(dv) < 0.05 ? 'se mantuvo igual' : (dv > 0 ? 'creció ' : 'bajó ') + infFmtPct(Math.abs(dv))) + ' y la tasa de aprobación ' + (Math.abs(dA) < 0.05 ? 'se mantuvo igual' : (dA > 0 ? 'subió ' : 'bajó ') + infFmtPct(Math.abs(dA)).replace('%', '') + ' puntos porcentuales') + ' (de ' + infFmtPct(infTasaAprob(ct)) + ' a ' + infFmtPct(infTasaAprob(t)) + ').');
+    }
+    var conSexo = d.porGenero.M.Total + d.porGenero.F.Total;
+    if (conSexo > 0 && d.porGenero.M.Total > 0 && d.porGenero.F.Total > 0) {
+      out.push('Por género (sobre los registros que se pudieron cruzar con Nómina General), la tasa de aprobación fue de ' + infFmtPct(infTasaAprob(d.porGenero.M)) + ' en masculino y ' + infFmtPct(infTasaAprob(d.porGenero.F)) + ' en femenino.');
+    }
+    return out;
+  }
+
+  function infExportar() {
+    var anio = document.getElementById('infAnio').value, mes = document.getElementById('infMes').value;
+    if (!anio || !_serieData) { alertShow('topAlert', 'error', 'Todavía no hay datos de estadísticas cargados.'); return; }
+    if (!window.jspdf || !window.jspdf.jsPDF) { alertShow('topAlert', 'error', 'No se pudo cargar la librería de PDF. Revisá tu conexión y probá de nuevo.'); return; }
+    var d = infArmarDatos(anio, mes);
+    if (!d.tot.Total) { alertShow('topAlert', 'error', 'No hay evaluaciones registradas en ese período.'); return; }
+    showLoading('Armando el informe PDF…');
+    setTimeout(function() {
+      try { infGenerarPDF(d); alertShow('topAlert', 'success', 'Informe PDF generado.'); }
+      catch (err) { console.error(err); alertShow('topAlert', 'error', 'No se pudo generar el PDF: ' + (err.message || err)); }
+      finally { hideLoading(); }
+    }, 60);
+  }
+
+  // Gráficos "fuera de pantalla" para el PDF (no tocan los de la pestaña).
+  function infGrafico(config, w, h) {
+    var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    config.options = config.options || {};
+    config.options.responsive = false; config.options.animation = false; config.options.devicePixelRatio = 2;
+    config.plugins = [{ id: 'fondoBlanco', beforeDraw: function(ch) { var c = ch.ctx; c.save(); c.globalCompositeOperation = 'destination-over'; c.fillStyle = '#ffffff'; c.fillRect(0, 0, ch.width, ch.height); c.restore(); } }];
+    var ch = new Chart(cv, config);
+    var img = cv.toDataURL('image/jpeg', 0.92), ratio = cv.height / cv.width;
+    ch.destroy();
+    return { data: img, r: ratio };
+  }
+
+  function infGenerarPDF(d) {
+    var t = d.tot;
+    var W = 210, H = 297, M = 14, CW = W - 2 * M, PIE = H - 16;
+    var NAVY = [26, 35, 126], AMARILLO = [255, 214, 0], GRIS = [117, 117, 117], TEXTO = [33, 33, 33];
+    var doc = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+    var tituloInforme = d.esAnual ? 'INFORME ESTADÍSTICO ANUAL' : 'INFORME ESTADÍSTICO MENSUAL';
+    var ahora = new Date();
+    var generado = ahora.toLocaleDateString('es-AR') + ' ' + ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+    // Encabezado de portada
+    doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]); doc.rect(0, 0, W, 38, 'F');
+    doc.setFillColor(AMARILLO[0], AMARILLO[1], AMARILLO[2]); doc.rect(0, 38, W, 1.8, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.text('IDONEIDADES', M, 19);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('DIVISIÓN TIRO', M, 27);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(tituloInforme, W - M, 15, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.text(d.label, W - M, 23, { align: 'right' });
+    doc.setFontSize(8.5); doc.setTextColor(210, 214, 240);
+    if (d.primera) doc.text('Del ' + infFechaFmt(d.primera) + ' al ' + infFechaFmt(d.ultima), W - M, 29.5, { align: 'right' });
+    doc.text('Generado el ' + generado, W - M, 34, { align: 'right' });
+
+    var y = 50;
+    var nuevaPagina = function() { doc.addPage(); y = 20; };
+    var asegurar = function(alto) { if (y + alto > PIE) nuevaPagina(); };
+    var titulo = function(txt) {
+      asegurar(14);
+      doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.text(txt.toUpperCase(), M, y);
+      doc.setDrawColor(AMARILLO[0], AMARILLO[1], AMARILLO[2]); doc.setLineWidth(0.7); doc.line(M, y + 1.8, M + 22, y + 1.8);
+      doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.line(M + 22, y + 1.8, W - M, y + 1.8);
+      y += 8;
+    };
+
+    // 1) Resumen
+    titulo('Resumen del período');
+    var kpis = [
+      ['TOTAL EVALUACIONES', fmtNum(t.Total), d.tipos.length + (d.tipos.length === 1 ? ' tipo de idoneidad' : ' tipos de idoneidad'), [2, 119, 189]],
+      ['APROBADAS', fmtNum(t.Aprobado), infFmtPct(infPct(t.Aprobado, t.Total)) + ' del total', [76, 175, 80]],
+      ['DESAPROBADAS', fmtNum(t.Desaprobado), infFmtPct(infPct(t.Desaprobado, t.Total)) + ' del total', [239, 83, 80]],
+      ['AUSENTES', fmtNum(t.Ausente), infFmtPct(infTasaAus(t)) + ' del total', [230, 81, 0]],
+      ['PENDIENTES', fmtNum(t.Pendiente), 'sin resultado cargado', [106, 27, 154]],
+      ['TASA DE APROBACIÓN', infFmtPct(infTasaAprob(t)), 'aprob. / (aprob. + desaprob.)', [46, 125, 50]],
+      ['AUSENTISMO', infFmtPct(infTasaAus(t)), 'ausentes / total', [230, 81, 0]],
+      [d.esAnual ? 'PROM. MENSUAL' : 'PROM. POR JORNADA', d.bucketKeys.length ? fmtNum(Math.round(t.Total / d.bucketKeys.length)) : '0', d.bucketKeys.length + (d.esAnual ? ' meses con registros' : ' jornadas con registros'), [0, 105, 92]]
+    ];
+    var gap = 3, kw = (CW - 3 * gap) / 4, kh = 22;
+    kpis.forEach(function(k, i) {
+      var cx = M + (i % 4) * (kw + gap), cy = y + Math.floor(i / 4) * (kh + gap);
+      doc.setFillColor(245, 247, 250); doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.roundedRect(cx, cy, kw, kh, 1.5, 1.5, 'FD');
+      doc.setFillColor(k[3][0], k[3][1], k[3][2]); doc.rect(cx, cy + 1, 1.3, kh - 2, 'F');
+      doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.6); doc.text(k[0], cx + 3.8, cy + 5.2);
+      doc.setTextColor(TEXTO[0], TEXTO[1], TEXTO[2]); doc.setFontSize(17); doc.text(k[1], cx + 3.8, cy + 13.4);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]); doc.setFontSize(6.4);
+      doc.text(doc.splitTextToSize(k[2], kw - 5.5).slice(0, 2), cx + 3.8, cy + 18);
+    });
+    y += 2 * kh + gap + 8;
+
+    // 2) Lectura
+    titulo('Lectura del período');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(TEXTO[0], TEXTO[1], TEXTO[2]);
+    infConclusiones(d).forEach(function(p) {
+      var lineas = doc.splitTextToSize(p, CW - 6);
+      asegurar(lineas.length * 4.6 + 2);
+      doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]); doc.circle(M + 1.2, y - 1.1, 0.7, 'F');
+      doc.text(lineas, M + 5, y);
+      y += lineas.length * 4.6 + 1.8;
+    });
+    y += 4;
+
+    // 3) Gráficos
+    var saveFont = Chart.defaults.font.size; Chart.defaults.font.size = 13;
+    var COLOR_E = { Aprobado: '#4caf50', Desaprobado: '#ef5350', Ausente: '#e65100', Pendiente: '#8e24aa' };
+    var graficos = {};
+    try {
+      // Por tipo, apilado por estado (barras horizontales)
+      graficos.tipo = infGrafico({ type: 'bar', data: { labels: d.tipos.map(infTipoCorto), datasets: ['Aprobado', 'Desaprobado', 'Ausente', 'Pendiente'].map(function(e) {
+        return { label: e === 'Aprobado' ? 'Aprobadas' : e === 'Desaprobado' ? 'Desaprobadas' : e === 'Ausente' ? 'Ausentes' : 'Pendientes', backgroundColor: COLOR_E[e], data: d.tipos.map(function(x) { return d.porTipo[x][e]; }) };
+      }) }, options: { indexAxis: 'y', plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }, y: { stacked: true, grid: { display: false } } } } }, 1000, Math.max(300, 120 + d.tipos.length * 52));
+      // Evolución por estado
+      var etiq = d.bucketKeys.map(function(k) { return d.esAnual ? INF_MESES[Number(k.slice(5)) - 1].slice(0, 3) : k.slice(8) + '/' + k.slice(5, 7); });
+      graficos.evol = infGrafico({ type: 'bar', data: { labels: etiq, datasets: ['Aprobado', 'Desaprobado', 'Ausente', 'Pendiente'].map(function(e) {
+        return { label: e === 'Aprobado' ? 'Aprobadas' : e === 'Desaprobado' ? 'Desaprobadas' : e === 'Ausente' ? 'Ausentes' : 'Pendientes', backgroundColor: COLOR_E[e], data: d.bucketKeys.map(function(k) { return d.buckets[k][e]; }) };
+      }) }, options: { plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true, grid: { display: false }, ticks: { maxTicksLimit: 20 } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } } }, 1000, 400);
+      // Evolución por tipo
+      graficos.evolTipo = infGrafico({ type: 'bar', data: { labels: etiq, datasets: d.tipos.map(function(x, i) {
+        return { label: infTipoCorto(x), backgroundColor: INF_COLORES_TIPO[i % INF_COLORES_TIPO.length], data: d.bucketKeys.map(function(k) { return d.buckets[k].tipos[x] || 0; }) };
+      }) }, options: { plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true, grid: { display: false }, ticks: { maxTicksLimit: 20 } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } } }, 1000, 400);
+      // Tasas
+      graficos.tasas = infGrafico({ type: 'line', data: { labels: etiq, datasets: [
+        { label: 'Tasa de aprobación', borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,.1)', spanGaps: true, tension: .25, pointRadius: 3, data: d.bucketKeys.map(function(k) { var b = d.buckets[k]; return (b.Aprobado + b.Desaprobado) ? Math.round(infTasaAprob(b) * 10) / 10 : null; }) },
+        { label: 'Ausentismo', borderColor: '#e65100', backgroundColor: 'rgba(230,81,0,.1)', spanGaps: true, tension: .25, pointRadius: 3, data: d.bucketKeys.map(function(k) { var b = d.buckets[k]; return b.Total ? Math.round(infTasaAus(b) * 10) / 10 : null; }) } ] },
+        options: { plugins: { legend: { position: 'top' } }, scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20 } }, y: { min: 0, max: 100, ticks: { callback: function(v) { return v + '%'; } } } } } }, 1000, 380);
+      // Dona de resultados
+      graficos.dona = infGrafico({ type: 'doughnut', data: { labels: ['Aprobadas', 'Desaprobadas', 'Ausentes', 'Pendientes'], datasets: [{ data: [t.Aprobado, t.Desaprobado, t.Ausente, t.Pendiente], backgroundColor: [COLOR_E.Aprobado, COLOR_E.Desaprobado, COLOR_E.Ausente, COLOR_E.Pendiente], borderWidth: 0 }] },
+        options: { cutout: '60%', plugins: { legend: { position: 'bottom' } } } }, 520, 460);
+      // Género
+      graficos.genero = infGrafico({ type: 'bar', data: { labels: ['Masculino', 'Femenino', 'Sin dato'], datasets: ['Aprobado', 'Desaprobado', 'Ausente', 'Pendiente'].map(function(e) {
+        return { label: e === 'Aprobado' ? 'Aprobadas' : e === 'Desaprobado' ? 'Desaprobadas' : e === 'Ausente' ? 'Ausentes' : 'Pendientes', backgroundColor: COLOR_E[e], data: ['M', 'F', 'Sin dato'].map(function(g) { return d.porGenero[g][e]; }) };
+      }) }, options: { plugins: { legend: { position: 'bottom' } }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } } }, 520, 460);
+    } finally { Chart.defaults.font.size = saveFont; }
+
+    var ponerGrafico = function(g, tituloG, ancho, x0, alturaMax) {
+      var h = Math.min(ancho * g.r, alturaMax || 70), w = h / g.r;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(TEXTO[0], TEXTO[1], TEXTO[2]); doc.text(tituloG, x0, y);
+      doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.rect(x0, y + 2, ancho, h + 2);
+      doc.addImage(g.data, 'JPEG', x0 + (ancho - w) / 2, y + 3, w, h, undefined, 'FAST');
+      return h + 8;
+    };
+    var porBucket = d.esAnual ? 'por mes' : 'por día';
+    var hTipo = Math.min(CW * graficos.tipo.r, 70);
+    asegurar(hTipo + 24); titulo('Idoneidades por tipo');
+    y += ponerGrafico(graficos.tipo, 'Evaluaciones por tipo y resultado', CW, M, 70) + 2;
+    asegurar(90); titulo('Evolución ' + (d.esAnual ? 'mensual' : 'diaria'));
+    y += ponerGrafico(graficos.evol, 'Resultados ' + porBucket, CW, M, 62) + 2;
+    asegurar(75); y += ponerGrafico(graficos.evolTipo, 'Evaluaciones por tipo ' + porBucket, CW, M, 62) + 2;
+    asegurar(75); y += ponerGrafico(graficos.tasas, 'Tasa de aprobación y ausentismo ' + porBucket + ' (%)', CW, M, 60) + 2;
+    asegurar(95); titulo('Distribución de resultados');
+    var mitad = (CW - 6) / 2, y0 = y;
+    var h1 = ponerGrafico(graficos.dona, 'Resultados del período', mitad, M, 64);
+    y = y0;
+    var h2 = ponerGrafico(graficos.genero, 'Por género (cruce con Nómina General)', mitad, M + mitad + 6, 64);
+    y = y0 + Math.max(h1, h2) + 2;
+
+    // 4) Tablas
+    var cabecera = function(primera) { return [[primera, 'Total', 'Aprob.', 'Desaprob.', 'Ausentes', 'Pend.', '% Aprob.', '% Ausent.']]; };
+    var fila = function(lbl, o) { return [lbl, fmtNum(o.Total), fmtNum(o.Aprobado), fmtNum(o.Desaprobado), fmtNum(o.Ausente), fmtNum(o.Pendiente), infFmtPct(infTasaAprob(o)), infFmtPct(infTasaAus(o))]; };
+    var estilo = function() {
+      return { theme: 'grid', margin: { left: M, right: M, top: 18, bottom: 20 },
+        styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.8, halign: 'center', lineColor: [224, 224, 224], lineWidth: 0.2, textColor: TEXTO },
+        headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: { 0: { halign: 'left', fontStyle: 'bold', textColor: NAVY } },
+        alternateRowStyles: { fillColor: [250, 251, 253] },
+        didParseCell: function(x) { if (x.section === 'body' && String(x.row.raw[0]).indexOf('TOTAL') === 0) { x.cell.styles.fillColor = [255, 249, 196]; x.cell.styles.fontStyle = 'bold'; x.cell.styles.textColor = TEXTO; } } };
+    };
+    var tabla = function(tituloT, head, body, opcionesExtra) {
+      var altoEst = 10 + (body.length + 1) * 7;
+      asegurar(altoEst <= (PIE - 20) ? altoEst : 30); titulo(tituloT);
+      var o = estilo(); o.head = head; o.body = body; o.startY = y;
+      if (opcionesExtra) Object.keys(opcionesExtra).forEach(function(k) { o[k] = opcionesExtra[k]; });
+      doc.autoTable(o);
+      y = doc.lastAutoTable.finalY + 8;
+    };
+
+    tabla('Detalle por tipo de idoneidad', cabecera('Tipo'), d.tipos.map(function(x) { return fila(infTipoCorto(x), d.porTipo[x]); }).concat([fila('TOTAL', t)]));
+
+    if (d.esAnual) {
+      tabla('Detalle por mes — ' + d.anio, cabecera('Mes'), d.bucketKeys.map(function(k) { return fila(INF_MESES[Number(k.slice(5)) - 1], d.buckets[k]); }).concat([fila('TOTAL ' + d.anio, t)]));
+      // Matriz mes x tipo (cantidad de evaluaciones)
+      var headM = [['Mes'].concat(d.tipos.map(infTipoCorto)).concat(['Total'])];
+      var bodyM = d.bucketKeys.map(function(k) { return [INF_MESES[Number(k.slice(5)) - 1]].concat(d.tipos.map(function(x) { return fmtNum(d.buckets[k].tipos[x] || 0); })).concat([fmtNum(d.buckets[k].Total)]); });
+      bodyM.push(['TOTAL ' + d.anio].concat(d.tipos.map(function(x) { return fmtNum(d.porTipo[x].Total); })).concat([fmtNum(t.Total)]));
+      tabla('Evaluaciones por tipo y mes', headM, bodyM, { styles: { font: 'helvetica', fontSize: d.tipos.length > 5 ? 7 : 8, cellPadding: 1.8, halign: 'center', lineColor: [224, 224, 224], lineWidth: 0.2, textColor: TEXTO } });
+    } else {
+      tabla('Detalle por día — ' + d.label, cabecera('Fecha'), d.bucketKeys.map(function(k) { return fila(infFechaFmt(k), d.buckets[k]); }).concat([fila('TOTAL MES', t)]));
+    }
+
+    // Comparación
+    if (d.comp.tot.Total > 0) {
+      var c = d.comp.tot;
+      var vari = function(a, b) { return b ? ((a - b) / b >= 0 ? '+' : '') + infFmtPct((a - b) / b * 100).replace('.', ',') : '—'; };
+      var cmp = [['Total', t.Total, c.Total], ['Aprobadas', t.Aprobado, c.Aprobado], ['Desaprobadas', t.Desaprobado, c.Desaprobado], ['Ausentes', t.Ausente, c.Ausente], ['Pendientes', t.Pendiente, c.Pendiente]]
+        .map(function(r) { return [r[0], fmtNum(r[1]), fmtNum(r[2]), vari(r[1], r[2])]; });
+      cmp.push(['Tasa de aprobación', infFmtPct(infTasaAprob(t)), infFmtPct(infTasaAprob(c)), ((infTasaAprob(t) - infTasaAprob(c)) >= 0 ? '+' : '') + infFmtPct(infTasaAprob(t) - infTasaAprob(c)).replace('%', ' pp')]);
+      cmp.push(['Ausentismo', infFmtPct(infTasaAus(t)), infFmtPct(infTasaAus(c)), ((infTasaAus(t) - infTasaAus(c)) >= 0 ? '+' : '') + infFmtPct(infTasaAus(t) - infTasaAus(c)).replace('%', ' pp')]);
+      tabla('Comparación con ' + d.comp.label, [['Indicador', d.label, d.comp.label, 'Variación']], cmp);
+    }
+
+    // Ranking por grado (los 15 con más evaluaciones)
+    if (d.grados.length) {
+      var top = d.grados.slice(0, 15);
+      var resto = d.grados.slice(15);
+      var body = top.map(function(g) { return fila(g.grado, g); });
+      if (resto.length) { var o = infVacio(); resto.forEach(function(g) { ['Total', 'Pendiente', 'Aprobado', 'Desaprobado', 'Ausente'].forEach(function(k) { o[k] += g[k]; }); }); body.push(fila('Otros (' + resto.length + ' grados)', o)); }
+      tabla('Por grado' + (resto.length ? ' — los 15 con más evaluaciones' : ''), cabecera('Grado'), body);
+    }
+    // Género
+    var bodyG = [['Masculino', d.porGenero.M], ['Femenino', d.porGenero.F], ['Sin dato', d.porGenero['Sin dato']]].filter(function(r) { return r[1].Total > 0; }).map(function(r) { return fila(r[0], r[1]); });
+    if (bodyG.length) tabla('Por género', cabecera('Género'), bodyG);
+
+    asegurar(12);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]);
+    var nota = doc.splitTextToSize('Notas: la tasa de aprobación se calcula sobre aprobadas + desaprobadas; el ausentismo, sobre el total de evaluaciones. El grado es el que tenía la persona al rendir. El género se cruza por legajo con Nómina General (sin coincidencia: "Sin dato"). No incluye Reingreso NICE.', CW);
+    doc.text(nota, M, y);
+
+    // Encabezado interior + pie con numeración
+    var total = doc.getNumberOfPages();
+    for (var p = 1; p <= total; p++) {
+      doc.setPage(p);
+      if (p > 1) {
+        doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]); doc.rect(0, 0, W, 11, 'F');
+        doc.setFillColor(AMARILLO[0], AMARILLO[1], AMARILLO[2]); doc.rect(0, 11, W, 0.9, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text('IDONEIDADES', M, 7.2);
+        doc.setFont('helvetica', 'normal'); doc.text(tituloInforme + ' — ' + d.label, W - M, 7.2, { align: 'right' });
+      }
+      doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.2); doc.line(M, H - 13, W - M, H - 13);
+      doc.setTextColor(GRIS[0], GRIS[1], GRIS[2]); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+      doc.text('Idoneidades — División Tiro · Informe estadístico · Generado el ' + generado, M, H - 8.5);
+      doc.text('Página ' + p + ' de ' + total, W - M, H - 8.5, { align: 'right' });
+    }
+    doc.save(d.esAnual ? ('Idoneidades_Informe_Anual_' + d.anio + '.pdf') : ('Idoneidades_Informe_' + d.label.replace(/\s+/g, '_') + '.pdf'));
   }
 
   // ============================================================
