@@ -131,6 +131,7 @@
   .tipo-stat.desaprobado .ts-num { color: var(--red); }
   .tipo-stat.ausente .ts-num { color: var(--orange); }
   .tipo-stat.pendiente .ts-num { color: var(--purple); }
+  .tipo-stat.otros .ts-num { color: #546e7a; }
   .tipo-total { padding: 8px 16px 12px; font-size: 11px; color: var(--muted); text-align: right; }
   .tipo-total b { color: var(--primary); font-size: 13px; }
 
@@ -187,6 +188,7 @@
   select.est-aprobado    { border-color:var(--green); background-color:#e8f5e9; color:var(--green); }
   select.est-desaprobado { border-color:var(--red); background-color:#ffebee; color:var(--red); }
   select.est-ausente     { border-color:var(--orange); background-color:#fff8e1; color:var(--orange); }
+  select.est-otros       { border-color:#546e7a; background-color:#eceff1; color:#37474f; }
   select.estado-inline:disabled { opacity: .6; cursor: wait; }
 
   /* AUTOCOMPLETE */
@@ -384,6 +386,7 @@
           <option value="Aprobado">✓ Aprobado</option>
           <option value="Desaprobado">✗ Desaprobado</option>
           <option value="Ausente">– Ausente</option>
+          <option value="Otros">● Otros</option>
         </select>
       </div>
       <div class="form-group">
@@ -591,6 +594,7 @@
             <option value="Aprobado">✓ Aprobado</option>
             <option value="Desaprobado">✗ Desaprobado</option>
             <option value="Ausente">– Ausente</option>
+            <option value="Otros">● Otros</option>
           </select>
         </div>
         <div class="form-group">
@@ -656,6 +660,7 @@
           <option value="Aprobado">Aprobado</option>
           <option value="Desaprobado">Desaprobado</option>
           <option value="Ausente">Ausente</option>
+          <option value="Otros">Otros</option>
         </select>
       </div>
       <div class="ctrl-group">
@@ -708,6 +713,7 @@
           <option value="Aprobado">Aprobado</option>
           <option value="Desaprobado">Desaprobado</option>
           <option value="Ausente">Ausente</option>
+          <option value="Otros">Otros</option>
         </select>
       </div>
       <div class="ctrl-group"><label class="ctrl-label">Desde</label><input type="date" id="fExpDesde"></div>
@@ -875,7 +881,7 @@
   verificarMantenimientoSupabase();
 
 
-  var CALIFICACIONES = ['Pendiente','Aprobado','Desaprobado','Ausente'];
+  var CALIFICACIONES = ['Pendiente','Aprobado','Desaprobado','Ausente','Otros'];
   var CURSOS_DISPONIBLES = []; // nombres, cargados desde cursos_config
   var CURSOS_RESOLUCION = {};  // nombre -> resolucion (misma tabla cursos_config)
 
@@ -1230,12 +1236,12 @@
       var stats = statsRes.data || [];
       var total = 0, porCalif = {}, porCurso = {};
       CALIFICACIONES.forEach(function(e){ porCalif[e] = 0; });
-      CURSOS_DISPONIBLES.forEach(function(c){ porCurso[c] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 }; });
+      CURSOS_DISPONIBLES.forEach(function(c){ porCurso[c] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0, Otros:0 }; });
       stats.forEach(function(row) {
         var curso = row.curso, calif = row.calificacion, n = Number(row.total || 0);
         total += n;
         if (porCalif[calif] !== undefined) porCalif[calif] += n;
-        if (!porCurso[curso]) porCurso[curso] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+        if (!porCurso[curso]) porCurso[curso] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0, Otros:0 };
         if (porCurso[curso][calif] === undefined) porCurso[curso][calif] = 0;
         porCurso[curso][calif] += n;
       });
@@ -1245,6 +1251,7 @@
         { label: 'Aprobados', val: fmtNum(porCalif.Aprobado), c: 'green', calif: 'Aprobado' },
         { label: 'Desaprobados', val: fmtNum(porCalif.Desaprobado), c: 'red', calif: 'Desaprobado' },
         { label: 'Ausentes', val: fmtNum(porCalif.Ausente), c: 'orange', calif: 'Ausente' },
+        { label: 'Otros', val: fmtNum(porCalif.Otros), sub: 'sin calificación (ver observaciones)', c: 'gray', calif: 'Otros' },
         { label: 'Pendientes', val: fmtNum(porCalif.Pendiente), c: 'purple', calif: 'Pendiente' }
       ];
       document.getElementById('kpiGrid').innerHTML = kpis.map(function(k) {
@@ -1253,13 +1260,14 @@
 
       document.getElementById('tipoGrid').innerHTML = Object.keys(porCurso).map(function(c) {
         var s = porCurso[c];
-        var totalCurso = s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente;
+        var totalCurso = s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente + s.Otros;
         return '<div class="tipo-card" onclick="irARegistrosPorCurso(' + esc(JSON.stringify(c)) + ')">' +
           '<div class="tipo-card-header">'+esc(c)+'</div>' +
           '<div class="tipo-card-body">' +
             '<div class="tipo-stat aprobado"><div class="ts-num">'+s.Aprobado+'</div><div class="ts-label">Aprob.</div></div>' +
             '<div class="tipo-stat desaprobado"><div class="ts-num">'+s.Desaprobado+'</div><div class="ts-label">Desaprob.</div></div>' +
             '<div class="tipo-stat ausente"><div class="ts-num">'+s.Ausente+'</div><div class="ts-label">Ausente</div></div>' +
+            '<div class="tipo-stat otros"><div class="ts-num">'+s.Otros+'</div><div class="ts-label">Otros</div></div>' +
             '<div class="tipo-stat pendiente"><div class="ts-num">'+s.Pendiente+'</div><div class="ts-label">Pend.</div></div>' +
           '</div>' +
           '<div class="tipo-total">Total: <b>'+fmtNum(totalCurso)+'</b></div>' +
@@ -1313,7 +1321,7 @@
   var _serieData = null; // filas { fecha, curso, calificacion, genero, total } del rango cargado
   var _rankingGradoData = null; // filas { fecha, grado, calificacion, total }
   var _chartEstadoTiempo = null, _chartTipoEstado = null;
-  var COLOR_ESTADO = { Pendiente: '#6a1b9a', Aprobado: '#2e7d32', Desaprobado: '#c62828', Ausente: '#e65100' };
+  var COLOR_ESTADO = { Pendiente: '#6a1b9a', Aprobado: '#2e7d32', Desaprobado: '#c62828', Ausente: '#e65100', Otros: '#78909c' };
 
   function limpiarFiltrosEstadisticas() {
     document.getElementById('eDesde').value = '';
@@ -1384,9 +1392,9 @@
     var hasta = document.getElementById('eHasta').value || null;
 
     var totalGeneral = 0;
-    var porCalificacionGeneral = { Pendiente: 0, Aprobado: 0, Desaprobado: 0, Ausente: 0 };
+    var porCalificacionGeneral = { Pendiente: 0, Aprobado: 0, Desaprobado: 0, Ausente:0, Otros:0 };
     var porCursoCalif = {};
-    CURSOS_DISPONIBLES.forEach(function(c){ porCursoCalif[c] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 }; });
+    CURSOS_DISPONIBLES.forEach(function(c){ porCursoCalif[c] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0, Otros:0 }; });
     var buckets = {}; // key -> { label, Pendiente, Aprobado, Desaprobado, Ausente }
 
     _serieData.forEach(function(row) {
@@ -1394,12 +1402,12 @@
       var n = Number(row.total || 0);
       totalGeneral += n;
       if (porCalificacionGeneral[row.calificacion] !== undefined) porCalificacionGeneral[row.calificacion] += n;
-      if (!porCursoCalif[row.curso]) porCursoCalif[row.curso] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+      if (!porCursoCalif[row.curso]) porCursoCalif[row.curso] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0, Otros:0 };
       if (porCursoCalif[row.curso][row.calificacion] !== undefined) porCursoCalif[row.curso][row.calificacion] += n;
 
       if (cursoFiltro && row.curso !== cursoFiltro) return;
       var b = bucketDeFecha(row.fecha, gran);
-      if (!buckets[b.key]) buckets[b.key] = { label: b.label, Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+      if (!buckets[b.key]) buckets[b.key] = { label: b.label, Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0, Otros:0 };
       if (buckets[b.key][row.calificacion] !== undefined) buckets[b.key][row.calificacion] += n;
     });
 
@@ -1409,6 +1417,7 @@
       { label: 'Aprobados', val: porCalificacionGeneral.Aprobado, c: 'green' },
       { label: 'Desaprobados', val: porCalificacionGeneral.Desaprobado, c: 'red' },
       { label: 'Ausentes', val: porCalificacionGeneral.Ausente, c: 'orange' },
+      { label: 'Otros', val: porCalificacionGeneral.Otros, c: 'gray' },
       { label: 'Pendientes', val: porCalificacionGeneral.Pendiente, c: 'purple' }
     ].map(function(k) {
       return '<div class="kpi c-'+k.c+'"><div class="kpi-label">'+esc(k.label)+'</div><div class="kpi-val">'+fmtNum(k.val)+'</div></div>';
@@ -1440,7 +1449,7 @@
 
     var cursosConDatos = Object.keys(porCursoCalif).filter(function(c){
       var s = porCursoCalif[c];
-      return s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente > 0;
+      return s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente + s.Otros > 0;
     });
     if (_chartTipoEstado) _chartTipoEstado.destroy();
     var ctx2 = document.getElementById('chartTipoEstado').getContext('2d');
@@ -1470,14 +1479,14 @@
     _rankingGradoData.forEach(function(row) {
       if (!enRango(row.fecha, desde, hasta)) return;
       var g = row.grado || '(Sin grado)';
-      if (!porGrado[g]) porGrado[g] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0 };
+      if (!porGrado[g]) porGrado[g] = { Pendiente:0, Aprobado:0, Desaprobado:0, Ausente:0, Otros:0 };
       var n = Number(row.total || 0);
       if (porGrado[g][row.calificacion] !== undefined) porGrado[g][row.calificacion] += n;
     });
 
     var filas = Object.keys(porGrado).map(function(g) {
       var s = porGrado[g];
-      var total = s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente;
+      var total = s.Pendiente + s.Aprobado + s.Desaprobado + s.Ausente + s.Otros;
       var pctDesaprob = total ? (s.Desaprobado / total * 100) : 0;
       var pctAusente = total ? (s.Ausente / total * 100) : 0;
       return { grado: g, total: total, aprobado: s.Aprobado, desaprobado: s.Desaprobado, ausente: s.Ausente, pctDesaprob: pctDesaprob, pctAusente: pctAusente };
@@ -1907,7 +1916,7 @@
       document.getElementById('regCountPill').textContent = fmtNum(regTotal) + (regTotal === 1 ? ' registro' : ' registros');
       document.getElementById('registrosNoData').style.display = filas.length ? 'none' : 'block';
       document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
-        var cls = r.calificacion === 'Aprobado' ? 'est-aprobado' : r.calificacion === 'Desaprobado' ? 'est-desaprobado' : r.calificacion === 'Ausente' ? 'est-ausente' : 'est-pendiente';
+        var cls = r.calificacion === 'Aprobado' ? 'est-aprobado' : r.calificacion === 'Desaprobado' ? 'est-desaprobado' : r.calificacion === 'Ausente' ? 'est-ausente' : r.calificacion === 'Otros' ? 'est-otros' : 'est-pendiente';
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
           '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+(r.nro_curso ? '<span class="badge-nro">'+esc(r.nro_curso)+'</span>' : '—')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td><td>'+badgeValidoHasta(r.valido_hasta)+'</td>' +
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.calificacion)+'" onchange="cambiarCalificacion(\''+r.id+'\',this.value,this)">' +
@@ -1943,7 +1952,7 @@
     try {
       var res = await supabaseClient.from('cursos').update({ calificacion: nuevaCalificacion }).eq('id', id);
       if (res.error) throw res.error;
-      selectEl.className = 'estado-inline ' + (nuevaCalificacion === 'Aprobado' ? 'est-aprobado' : nuevaCalificacion === 'Desaprobado' ? 'est-desaprobado' : nuevaCalificacion === 'Ausente' ? 'est-ausente' : 'est-pendiente');
+      selectEl.className = 'estado-inline ' + (nuevaCalificacion === 'Aprobado' ? 'est-aprobado' : nuevaCalificacion === 'Desaprobado' ? 'est-desaprobado' : nuevaCalificacion === 'Ausente' ? 'est-ausente' : nuevaCalificacion === 'Otros' ? 'est-otros' : 'est-pendiente');
       selectEl.dataset.prev = nuevaCalificacion;
       alertShow('topAlert', 'success', '✅ Calificación actualizada.');
       cargarDashboard();
