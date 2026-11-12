@@ -306,9 +306,15 @@
     </div>
     <div class="search-bar">
       <div class="ctrl-group" style="flex:1; min-width:260px;">
-        <label class="ctrl-label">Buscar (legajo, apellido, nombre o DNI)</label>
+        <label class="ctrl-label">Buscar (legajo, apellido, nombre, DNI o dependencia)</label>
         <input type="text" id="fBuscar" oninput="debouncePadron()" placeholder="Escribí para buscar…">
       </div>
+      <div class="ctrl-group" style="flex:1; min-width:300px;">
+        <label class="ctrl-label">Filtrar por dependencia</label>
+        <input type="text" id="fDependencia" list="listaDependencias" oninput="debouncePadron()" onchange="debouncePadron()" placeholder="Todas — escribí para buscar o elegí de la lista" autocomplete="off">
+        <datalist id="listaDependencias"></datalist>
+      </div>
+      <button class="btn btn-ghost" onclick="limpiarFiltrosPadron()">Limpiar</button>
       <span class="count-pill" id="padronCountPill">0 registros</span>
     </div>
     <div class="table-card">
@@ -329,7 +335,7 @@
     <div class="search-bar">
       <div class="ctrl-group" style="min-width:220px;">
         <label class="ctrl-label">Vista</label>
-        <select id="fExpVista">
+        <select id="fExpVista" onchange="cargarDependencias(this.value, 'listaDependenciasExp')">
           <option value="all">Todo Actividad</option>
           <option value="dceissp">DCEISSP</option>
           <option value="tiro">Tiro</option>
@@ -339,7 +345,12 @@
       </div>
       <div class="ctrl-group" style="flex:1; min-width:220px;">
         <label class="ctrl-label">Buscar (opcional)</label>
-        <input type="text" id="fExpBuscar" placeholder="legajo, apellido, nombre o DNI">
+        <input type="text" id="fExpBuscar" placeholder="legajo, apellido, nombre, DNI o dependencia">
+      </div>
+      <div class="ctrl-group" style="flex:1; min-width:260px;">
+        <label class="ctrl-label">Dependencia (opcional)</label>
+        <input type="text" id="fExpDependencia" list="listaDependenciasExp" placeholder="Todas — escribí o elegí de la lista" autocomplete="off">
+        <datalist id="listaDependenciasExp"></datalist>
       </div>
       <button class="btn btn-success" onclick="exportarNominaExcel()">⬇️ Generar Excel</button>
     </div>
@@ -448,7 +459,8 @@
   function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === tab); });
     document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.id === 'pane-'+tab); });
-    if (tab === 'padron' && !document.getElementById('tbodyPadron').children.length) recargarPadron(true);
+    if (tab === 'padron' && !document.getElementById('tbodyPadron').children.length) { cargarDependencias(VISTA, 'listaDependencias'); recargarPadron(true); }
+    if (tab === 'exportar' && !_depPorLista['listaDependenciasExp']) cargarDependencias(document.getElementById('fExpVista').value, 'listaDependenciasExp');
   }
 
   // ============================================================
@@ -642,7 +654,52 @@
   function cambiarVista(v) {
     VISTA = v;
     document.querySelectorAll('.vista-chip').forEach(function(c){ c.classList.toggle('active', c.dataset.vista === v); });
+    document.getElementById('fDependencia').value = '';   // la lista de dependencias cambia con la vista
+    cargarDependencias(v, 'listaDependencias');
     recargarPadron(true);
+  }
+
+  function limpiarFiltrosPadron() {
+    document.getElementById('fBuscar').value = '';
+    document.getElementById('fDependencia').value = '';
+    recargarPadron(true);
+  }
+
+  // Lista de dependencias de la vista (con cantidad de personas) para el desplegable de
+  // "Filtrar por dependencia". Sale de la función nomina_dependencias() de Supabase; si todavía
+  // no se creó (nomina_dependencias.sql), el filtro igual funciona escribiendo parte del nombre.
+  var _depPorLista = {};   // id de datalist -> [nombres de dependencia]
+  async function cargarDependencias(vista, datalistId) {
+    var dl = document.getElementById(datalistId);
+    if (!dl) return;
+    try {
+      var res = await supabaseClient.rpc('nomina_dependencias', { p_vista: vista || '' });
+      if (res.error) throw res.error;
+      var filas = res.data || [];
+      _depPorLista[datalistId] = filas.map(function(r){ return r.dependencia; });
+      dl.innerHTML = filas.map(function(r) {
+        return '<option value="' + esc(r.dependencia) + '" label="' + esc(r.dependencia) + ' (' + fmtNum(r.total) + ')"></option>';
+      }).join('');
+    } catch (e) {
+      _depPorLista[datalistId] = [];
+      dl.innerHTML = '';
+      console.warn('No se pudo cargar la lista de dependencias (¿falta correr nomina_dependencias.sql?):', e.message || e);
+    }
+  }
+
+  // Dependencia elegida de la lista → coincidencia exacta; si se escribió solo una parte → contiene.
+  function aplicarFiltroDependencia(q, dep, datalistId) {
+    dep = str(dep);
+    if (!dep) return q;
+    if ((_depPorLista[datalistId] || []).indexOf(dep) !== -1) return q.eq('dependencia', dep);
+    return q.ilike('dependencia', '%' + dep.replace(/[%_]/g, '') + '%');
+  }
+
+  // Texto de búsqueda libre: legajo, apellido, nombre, DNI o dependencia.
+  function aplicarBusquedaTexto(q, buscar) {
+    var b = str(buscar).replace(/[%_,()]/g, '');
+    if (!b) return q;
+    return q.or('legajo.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%,dni.ilike.%'+b+'%,dependencia.ilike.%'+b+'%');
   }
 
   function debouncePadron() {
@@ -666,10 +723,8 @@
     try {
       var q = supabaseClient.from('nomina_general').select('legajo,grado,apellido,nombre,dni,dependencia', { count: 'exact' });
       q = aplicarFiltrosVista(q, VISTA);
-      if (buscar) {
-        var b = buscar.replace(/[%_,]/g, '');
-        q = q.or('legajo.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%,dni.ilike.%'+b+'%');
-      }
+      q = aplicarFiltroDependencia(q, document.getElementById('fDependencia').value, 'listaDependencias');
+      q = aplicarBusquedaTexto(q, buscar);
       var from = padPage * padPageSize, to = from + padPageSize - 1;
       q = q.order('apellido', { ascending: true }).order('nombre', { ascending: true }).range(from, to);
       var res = await q;
@@ -809,10 +864,8 @@
       while (true) {
         var q = supabaseClient.from('nomina_general').select('legajo,grado,apellido,nombre,dni,dependencia,dependencia_padre,sit_rev,tipo,correo,telefono');
         q = aplicarFiltrosVista(q, vista);
-        if (buscar) {
-          var b = buscar.replace(/[%_,]/g, '');
-          q = q.or('legajo.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%,dni.ilike.%'+b+'%');
-        }
+        q = aplicarFiltroDependencia(q, document.getElementById('fExpDependencia').value, 'listaDependenciasExp');
+        q = aplicarBusquedaTexto(q, buscar);
         q = q.order('apellido', { ascending: true }).range(page*pageSize, page*pageSize + pageSize - 1);
         var res = await q;
         if (res.error) throw res.error;
