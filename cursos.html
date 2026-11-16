@@ -250,6 +250,10 @@
   .alert.show { display: block; }
   .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
   .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .aviso-ya { background:#fff3e0; border:1px solid #ffb74d; border-left:4px solid #fb8c00; color:#5d4037; border-radius:8px; padding:10px 14px; font-size:13px; margin:10px 0; line-height:1.5; max-height:220px; overflow:auto; }
+  .aviso-ya .aviso-linea { margin:3px 0; }
+  .aviso-ya .aviso-cerrar { float:right; background:none; border:none; cursor:pointer; font-size:16px; color:#8d6e63; }
+  .lote-ya { font-size:11px; color:#e65100; font-weight:600; margin-top:2px; }
 
   /* LOADING */
   .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
@@ -593,7 +597,7 @@
         </div>
         <div class="form-group full" id="nCursoWrap">
           <label class="form-label">Curso<span class="required-star">*</span></label>
-          <select id="nCurso"></select>
+          <select id="nCurso" onchange="onCursoChange()"></select>
           <div class="field-hint">¿Falta un curso en la lista? Se agrega desde la pestaña ⚙️ Configuración.</div>
         </div>
         <div class="form-group">
@@ -640,6 +644,7 @@
           <div class="field-hint">La búsqueda queda lista para seguir sumando gente: elegís a uno y ya podés escribir el siguiente.</div>
         </div>
       </div>
+      <div class="aviso-ya" id="nAvisos" style="display:none;"></div>
       <div class="section-title" style="margin-top:6px;"><span class="section-title-left"><span class="ico">👥</span> Personal convocado — <b id="nLoteCount">0</b> persona(s)</span><span></span></div>
       <div class="lote-vacio" id="nLoteVacio">Todavía no agregaste a nadie. Buscá arriba y andá sumando.</div>
       <table id="nLoteTabla" style="display:none;">
@@ -1208,7 +1213,9 @@
       info.style.display = 'none';
       wrapCurso.style.display = '';
     }
+    if (personalLote.length) revalidarLote();
   }
+  function onCursoChange() { if (personalLote.length) revalidarLote(); }
 
   async function guardarCombo() {
     var nombre = str(document.getElementById('nuevoComboNombre').value);
@@ -1725,21 +1732,123 @@
       listEl.classList.add('show');
     }, 400);
   }
-  function seleccionarPersonalCurso(idx) {
+  // ============================================================
+  // VERIFICACIÓN "YA TIENE EL CURSO REALIZADO" — al agregar a alguien a la
+  // lista se mira si ya aprobó ese curso (o cada uno de los del combo) y el
+  // certificado sigue vigente (sin "Válido hasta", o con fecha no vencida).
+  // Si ya lo tiene NO se agrega; en un combo, si solo tiene alguno, se agrega
+  // solo para los que le faltan. Pendiente / Desaprobado / Ausente / Otros o
+  // un curso con la vigencia vencida no cuentan (puede volver a hacerlo).
+  // ============================================================
+  function cursosDelFormulario() {
+    var sel = document.getElementById('nCombo');
+    var combo = sel ? comboPorNombre(sel.value) : null;
+    if (combo) return combo.cursos.slice();
+    var c = document.getElementById('nCurso').value;
+    return c ? [c] : [];
+  }
+  // Devuelve { lp: { curso: {fecha, valido_hasta} } } solo de lo que ya tiene vigente.
+  async function consultarYaTiene(lps, cursos) {
+    var out = {};
+    if (!lps.length || !cursos.length) return out;
+    var hoy = isoDate(new Date());
+    for (var i = 0; i < lps.length; i += 150) {
+      var tanda = lps.slice(i, i + 150).map(String);
+      var r = await supabaseClient.from('cursos').select('lp,curso,fecha,valido_hasta')
+        .in('lp', tanda).in('curso', cursos).eq('calificacion', 'Aprobado');
+      if (r.error) throw r.error;
+      (r.data || []).forEach(function(x) {
+        if (x.valido_hasta && String(x.valido_hasta) < hoy) return; // certificado vencido: puede repetirlo
+        var lp = str(x.lp);
+        out[lp] = out[lp] || {};
+        var prev = out[lp][x.curso];
+        if (!prev || String(x.fecha || '') > String(prev.fecha || '')) out[lp][x.curso] = { fecha: x.fecha, valido_hasta: x.valido_hasta };
+      });
+    }
+    return out;
+  }
+  function etiquetaYaTiene(curso, info) {
+    return curso + ' (aprobado' + (info.fecha ? ' el ' + fmtFecha(info.fecha) : '') + (info.valido_hasta ? ', vigente hasta ' + fmtFecha(info.valido_hasta) : '') + ')';
+  }
+  function nombreCorto(p) { return str(p.apellido) + ', ' + str(p.nombre); }
+  function agregarAviso(html) {
+    var box = document.getElementById('nAvisos');
+    if (!box.children.length) box.innerHTML = '<button type="button" class="aviso-cerrar" onclick="limpiarAvisos()" title="Cerrar avisos">✕</button><div><b>⚠️ Avisos</b></div>';
+    box.insertAdjacentHTML('beforeend', '<div class="aviso-linea">' + html + '</div>');
+    box.style.display = '';
+  }
+  function limpiarAvisos() {
+    var box = document.getElementById('nAvisos');
+    if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+  }
+  function yaTieneHtml(p) {
+    if (!p.ya) return '';
+    var tienen = cursosDelFormulario().filter(function(c) { return p.ya[c]; });
+    if (!tienen.length) return '';
+    return '<div class="lote-ya">⚠️ Ya tiene: ' + tienen.map(function(c) { return esc(etiquetaYaTiene(c, p.ya[c])); }).join(', ') + ' — se omite</div>';
+  }
+
+  async function seleccionarPersonalCurso(idx) {
     var p = _personalResultados[idx];
     if (!p) return;
-    var yaEsta = personalLote.some(function(x) { return str(x.lp) === str(p.lp); });
-    if (yaEsta) {
-      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya está en la lista.');
-    } else {
-      personalLote.push(p);
-      renderLote();
-    }
     var inp = document.getElementById('nPersonalBusqueda');
     inp.value = '';
     document.getElementById('nPersonalSuggest').classList.remove('show');
     _personalResultados = [];
     inp.focus();
+    if (personalLote.some(function(x) { return str(x.lp) === str(p.lp); })) {
+      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya está en la lista.');
+      return;
+    }
+    var cursos = cursosDelFormulario();
+    var ya = {};
+    if (cursos.length) {
+      try {
+        var res = await consultarYaTiene([p.lp], cursos);
+        ya = res[str(p.lp)] || {};
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'No se pudo verificar si ya tiene el curso: ' + (e.message || e) + ' — se agrega igual, se vuelve a verificar al guardar.');
+      }
+    }
+    var tienen = cursos.filter(function(c) { return ya[c]; });
+    var detalle = tienen.map(function(c) { return etiquetaYaTiene(c, ya[c]); }).join(', ');
+    if (cursos.length && tienen.length === cursos.length) {
+      agregarAviso('<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') <b>ya tiene ' + (cursos.length > 1 ? 'todos los cursos del combo' : 'ese curso realizado') + '</b>: ' + esc(detalle) + '. No se agrega.');
+      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya tiene ese curso realizado — no se agrega.');
+      return;
+    }
+    p.ya = ya;
+    personalLote.push(p);
+    if (tienen.length) {
+      var faltan = cursos.filter(function(c) { return !ya[c]; }).join(', ');
+      agregarAviso('<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') ya tiene: ' + esc(detalle) + '. Se agrega <b>solo para: ' + esc(faltan) + '</b>.');
+      alertShow('topAlert', 'success', str(p.apellido)+', '+str(p.nombre)+': ya tiene ' + tienen.length + ' del combo — se agrega solo para los que le faltan.');
+    }
+    renderLote();
+  }
+  // Si cambia el curso / combo (o se importa un Excel) con gente ya en la lista, se vuelve a verificar a todos.
+  async function revalidarLote() {
+    var cursos = cursosDelFormulario();
+    if (!cursos.length || !personalLote.length) { personalLote.forEach(function(x) { x.ya = {}; }); renderLote(); return; }
+    try {
+      var res = await consultarYaTiene(personalLote.map(function(x) { return x.lp; }), cursos);
+      limpiarAvisos();
+      personalLote = personalLote.filter(function(x) {
+        x.ya = res[str(x.lp)] || {};
+        var tienen = cursos.filter(function(c) { return x.ya[c]; });
+        var detalle = tienen.map(function(c) { return etiquetaYaTiene(c, x.ya[c]); }).join(', ');
+        if (tienen.length === cursos.length) {
+          agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') <b>ya tiene ' + (cursos.length > 1 ? 'todos los cursos del combo' : 'ese curso realizado') + '</b>: ' + esc(detalle) + '. Se quitó de la lista.');
+          return false;
+        }
+        if (tienen.length) agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') ya tiene: ' + esc(detalle) + '. Se agrega solo para los que le faltan.');
+        return true;
+      });
+    } catch (e) {
+      console.error(e);
+    }
+    renderLote();
   }
   function teclaBusquedaPersonal(ev) {
     if (ev.key === 'Enter') {
@@ -1756,7 +1865,7 @@
     document.getElementById('nLoteVacio').style.display = personalLote.length ? 'none' : '';
     document.getElementById('nLoteTabla').style.display = personalLote.length ? '' : 'none';
     document.getElementById('nLoteBody').innerHTML = personalLote.map(function(p, i) {
-      return '<tr><td>'+(i+1)+'</td><td>'+esc(p.grado)+'</td><td>'+esc(p.lp)+'</td><td><b>'+esc(p.apellido)+'</b>, '+esc(p.nombre)+'</td><td>'+esc(p.dependencia)+'</td>' +
+      return '<tr><td>'+(i+1)+'</td><td>'+esc(p.grado)+'</td><td>'+esc(p.lp)+'</td><td><b>'+esc(p.apellido)+'</b>, '+esc(p.nombre)+yaTieneHtml(p)+'</td><td>'+esc(p.dependencia)+'</td>' +
         '<td class="action-col"><button class="btn btn-danger btn-sm" onclick="quitarPersonalLote('+i+')" title="Quitar de la lista">✕</button></td></tr>';
     }).join('');
   }
@@ -1792,12 +1901,18 @@
       var grupoDe = {};     // lp -> grupo_id ya existente (para no partir un combo a medias)
       (ex.data || []).forEach(function(r) { yaEsta[str(r.lp) + '|' + r.curso] = true; if (r.grupo_id) grupoDe[str(r.lp)] = r.grupo_id; });
 
+      // Verificación final contra la base: quien ya aprobó el curso (vigente) no se vuelve a cargar.
+      var yaTienen = await consultarYaTiene(lps, cursosAGuardar);
+      var omitidosDetalle = [];
       var fechaTexto = fmtRangoFechas(fecha, fechaHasta);
       var filas = [];
       var personasOmitidas = 0;
       personalLote.forEach(function(p) {
         var lp = str(p.lp);
-        var faltantes = cursosAGuardar.filter(function(c) { return !yaEsta[lp + '|' + c]; });
+        var tieneYa = yaTienen[lp] || {};
+        var conocidos = cursosAGuardar.filter(function(c) { return tieneYa[c]; });
+        if (conocidos.length) omitidosDetalle.push(nombreCorto(p) + ' (ya tiene ' + conocidos.map(function(c) { return etiquetaYaTiene(c, tieneYa[c]); }).join(', ') + ')');
+        var faltantes = cursosAGuardar.filter(function(c) { return !yaEsta[lp + '|' + c] && !tieneYa[c]; });
         if (!faltantes.length) { personasOmitidas++; return; }
         var grupoId = null;
         if (combo) grupoId = grupoDe[lp] || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null);
@@ -1812,7 +1927,9 @@
           filas.push(fila);
         });
       });
+      if (omitidosDetalle.length) { limpiarAvisos(); omitidosDetalle.forEach(function(d) { agregarAviso(esc(d) + (filas.length ? '. Se omitió ese curso.' : '. No se agrega.')); }); }
       if (!filas.length) {
+        if (omitidosDetalle.length) { alertShow('topAlert', 'error', 'No se guardó nada: todas las personas de la lista ya tienen ' + (combo ? 'los cursos del combo' : 'ese curso') + ' realizado (o ya estaban cargadas con ese N° y fecha).'); return; }
         alertShow('topAlert', 'error', combo ? 'Todas las personas de la lista ya estaban cargadas en todos los cursos del combo (mismo N° y fecha).' : 'Todas las personas de la lista ya estaban cargadas en ese curso, N° y fecha.');
         return;
       }
@@ -1823,7 +1940,7 @@
       cursosAGuardar.forEach(function(c) { if (_importEdicion && _importCurso === c) lsSet(claveEdicion(c, fecha, nroCurso), _importEdicion); });
       await cargarDashboard();
       limpiarFormularioNueva();
-      alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s)' + (combo ? ' en ' + cursosAGuardar.length + ' cursos (combo).' : '.') + (personasOmitidas ? ' Se omitieron ' + personasOmitidas + ' persona(s) que ya estaban cargadas.' : ''));
+      alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s)' + (combo ? ' en ' + cursosAGuardar.length + ' cursos (combo).' : '.') + (personasOmitidas ? ' Se omitieron ' + personasOmitidas + ' persona(s) que ya tenían el curso o ya estaban cargadas.' : ''));
     } catch (e) {
       var msg = e.message || String(e);
       if (/grupo_id/i.test(msg)) msg += ' — ¿corriste cursos_combos.sql en Supabase?';
@@ -1834,6 +1951,7 @@
   }
 
   function limpiarFormularioNueva() {
+    personalLote = [];
     document.getElementById('nCurso').selectedIndex = 0;
     var _nc = document.getElementById('nCombo'); if (_nc) { _nc.value = ''; onComboChange(); }
     document.getElementById('nCalificacion').value = 'Pendiente';
@@ -1844,6 +1962,7 @@
     document.getElementById('nObservaciones').value = '';
     document.getElementById('nPersonalBusqueda').value = '';
     personalLote = [];
+    limpiarAvisos();
     _importEdicion = ''; _importCurso = '';
     renderLote();
   }
@@ -2022,6 +2141,8 @@
       _importEdicion = ed; _importCurso = curso;
       var obs = document.getElementById('nObservaciones');
       if (ed && !str(obs.value)) obs.value = 'Edición nro. ' + ed;
+      limpiarAvisos();
+      await revalidarLote();
 
       var cajaFaltan = document.getElementById('xlsFaltan');
       if (sinNomina.length) {
