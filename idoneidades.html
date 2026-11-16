@@ -282,6 +282,10 @@
   .aviso-ya { background:#fff3e0; border:1px solid #ffb74d; border-left:4px solid #fb8c00; color:#5d4037; border-radius:8px; padding:10px 14px; font-size:13px; margin:10px 0; line-height:1.5; }
   .aviso-ya .aviso-linea { margin:3px 0; }
   .aviso-ya .aviso-cerrar { float:right; background:none; border:none; cursor:pointer; font-size:16px; color:#8d6e63; }
+  .omitidos-box { background:#e3f2fd; border:1px solid #90caf9; border-left:4px solid #1e88e5; color:#0d47a1; border-radius:8px; padding:10px 14px; font-size:13px; margin:12px 0; line-height:1.5; }
+  .omitidos-box .om-item { display:flex; align-items:center; gap:8px; margin:3px 0; }
+  .omitidos-box .om-item button { background:none; border:none; cursor:pointer; color:#c62828; font-size:14px; }
+  .omitidos-box .om-sub { font-size:12px; color:#1565c0; }
   .lote-ya { font-size:11px; color:#e65100; font-weight:600; margin-top:2px; }
 
   /* LOADING */
@@ -667,6 +671,7 @@
         <thead><tr><th>#</th><th>Grado</th><th>LP / DNI</th><th>Apellido y nombre</th><th>Dependencia</th><th id="thLactancia">🍼 Lactancia</th><th></th></tr></thead>
         <tbody id="nLoteBody"></tbody>
       </table>
+      <div class="omitidos-box" id="nOmitidosBox" style="display:none;"></div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="guardarIdoneidad()">💾 Guardar todos</button>
         <button class="btn btn-ghost" onclick="limpiarFormularioNueva()">Limpiar</button>
@@ -810,6 +815,7 @@
       <button class="subnav-btn" data-sub="beretta" onclick="mostrarTexto('beretta')">🔫 Resultado Beretta Px4</button>
       <button class="subnav-btn" data-sub="benelli" onclick="mostrarTexto('benelli')">🔫 Resultado Benelli M3</button>
       <button class="subnav-btn" data-sub="retirados" onclick="mostrarTexto('retirados')">🎖️ Resultado Retirados</button>
+      <button class="subnav-btn" data-sub="generico" onclick="mostrarTexto('generico')">📋 Resultado del curso</button>
     </div>
 
     <!-- ---- AVISO DE TURNO ---- -->
@@ -932,6 +938,34 @@
       </div>
     </div>
 
+    <!-- ---- RESULTADO DEL CURSO (genérico: combo o idoneidad, incluye a quienes ya contaban con la idoneidad) ---- -->
+    <div class="subpane" id="sub-generico">
+      <div class="row-2col">
+        <div class="table-card">
+          <div class="section-title"><span class="ico">📋</span> Resultado del curso (genérico)</div>
+          <div class="field-hint" style="margin-bottom:10px;">Arma la comunicación con <b>todo el personal de esa jornada</b>, tenga la idoneidad nueva o ya la tuviera. Se titula con el nombre del combo o, si no es combo, el de la idoneidad. Después podés editar el texto como quieras.</div>
+          <div class="form-group full">
+            <label class="form-label">Fecha de la idoneidad</label>
+            <input type="date" id="genFecha" onchange="cargarResultadoGenerico()">
+          </div>
+          <div class="form-group full" style="margin-top:10px;">
+            <label class="form-label">Curso / idoneidad</label>
+            <select id="genCurso" onchange="renderPreviewGenerico()"><option value="">— elegí una fecha —</option></select>
+          </div>
+          <div id="genPreview" style="margin-top:10px;"></div>
+          <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="generarTextoGenerico()">Generar Texto</button>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">
+            <span class="section-title-left"><span class="ico">📄</span> Texto generado</span>
+            <button class="btn btn-ghost btn-sm" onclick="copiarTexto('resultadoGen')">⎘ Copiar texto</button>
+          </div>
+          <div class="output-box" id="resultadoGen"><span style="color:var(--muted); font-style:italic;">El texto aparecerá acá una vez completado el formulario…</span></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ---- RESULTADO PERSONAL RETIRADO ---- -->
     <div class="subpane" id="sub-retirados">
       <div class="row-2col">
@@ -1025,6 +1059,7 @@
 
   var nicePersonal = [];       // filas de idoneidades_nice (tabla chica, se carga entera)
   var personalLote = []; // personas agregadas a la carga en curso (Nueva Idoneidad)
+  var omitidosLote = []; // personas que ya contaban con la idoneidad: no se cargan, pero se anotan para la comunicación
   var regPage = 0;             // página actual de Registros (0-indexed)
   var regPageSize = 50;
   var regTotal = 0;
@@ -1127,7 +1162,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'guardarCombo', 'confirmarEliminarCombo', 'eliminarCombo']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'guardarCombo', 'confirmarEliminarCombo', 'eliminarCombo', 'quitarOmitidoGen']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await Promise.all([cargarDashboard(), cargarNice(), cargarCombos()]);
@@ -2162,6 +2197,7 @@
     if (personalLote.length && _loteEsNice !== null && _loteEsNice !== isNice) {
       personalLote = [];
     }
+    if (isNice) omitidosLote = [];
     _loteEsNice = personalLote.length ? isNice : null;
     document.getElementById('grupoPersonal').style.display = isNice ? 'none' : '';
     document.getElementById('grupoDni').style.display = isNice ? '' : 'none';
@@ -2169,7 +2205,7 @@
     document.getElementById('grupoNombreNice').style.display = isNice ? '' : 'none';
     document.getElementById('grupoAgregarNice').style.display = isNice ? '' : 'none';
     renderLote();
-    if (personalLote.length && !isNice) revalidarLote();
+    if ((personalLote.length || omitidosLote.length) && !isNice) revalidarLote();
   }
 
   // Busca en nomina_general. Si lo escrito son solo números se trata como LP
@@ -2305,7 +2341,7 @@
     document.getElementById('nPersonalSuggest').classList.remove('show');
     _personalResultados = [];
     inp.focus();
-    var yaEsta = personalLote.some(function(x) { return !x.nice && str(x.lp) === str(p.lp); });
+    var yaEsta = personalLote.concat(omitidosLote).some(function(x) { return !x.nice && str(x.lp) === str(p.lp); });
     if (yaEsta) {
       alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya está en la lista.');
       return;
@@ -2326,8 +2362,10 @@
     var detalle = tienen.map(function(t) { return etiquetaYaTiene(t, ya[t]); }).join(', ');
     var quedan = tipos.filter(function(t) { return cl.duros.indexOf(t) === -1; }); // tipos que aún se podrían cargar
     if (tipos.length && !quedan.length) {
-      agregarAviso('<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') <b>ya cuenta con ' + (tipos.length > 1 ? 'todas las idoneidades del combo' : 'esa idoneidad') + '</b>: ' + esc(detalle) + '. No se agrega.');
-      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya cuenta con esa idoneidad — no se agrega.');
+      agregarAviso('<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') <b>ya cuenta con ' + (tipos.length > 1 ? 'todas las idoneidades del combo' : 'esa idoneidad') + '</b>: ' + esc(detalle) + '. No se carga, pero queda anotado para la comunicación.');
+      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya cuenta con esa idoneidad — no se carga (queda anotado para la comunicación).');
+      omitidosLote.push({ nice: false, lp: p.lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre, dependencia: p.dependencia, lactancia: false, ya: ya, forzar: {} });
+      renderLote();
       return;
     }
     personalLote.push({ nice: false, lp: p.lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre, dependencia: p.dependencia, lactancia: false, ya: ya, forzar: {} });
@@ -2344,23 +2382,23 @@
   // Si cambia el tipo / combo con gente ya en la lista, se vuelve a verificar a todos.
   async function revalidarLote() {
     var tipos = tiposDelFormulario();
-    var personas = personalLote.filter(function(x) { return !x.nice; });
-    if (!tipos.length || !personas.length) { personas.forEach(function(x) { x.ya = {}; }); renderLote(); return; }
+    var pool = personalLote.filter(function(x) { return !x.nice; }).concat(omitidosLote);
+    var nices = personalLote.filter(function(x) { return x.nice; });
+    if (!tipos.length || !pool.length) { pool.forEach(function(x) { x.ya = {}; }); personalLote = nices.concat(pool); omitidosLote = []; renderLote(); return; }
     try {
-      var res = await consultarYaTiene(personas.map(function(x) { return x.lp; }), tipos);
+      var res = await consultarYaTiene(pool.map(function(x) { return x.lp; }), tipos);
       limpiarAvisos();
-      var quitados = [];
-      personalLote = personalLote.filter(function(x) {
-        if (x.nice) return true;
+      var nuevoLote = [], nuevoOmit = [];
+      pool.forEach(function(x) {
         x.ya = res[str(x.lp)] || {};
         x.forzar = x.forzar || {};
         var cl = clasificarYa(x.ya, tipos);
         var tienen = cl.duros.concat(cl.blandos);
         var detalle = tienen.map(function(t) { return etiquetaYaTiene(t, x.ya[t]); }).join(', ');
         if (tipos.filter(function(t) { return cl.duros.indexOf(t) === -1; }).length === 0) {
-          quitados.push(x);
-          agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') <b>ya cuenta con ' + (tipos.length > 1 ? 'todas las idoneidades del combo' : 'esa idoneidad') + '</b>: ' + esc(detalle) + '. Se quitó de la lista.');
-          return false;
+          nuevoOmit.push(x);
+          agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') <b>ya cuenta con ' + (tipos.length > 1 ? 'todas las idoneidades del combo' : 'esa idoneidad') + '</b>: ' + esc(detalle) + '. No se carga, pero queda anotado para la comunicación.');
+          return;
         }
         if (tienen.length) {
           var msg = '<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') ya tiene: ' + esc(detalle) + '.';
@@ -2368,13 +2406,31 @@
           if (cl.duros.length) msg += ' ' + esc(tiposCortos(cl.duros)) + ' no se vuelve a cargar.';
           agregarAviso(msg);
         }
-        return true;
+        nuevoLote.push(x);
       });
+      personalLote = nices.concat(nuevoLote);
+      omitidosLote = nuevoOmit;
       if (!personalLote.length) _loteEsNice = null;
     } catch (e) {
       console.error(e);
     }
     renderLote();
+  }
+  function quitarOmitidoLote(i) { omitidosLote.splice(i, 1); renderLote(); }
+  function renderOmitidos() {
+    var box = document.getElementById('nOmitidosBox');
+    if (!box) return;
+    if (!omitidosLote.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    var tipos = tiposDelFormulario();
+    box.style.display = '';
+    box.innerHTML = '<div><b>ℹ️ Ya contaban con la idoneidad (' + omitidosLote.length + ')</b></div>' +
+      '<div class="om-sub" style="margin-bottom:4px;">No se cargan en Registros ni cuentan en los números, pero al guardar quedan anotados y van a figurar en la comunicación (Generar Texto → Resultado del curso).</div>' +
+      omitidosLote.map(function(p, i) {
+        var tienen = tipos.filter(function(t) { return p.ya && p.ya[t]; });
+        return '<div class="om-item"><span>🎖️ ' + esc(p.grado) + ' <b>' + esc(p.apellido) + '</b>, ' + esc(p.nombre) + ' (LP ' + esc(p.lp) + ')' +
+          (tienen.length ? ' — <span class="om-sub">ya tiene ' + esc(tiposCortos(tienen)) + '</span>' : '') + '</span>' +
+          '<button type="button" onclick="quitarOmitidoLote(' + i + ')" title="Sacar de esta lista">✕</button></div>';
+      }).join('');
   }
   function teclaBusquedaPersonal(ev) {
     if (ev.key === 'Enter') {
@@ -2432,6 +2488,7 @@
     var _cb = comboActual();
     var esPx4 = _cb ? _cb.tipos.indexOf('Idoneidad Px4') !== -1 : document.getElementById('nTipo').value === 'Idoneidad Px4';
     document.getElementById('nLoteCount').textContent = personalLote.length;
+    renderOmitidos();
     document.getElementById('nLoteVacio').style.display = personalLote.length ? 'none' : '';
     document.getElementById('nLoteTabla').style.display = personalLote.length ? '' : 'none';
     document.getElementById('thLactancia').style.display = esPx4 ? '' : 'none';
@@ -2457,11 +2514,11 @@
     var observaciones = document.getElementById('nObservaciones').value || null;
 
     if ((!tipo && !combo) || !fecha) { alertShow('topAlert', 'error', 'Completá ' + (combo ? 'la fecha.' : 'tipo y fecha.')); return; }
-    if (!personalLote.length) { alertShow('topAlert', 'error', 'Agregá al menos a una persona a la lista.'); return; }
+    if (!personalLote.length && !omitidosLote.length) { alertShow('topAlert', 'error', 'Agregá al menos a una persona a la lista.'); return; }
 
     showLoading('Guardando…');
     try {
-      var guardados = 0, omitidos = 0;
+      var guardados = 0, omitidos = 0, anotados = 0, anotadosError = null;
       if (!combo && tipo === 'Reingreso NICE') {
         var dnis = personalLote.map(function(p) { return str(p.dni); });
         var ex = await supabaseClient.from('idoneidades_nice').select('dni').eq('fecha', fecha).in('dni', dnis);
@@ -2480,6 +2537,7 @@
       } else {
         var tiposAGuardar = combo ? combo.tipos.slice() : [tipo];
         var lps = personalLote.map(function(p) { return str(p.lp); });
+        var porAnotar = omitidosLote.map(function(p) { return { p: p, tiposYa: tiposAGuardar.filter(function(t) { return p.ya && p.ya[t]; }) }; });
         var ex2 = await supabaseClient.from('idoneidades').select(combo ? 'lp,tipo,grupo_id' : 'lp,tipo').in('tipo', tiposAGuardar).eq('fecha', fecha).in('lp', lps);
         if (ex2.error) throw ex2.error;
         var yaEsta = {};   // lp|tipo -> true
@@ -2500,7 +2558,7 @@
           var conocidos = tiposAGuardar.filter(omitirPorYa);
           if (conocidos.length) omitidosDetalle.push(nombreCorto(p) + ' (ya tiene ' + conocidos.map(function(t) { return etiquetaYaTiene(t, tieneYa[t]); }).join(', ') + ')');
           var faltantes = tiposAGuardar.filter(function(t) { return !yaEsta[lp + '|' + t] && !omitirPorYa(t); });
-          if (!faltantes.length) { omitidos++; return; }
+          if (!faltantes.length) { if (conocidos.length) porAnotar.push({ p: p, tiposYa: conocidos }); else omitidos++; return; }
           var grupoId = null;
           if (combo) grupoId = grupoDe[lp] || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null);
           faltantes.forEach(function(t) {
@@ -2510,9 +2568,18 @@
               lactancia: t === 'Idoneidad Px4' ? !!p.lactancia : false
             };
             if (grupoId) fila.grupo_id = grupoId;
+            if (combo) fila.combo_nombre = combo.nombre;
             filasP.push(fila);
           });
         });
+        if (!filasP.length && porAnotar.length) {
+          // Nadie para cargar, pero hay personal que ya contaba: se anota igual para la comunicación.
+          var rO = await guardarOmitidos(porAnotar, fecha, combo ? combo.nombre : tipo, usuario);
+          if (!rO.ok) { alertShow('topAlert', 'error', 'No se pudo anotar al personal que ya contaba con la idoneidad: ' + (rO.error.message || rO.error) + ' — ¿corriste idoneidades_omitidos.sql en Supabase?'); return; }
+          limpiarFormularioNueva();
+          alertShow('topAlert', 'success', '✅ No había registros nuevos para cargar. Quedaron anotadas ' + porAnotar.length + ' persona(s) que ya contaban con la idoneidad (figuran en Generar Texto → Resultado del curso, no cuentan en Registros).');
+          return;
+        }
         if (!filasP.length) {
           if (omitidosDetalle.length) { limpiarAvisos(); omitidosDetalle.forEach(function(d) { agregarAviso(esc(d) + '. No se agrega.'); }); }
           alertShow('topAlert', 'error', 'No se guardó nada: todas las personas de la lista ya cuentan con ' + (combo ? 'las idoneidades del combo' : 'esa idoneidad') + ' (o ya estaban cargadas en esa fecha). Si querés volver a cargar una Px4, Armas Particulares o Personal Retirado, tildá "Agregar igual" en la fila.');
@@ -2520,12 +2587,24 @@
         }
         if (omitidosDetalle.length) { limpiarAvisos(); omitidosDetalle.forEach(function(d) { agregarAviso(esc(d) + '. Se omitió esa idoneidad (para cargarla de nuevo, tildá "Agregar igual").'); }); }
         var res2 = await supabaseClient.from('idoneidades').insert(filasP);
+        if (res2.error && /combo_nombre/i.test(res2.error.message || '')) {
+          // Todavía no se corrió idoneidades_omitidos.sql: se guarda igual, sin el nombre del combo.
+          filasP.forEach(function(f) { delete f.combo_nombre; });
+          res2 = await supabaseClient.from('idoneidades').insert(filasP);
+        }
         if (res2.error) throw res2.error;
         guardados = filasP.length;
+        if (porAnotar.length) {
+          var rO2 = await guardarOmitidos(porAnotar, fecha, combo ? combo.nombre : tipo, usuario);
+          if (rO2.ok) anotados = porAnotar.length; else anotadosError = rO2.error;
+        }
         await cargarDashboard();
       }
       limpiarFormularioNueva();
-      alertShow('topAlert', 'success', '✅ ' + guardados + ' registro(s) guardado(s)' + (combo ? ' en ' + combo.tipos.length + ' idoneidades (combo).' : '.') + (omitidos ? ' Se omitieron ' + omitidos + ' persona(s) que ya cuentan con la idoneidad.' : ''));
+      alertShow('topAlert', anotadosError ? 'error' : 'success', '✅ ' + guardados + ' registro(s) guardado(s)' + (combo ? ' en ' + combo.tipos.length + ' idoneidades (combo).' : '.') +
+        (omitidos ? ' Se omitieron ' + omitidos + ' persona(s) que ya estaban cargadas en esa fecha.' : '') +
+        (anotados ? ' Quedaron anotadas ' + anotados + ' persona(s) que ya contaban con la idoneidad (figuran en la comunicación, no cuentan en Registros).' : '') +
+        (anotadosError ? ' ⚠️ PERO no se pudo anotar al personal que ya contaba con la idoneidad (' + (anotadosError.message || anotadosError) + ') — ¿corriste idoneidades_omitidos.sql en Supabase?' : ''));
     } catch (e) {
       var msg = e.message || String(e);
       if (/grupo_id/i.test(msg)) msg += ' — ¿corriste idoneidades_combos.sql en Supabase?';
@@ -2547,6 +2626,7 @@
     document.getElementById('nNombreNice').value = '';
     document.getElementById('nPersonalBusqueda').value = '';
     personalLote = [];
+    omitidosLote = [];
     _loteEsNice = null;
     limpiarAvisos();
     onTipoChange();
@@ -3144,6 +3224,147 @@
   }
   function cargarInicialesRetirados() {
     try { var v = window.localStorage.getItem('divisionTiroIdoneidades.retiradosIniciales'); if (v) document.getElementById('retiradosIniciales').value = v; } catch (e) { /* ignorar */ }
+  }
+
+
+  // ============================================================
+  // PERSONAL QUE "YA CONTABA" CON LA IDONEIDAD — tabla aparte
+  // (idoneidades_omitidos): no se mezcla con Registros, así que no entra en
+  // ningún conteo ni estadística. Solo sirve para que figuren en la
+  // comunicación del curso (Generar Texto → Resultado del curso).
+  // ============================================================
+  async function guardarOmitidos(lista, fecha, curso, usuario) {
+    try {
+      var lpsO = lista.map(function(l) { return str(l.p.lp); });
+      var ex = await supabaseClient.from('idoneidades_omitidos').select('lp').eq('fecha', fecha).eq('curso', curso).in('lp', lpsO);
+      if (ex.error) throw ex.error;
+      var ya = (ex.data || []).map(function(r) { return str(r.lp); });
+      var filas = lista.filter(function(l) { return ya.indexOf(str(l.p.lp)) === -1; }).map(function(l) {
+        return { fecha: fecha, curso: curso, lp: str(l.p.lp), grado: l.p.grado || '', apellido: l.p.apellido || '', nombre: l.p.nombre || '',
+                 dependencia: l.p.dependencia || '', tipos_ya: l.tiposYa || [], usuario: usuario || null };
+      });
+      if (filas.length) {
+        var r = await supabaseClient.from('idoneidades_omitidos').insert(filas);
+        if (r.error) throw r.error;
+      }
+      return { ok: true };
+    } catch (e) {
+      console.warn('No se pudo anotar al personal que ya contaba con la idoneidad:', e);
+      return { ok: false, error: e };
+    }
+  }
+
+  // ---- Resultado del curso (genérico): combo o idoneidad, de una fecha ----
+  var _genData = {}; // clave (nombre del combo o tipo) -> { nombre, personas:[], omitidos:[] }
+
+  async function cargarResultadoGenerico() {
+    var fecha = document.getElementById('genFecha').value;
+    var sel = document.getElementById('genCurso');
+    _genData = {};
+    document.getElementById('genPreview').innerHTML = '';
+    if (!fecha) { sel.innerHTML = '<option value="">— elegí una fecha —</option>'; return; }
+    document.getElementById('genPreview').innerHTML = '<div class="resultado-preview">Buscando en Registros…</div>';
+
+    var colsFull = 'grado,lp,apellido,nombre,estado,lactancia,usuario,tipo,grupo_id,combo_nombre';
+    var res = await supabaseClient.from('idoneidades').select(colsFull).eq('fecha', fecha).order('apellido');
+    if (res.error && /combo_nombre/i.test(res.error.message || '')) {
+      res = await supabaseClient.from('idoneidades').select('grado,lp,apellido,nombre,estado,lactancia,usuario,tipo,grupo_id').eq('fecha', fecha).order('apellido');
+    }
+    if (res.error) { document.getElementById('genPreview').innerHTML = '<div class="resultado-preview" style="color:var(--red);">Error al buscar: ' + esc(res.error.message || '') + '</div>'; return; }
+    var filas = res.data || [];
+
+    var ro = await supabaseClient.from('idoneidades_omitidos').select('id,curso,lp,grado,apellido,nombre,tipos_ya').eq('fecha', fecha).order('apellido');
+    var omit = [];
+    if (ro.error) console.warn('idoneidades_omitidos no disponible (¿falta correr idoneidades_omitidos.sql?):', ro.error); else omit = ro.data || [];
+
+    // Curso de cada fila: combo_nombre si lo tiene; si no, el combo cuyo set de
+    // idoneidades coincide con el del grupo; si no, el nombre de la idoneidad.
+    var tiposPorGrupo = {};
+    filas.forEach(function(r) { if (r.grupo_id) (tiposPorGrupo[r.grupo_id] = tiposPorGrupo[r.grupo_id] || []).push(r.tipo); });
+    function cursoDe(r) {
+      if (r.combo_nombre) return r.combo_nombre;
+      if (r.grupo_id) {
+        var set = tiposPorGrupo[r.grupo_id].slice().sort().join('|');
+        var c = COMBOS.filter(function(c) { return c.tipos.slice().sort().join('|') === set; })[0];
+        if (c) return c.nombre;
+      }
+      return r.tipo;
+    }
+    function curso(nombre) { return _genData[nombre] = _genData[nombre] || { nombre: nombre, personas: [], _lps: {}, omitidos: [], usuarios: [] }; }
+    filas.forEach(function(r) {
+      var c = curso(cursoDe(r));
+      var lp = str(r.lp);
+      if (c._lps[lp]) { if (r.lactancia) c._lps[lp].lactancia = true; if (c._lps[lp].estado !== r.estado) c._lps[lp].mixto = true; return; }
+      var persona = { grado: r.grado, lp: r.lp, apellido: r.apellido, nombre: r.nombre, estado: r.estado, lactancia: !!r.lactancia, mixto: false };
+      c._lps[lp] = persona; c.personas.push(persona);
+      var u = str(r.usuario); if (u && c.usuarios.indexOf(u) === -1) c.usuarios.push(u);
+    });
+    omit.forEach(function(o) { curso(o.curso).omitidos.push(o); });
+
+    var nombres = Object.keys(_genData).sort();
+    if (!nombres.length) {
+      sel.innerHTML = '<option value="">— sin registros en esa fecha —</option>';
+      document.getElementById('genPreview').innerHTML = '<div class="resultado-preview">No hay registros cargados para esa fecha. Cargalos primero en "Nueva Idoneidad", o revisá la fecha.</div>';
+      return;
+    }
+    sel.innerHTML = nombres.map(function(n) {
+      var c = _genData[n];
+      return '<option value="' + esc(n) + '">' + esc(n) + ' — ' + c.personas.length + ' persona(s)' + (c.omitidos.length ? ' + ' + c.omitidos.length + ' que ya contaban' : '') + '</option>';
+    }).join('');
+    renderPreviewGenerico();
+  }
+
+  function cursoGenSeleccionado() { return _genData[document.getElementById('genCurso').value] || null; }
+
+  function renderPreviewGenerico() {
+    var el = document.getElementById('genPreview');
+    var c = cursoGenSeleccionado();
+    if (!c) { el.innerHTML = ''; return; }
+    var por = { Pendiente: 0, Aprobado: 0, Desaprobado: 0, Ausente: 0 };
+    c.personas.forEach(function(r) { if (por[r.estado] !== undefined) por[r.estado]++; });
+    var mixtos = c.personas.filter(function(r) { return r.mixto; }).length;
+    el.innerHTML = '<div class="resultado-preview"><b>' + c.personas.length + '</b> persona(s) cargadas — Aprobados: <b>' + por.Aprobado + '</b>, Desaprobados: <b>' + por.Desaprobado +
+      '</b>, Ausentes: <b>' + por.Ausente + '</b>, Pendientes: <b>' + por.Pendiente + '</b>.' +
+      (mixtos ? '<br>⚠️ ' + mixtos + ' persona(s) tienen estados distintos entre las idoneidades del combo: se toma el de la primera. Revisalo en Registros.' : '') +
+      (c.omitidos.length ? '<br><br><b>Ya contaban con la idoneidad (' + c.omitidos.length + ')</b> — van en un bloque aparte, no cuentan en Registros:' +
+        c.omitidos.map(function(o) {
+          return '<div style="display:flex;gap:8px;align-items:center;margin-top:3px;"><span>🎖️ ' + esc(o.grado) + ' <b>' + esc(o.apellido) + '</b>, ' + esc(o.nombre) + ' (LP ' + esc(o.lp) + ')</span>' +
+            '<button type="button" class="btn btn-ghost btn-sm" onclick="quitarOmitidoGen(\'' + esc(o.id) + '\')" title="Sacar de la comunicación">✕</button></div>';
+        }).join('') : '') + '</div>';
+  }
+
+  async function quitarOmitidoGen(id) {
+    var r = await supabaseClient.from('idoneidades_omitidos').delete().eq('id', id);
+    if (r.error) { alertShow('topAlert', 'error', 'No se pudo quitar: ' + (r.error.message || r.error)); return; }
+    await cargarResultadoGenerico();
+  }
+
+  function generarTextoGenerico() {
+    var fechaRaw = document.getElementById('genFecha').value;
+    var c = cursoGenSeleccionado();
+    if (!fechaRaw) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    if (!c) { alertShow('topAlert', 'error', 'No hay registros para esa fecha.'); return; }
+
+    function nombreCorto(r) {
+      return (r.grado ? r.grado + ' ' : '') + r.apellido + ', ' + r.nombre + ' (LP ' + r.lp + ')' + (r.lactancia ? ' - LACTANCIA' : '');
+    }
+    function bloque(titulo, arr, fn) {
+      if (!arr.length) return '';
+      return '<b>' + titulo + ':</b><ul>' + arr.map(function(r) { return '<li>' + esc((fn || nombreCorto)(r)) + '</li>'; }).join('') + '</ul>';
+    }
+    var ps = c.personas;
+    var ya = c.omitidos.map(function(o) { return { grado: o.grado, apellido: o.apellido, nombre: o.nombre, lp: o.lp, lactancia: false, tipos: o.tipos_ya || [] }; });
+
+    document.getElementById('resultadoGen').innerHTML =
+      'Por medio de la presente, me dirijo a Ud. en relación a la Idoneidad de <b>"' + esc(c.nombre) + '"</b> llevada a cabo el día <b>' + fmtFecha(fechaRaw) + '</b>, informando la resultancia del personal interviniente:' +
+      '<br><br>' +
+      bloque('Aprobados', ps.filter(function(r) { return r.estado === 'Aprobado'; })) +
+      bloque('Desaprobados', ps.filter(function(r) { return r.estado === 'Desaprobado'; })) +
+      bloque('Ausentes', ps.filter(function(r) { return r.estado === 'Ausente'; })) +
+      bloque('Pendientes', ps.filter(function(r) { return r.estado === 'Pendiente'; })) +
+      bloque('Ya contaban con la idoneidad', ya, function(r) { return nombreCorto(r) + (r.tipos.length ? ' - ya cuenta con ' + tiposCortos(r.tipos) : ''); }) +
+      '<br>Se eleva la presente para conocimiento y prosecución administrativa.' +
+      (c.usuarios.length ? '<br><br><b>Personal evaluador interviniente:</b><br>' + c.usuarios.map(esc).join('<br>') : '');
   }
 
   function copiarTexto(id) {
