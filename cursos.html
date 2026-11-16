@@ -1872,7 +1872,7 @@
     var cursos = cursosDelFormulario();
     box.style.display = '';
     box.innerHTML = '<div><b>ℹ️ Ya tienen el curso realizado (' + omitidosLote.length + ')</b></div>' +
-      '<div class="om-sub" style="margin-bottom:4px;">No se cargan en Registros ni cuentan en los números, pero al guardar quedan anotados y figuran como aprobados en Generar Texto.</div>' +
+      '<div class="om-sub" style="margin-bottom:4px;">No se cargan en Registros ni cuentan en los números, pero al guardar quedan anotados y figuran dentro de los aprobados en Generar Texto.</div>' +
       omitidosLote.map(function(p, i) {
         var tienen = cursos.filter(function(c) { return p.ya && p.ya[c]; });
         return '<div class="om-item"><span>🎖️ ' + esc(p.grado) + ' <b>' + esc(p.apellido) + '</b>, ' + esc(p.nombre) + ' (LP ' + esc(p.lp) + ')' +
@@ -1966,7 +1966,7 @@
         var rO = await guardarOmitidosCursos(porAnotar, fecha, fechaHasta, nroCurso, usuario);
         if (!rO.ok) { alertShow('topAlert', 'error', 'No se pudo anotar al personal que ya tiene el curso: ' + (rO.error.message || rO.error) + ' — ¿corriste cursos_omitidos.sql en Supabase?'); return; }
         limpiarFormularioNueva();
-        alertShow('topAlert', 'success', '✅ No había registros nuevos para cargar. Quedaron anotadas ' + new Set(porAnotar.map(function(x) { return str(x.p.lp); })).size + ' persona(s) que ya tenían el curso (figuran como aprobados en Generar Texto, no cuentan en Registros).');
+        alertShow('topAlert', 'success', '✅ No había registros nuevos para cargar. Quedaron anotadas ' + new Set(porAnotar.map(function(x) { return str(x.p.lp); })).size + ' persona(s) que ya tenían el curso (figuran dentro de los aprobados en Generar Texto, no cuentan en Registros).');
         return;
       }
       if (!filas.length) {
@@ -1986,7 +1986,7 @@
       await cargarDashboard();
       limpiarFormularioNueva();
       alertShow('topAlert', anotadosError ? 'error' : 'success', '✅ ' + filas.length + ' registro(s) guardado(s)' + (combo ? ' en ' + cursosAGuardar.length + ' cursos (combo).' : '.') + (personasOmitidas ? ' Se omitieron ' + personasOmitidas + ' persona(s) que ya estaban cargadas con ese N° y fecha.' : '') +
-        (anotados ? ' Quedaron anotadas ' + anotados + ' persona(s) que ya tenían el curso (figuran como aprobados en Generar Texto, no cuentan en Registros).' : '') +
+        (anotados ? ' Quedaron anotadas ' + anotados + ' persona(s) que ya tenían el curso (figuran dentro de los aprobados en Generar Texto, no cuentan en Registros).' : '') +
         (anotadosError ? ' ⚠️ PERO no se pudo anotar al personal que ya tenía el curso (' + (anotadosError.message || anotadosError) + ') — ¿corriste cursos_omitidos.sql en Supabase?' : ''));
     } catch (e) {
       var msg = e.message || String(e);
@@ -2608,13 +2608,11 @@
         .eq('curso', curso).lte('fecha', fecha).gte('fecha_hasta', fecha);
       if (res.error) throw res.error;
       var filas = res.data || [];
-      // Los que ya tenían el curso (cursos_omitidos) también figuran, como aprobados.
+      // Los que ya tenían el curso (cursos_omitidos) figuran dentro de Aprobados; Desaprobados y Ausentes salen aparte, como siempre.
       var ro = await supabaseClient.from('cursos_omitidos').select('grado,lp,dni,apellido,nombre,nro_curso')
         .eq('curso', curso).lte('fecha', fecha).gte('fecha_hasta', fecha);
       if (ro.error) console.warn('cursos_omitidos no disponible (¿falta correr cursos_omitidos.sql?):', ro.error);
       else (ro.data || []).forEach(function(o) { filas.push({ grado: o.grado, lp: o.lp, dni: o.dni, apellido: o.apellido, nombre: o.nombre, nro_curso: o.nro_curso, calificacion: 'Aprobado' }); });
-      // Pedido: el texto sale con TODOS como aprobados (Aprobado, Desaprobado, Ausente y los que ya tenían el curso).
-      filas.forEach(function(f) { if (f.calificacion === 'Desaprobado' || f.calificacion === 'Ausente') f.calificacion = 'Aprobado'; });
       // N° de curso: si lo escribieron, se filtra por él; si no y ese día hay
       // más de uno, se pide que lo indiquen (para no mezclar cursos).
       var nrosSel = parseNrosCurso(document.getElementById('txdNroCurso').value);
@@ -2705,8 +2703,6 @@
         .eq('curso', curso).gte('fecha', desde).lte('fecha', hasta);
       if (ro.error) console.warn('cursos_omitidos no disponible (¿falta correr cursos_omitidos.sql?):', ro.error);
       else (ro.data || []).forEach(function(o) { _semanaFilas.push({ grado: o.grado, lp: o.lp, dni: o.dni, apellido: o.apellido, nombre: o.nombre, fecha: o.fecha, fecha_hasta: o.fecha_hasta, nro_curso: o.nro_curso, calificacion: 'Aprobado' }); });
-      // Pedido: todos como aprobados (Aprobado, Desaprobado, Ausente y los que ya tenían el curso).
-      _semanaFilas.forEach(function(f) { if (f.calificacion === 'Desaprobado' || f.calificacion === 'Ausente') f.calificacion = 'Aprobado'; });
 
       if (!_semanaFilas.length) {
         alertShow('topAlert', 'error', 'No hay registros de este curso en ese rango de fechas.');
