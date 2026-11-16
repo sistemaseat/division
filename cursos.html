@@ -253,6 +253,10 @@
   .aviso-ya { background:#fff3e0; border:1px solid #ffb74d; border-left:4px solid #fb8c00; color:#5d4037; border-radius:8px; padding:10px 14px; font-size:13px; margin:10px 0; line-height:1.5; max-height:220px; overflow:auto; }
   .aviso-ya .aviso-linea { margin:3px 0; }
   .aviso-ya .aviso-cerrar { float:right; background:none; border:none; cursor:pointer; font-size:16px; color:#8d6e63; }
+  .omitidos-box { background:#e3f2fd; border:1px solid #90caf9; border-left:4px solid #1e88e5; color:#0d47a1; border-radius:8px; padding:10px 14px; font-size:13px; margin:12px 0; line-height:1.5; }
+  .omitidos-box .om-item { display:flex; align-items:center; gap:8px; margin:3px 0; }
+  .omitidos-box .om-item button { background:none; border:none; cursor:pointer; color:#c62828; font-size:14px; }
+  .omitidos-box .om-sub { font-size:12px; color:#1565c0; }
   .lote-ya { font-size:11px; color:#e65100; font-weight:600; margin-top:2px; }
 
   /* LOADING */
@@ -651,6 +655,7 @@
         <thead><tr><th>#</th><th>Grado</th><th>LP</th><th>Apellido y nombre</th><th>Dependencia</th><th></th></tr></thead>
         <tbody id="nLoteBody"></tbody>
       </table>
+      <div class="omitidos-box" id="nOmitidosBox" style="display:none;"></div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="guardarCurso()">💾 Guardar convocatoria</button>
         <button class="btn btn-ghost" onclick="limpiarFormularioNueva()">Limpiar</button>
@@ -941,6 +946,7 @@
   var _textosCamposCargados = false;
 
   var personalLote = []; // personas agregadas a la convocatoria en curso (Nueva Curso)
+  var omitidosLote = []; // personas que ya tienen el curso realizado: no se cargan, pero se anotan para el texto
   var COMBOS = [];       // [{nombre, cursos:[...]}] — cursos combinados (tabla cursos_combos)
   var regPage = 0;             // página actual de Registros (0-indexed)
   var regPageSize = 50;
@@ -1213,9 +1219,9 @@
       info.style.display = 'none';
       wrapCurso.style.display = '';
     }
-    if (personalLote.length) revalidarLote();
+    if (personalLote.length || omitidosLote.length) revalidarLote();
   }
-  function onCursoChange() { if (personalLote.length) revalidarLote(); }
+  function onCursoChange() { if (personalLote.length || omitidosLote.length) revalidarLote(); }
 
   async function guardarCombo() {
     var nombre = str(document.getElementById('nuevoComboNombre').value);
@@ -1796,7 +1802,7 @@
     document.getElementById('nPersonalSuggest').classList.remove('show');
     _personalResultados = [];
     inp.focus();
-    if (personalLote.some(function(x) { return str(x.lp) === str(p.lp); })) {
+    if (personalLote.concat(omitidosLote).some(function(x) { return str(x.lp) === str(p.lp); })) {
       alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya está en la lista.');
       return;
     }
@@ -1814,8 +1820,11 @@
     var tienen = cursos.filter(function(c) { return ya[c]; });
     var detalle = tienen.map(function(c) { return etiquetaYaTiene(c, ya[c]); }).join(', ');
     if (cursos.length && tienen.length === cursos.length) {
-      agregarAviso('<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') <b>ya tiene ' + (cursos.length > 1 ? 'todos los cursos del combo' : 'ese curso realizado') + '</b>: ' + esc(detalle) + '. No se agrega.');
-      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya tiene ese curso realizado — no se agrega.');
+      agregarAviso('<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') <b>ya tiene ' + (cursos.length > 1 ? 'todos los cursos del combo' : 'ese curso realizado') + '</b>: ' + esc(detalle) + '. No se carga, pero queda anotado para el texto (figura como aprobado).');
+      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya tiene ese curso realizado — no se carga (queda anotado para el texto).');
+      p.ya = ya;
+      omitidosLote.push(p);
+      renderLote();
       return;
     }
     p.ya = ya;
@@ -1830,25 +1839,46 @@
   // Si cambia el curso / combo (o se importa un Excel) con gente ya en la lista, se vuelve a verificar a todos.
   async function revalidarLote() {
     var cursos = cursosDelFormulario();
-    if (!cursos.length || !personalLote.length) { personalLote.forEach(function(x) { x.ya = {}; }); renderLote(); return; }
+    var pool = personalLote.concat(omitidosLote);
+    if (!cursos.length || !pool.length) { pool.forEach(function(x) { x.ya = {}; }); personalLote = pool; omitidosLote = []; renderLote(); return; }
     try {
-      var res = await consultarYaTiene(personalLote.map(function(x) { return x.lp; }), cursos);
+      var res = await consultarYaTiene(pool.map(function(x) { return x.lp; }), cursos);
       limpiarAvisos();
-      personalLote = personalLote.filter(function(x) {
+      var nuevoLote = [], nuevoOmit = [];
+      pool.forEach(function(x) {
         x.ya = res[str(x.lp)] || {};
         var tienen = cursos.filter(function(c) { return x.ya[c]; });
         var detalle = tienen.map(function(c) { return etiquetaYaTiene(c, x.ya[c]); }).join(', ');
         if (tienen.length === cursos.length) {
-          agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') <b>ya tiene ' + (cursos.length > 1 ? 'todos los cursos del combo' : 'ese curso realizado') + '</b>: ' + esc(detalle) + '. Se quitó de la lista.');
-          return false;
+          nuevoOmit.push(x);
+          agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') <b>ya tiene ' + (cursos.length > 1 ? 'todos los cursos del combo' : 'ese curso realizado') + '</b>: ' + esc(detalle) + '. No se carga, pero queda anotado para el texto.');
+          return;
         }
         if (tienen.length) agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') ya tiene: ' + esc(detalle) + '. Se agrega solo para los que le faltan.');
-        return true;
+        nuevoLote.push(x);
       });
+      personalLote = nuevoLote;
+      omitidosLote = nuevoOmit;
     } catch (e) {
       console.error(e);
     }
     renderLote();
+  }
+  function quitarOmitidoLote(i) { omitidosLote.splice(i, 1); renderLote(); }
+  function renderOmitidos() {
+    var box = document.getElementById('nOmitidosBox');
+    if (!box) return;
+    if (!omitidosLote.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    var cursos = cursosDelFormulario();
+    box.style.display = '';
+    box.innerHTML = '<div><b>ℹ️ Ya tienen el curso realizado (' + omitidosLote.length + ')</b></div>' +
+      '<div class="om-sub" style="margin-bottom:4px;">No se cargan en Registros ni cuentan en los números, pero al guardar quedan anotados y figuran como aprobados en Generar Texto.</div>' +
+      omitidosLote.map(function(p, i) {
+        var tienen = cursos.filter(function(c) { return p.ya && p.ya[c]; });
+        return '<div class="om-item"><span>🎖️ ' + esc(p.grado) + ' <b>' + esc(p.apellido) + '</b>, ' + esc(p.nombre) + ' (LP ' + esc(p.lp) + ')' +
+          (tienen.length ? ' — <span class="om-sub">ya tiene ' + esc(tienen.join(', ')) + '</span>' : '') + '</span>' +
+          '<button type="button" onclick="quitarOmitidoLote(' + i + ')" title="Sacar de esta lista">✕</button></div>';
+      }).join('');
   }
   function teclaBusquedaPersonal(ev) {
     if (ev.key === 'Enter') {
@@ -1862,6 +1892,7 @@
   }
   function renderLote() {
     document.getElementById('nLoteCount').textContent = personalLote.length;
+    renderOmitidos();
     document.getElementById('nLoteVacio').style.display = personalLote.length ? 'none' : '';
     document.getElementById('nLoteTabla').style.display = personalLote.length ? '' : 'none';
     document.getElementById('nLoteBody').innerHTML = personalLote.map(function(p, i) {
@@ -1888,7 +1919,7 @@
     // Un combo carga a cada persona en TODOS sus cursos; sin combo, en uno solo.
     var cursosAGuardar = combo ? combo.cursos.slice() : (curso ? [curso] : []);
     if (!cursosAGuardar.length || !fecha) { alertShow('topAlert', 'error', 'Completá ' + (combo ? 'la fecha.' : 'curso y fecha.')); return; }
-    if (!personalLote.length) { alertShow('topAlert', 'error', 'Agregá al menos a una persona a la lista.'); return; }
+    if (!personalLote.length && !omitidosLote.length) { alertShow('topAlert', 'error', 'Agregá al menos a una persona a la lista.'); return; }
 
     showLoading('Guardando…');
     try {
@@ -1904,6 +1935,8 @@
       // Verificación final contra la base: quien ya aprobó el curso (vigente) no se vuelve a cargar.
       var yaTienen = await consultarYaTiene(lps, cursosAGuardar);
       var omitidosDetalle = [];
+      var porAnotar = []; // { p, curso }: personas que ya tienen ese curso (no se carga, pero figura en el texto)
+      omitidosLote.forEach(function(p) { cursosAGuardar.forEach(function(c) { if (p.ya && p.ya[c]) porAnotar.push({ p: p, curso: c }); }); });
       var fechaTexto = fmtRangoFechas(fecha, fechaHasta);
       var filas = [];
       var personasOmitidas = 0;
@@ -1911,9 +1944,10 @@
         var lp = str(p.lp);
         var tieneYa = yaTienen[lp] || {};
         var conocidos = cursosAGuardar.filter(function(c) { return tieneYa[c]; });
+        conocidos.forEach(function(c) { porAnotar.push({ p: p, curso: c }); });
         if (conocidos.length) omitidosDetalle.push(nombreCorto(p) + ' (ya tiene ' + conocidos.map(function(c) { return etiquetaYaTiene(c, tieneYa[c]); }).join(', ') + ')');
         var faltantes = cursosAGuardar.filter(function(c) { return !yaEsta[lp + '|' + c] && !tieneYa[c]; });
-        if (!faltantes.length) { personasOmitidas++; return; }
+        if (!faltantes.length) { if (!conocidos.length) personasOmitidas++; return; }
         var grupoId = null;
         if (combo) grupoId = grupoDe[lp] || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null);
         var g = str(p.sexo).toUpperCase();
@@ -1928,19 +1962,32 @@
         });
       });
       if (omitidosDetalle.length) { limpiarAvisos(); omitidosDetalle.forEach(function(d) { agregarAviso(esc(d) + (filas.length ? '. Se omitió ese curso.' : '. No se agrega.')); }); }
+      if (!filas.length && porAnotar.length) {
+        var rO = await guardarOmitidosCursos(porAnotar, fecha, fechaHasta, nroCurso, usuario);
+        if (!rO.ok) { alertShow('topAlert', 'error', 'No se pudo anotar al personal que ya tiene el curso: ' + (rO.error.message || rO.error) + ' — ¿corriste cursos_omitidos.sql en Supabase?'); return; }
+        limpiarFormularioNueva();
+        alertShow('topAlert', 'success', '✅ No había registros nuevos para cargar. Quedaron anotadas ' + new Set(porAnotar.map(function(x) { return str(x.p.lp); })).size + ' persona(s) que ya tenían el curso (figuran como aprobados en Generar Texto, no cuentan en Registros).');
+        return;
+      }
       if (!filas.length) {
-        if (omitidosDetalle.length) { alertShow('topAlert', 'error', 'No se guardó nada: todas las personas de la lista ya tienen ' + (combo ? 'los cursos del combo' : 'ese curso') + ' realizado (o ya estaban cargadas con ese N° y fecha).'); return; }
         alertShow('topAlert', 'error', combo ? 'Todas las personas de la lista ya estaban cargadas en todos los cursos del combo (mismo N° y fecha).' : 'Todas las personas de la lista ya estaban cargadas en ese curso, N° y fecha.');
         return;
       }
       var res = await supabaseClient.from('cursos').insert(filas);
       if (res.error) throw res.error;
+      var anotados = 0, anotadosError = null;
+      if (porAnotar.length) {
+        var rO2 = await guardarOmitidosCursos(porAnotar, fecha, fechaHasta, nroCurso, usuario);
+        if (rO2.ok) anotados = new Set(porAnotar.map(function(x) { return str(x.p.lp); })).size; else anotadosError = rO2.error;
+      }
       // Si el personal vino de un Excel de asignación, la edición oficial queda
       // recordada para Generar Texto (misma clave que usa "Edición nro.").
       cursosAGuardar.forEach(function(c) { if (_importEdicion && _importCurso === c) lsSet(claveEdicion(c, fecha, nroCurso), _importEdicion); });
       await cargarDashboard();
       limpiarFormularioNueva();
-      alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s)' + (combo ? ' en ' + cursosAGuardar.length + ' cursos (combo).' : '.') + (personasOmitidas ? ' Se omitieron ' + personasOmitidas + ' persona(s) que ya tenían el curso o ya estaban cargadas.' : ''));
+      alertShow('topAlert', anotadosError ? 'error' : 'success', '✅ ' + filas.length + ' registro(s) guardado(s)' + (combo ? ' en ' + cursosAGuardar.length + ' cursos (combo).' : '.') + (personasOmitidas ? ' Se omitieron ' + personasOmitidas + ' persona(s) que ya estaban cargadas con ese N° y fecha.' : '') +
+        (anotados ? ' Quedaron anotadas ' + anotados + ' persona(s) que ya tenían el curso (figuran como aprobados en Generar Texto, no cuentan en Registros).' : '') +
+        (anotadosError ? ' ⚠️ PERO no se pudo anotar al personal que ya tenía el curso (' + (anotadosError.message || anotadosError) + ') — ¿corriste cursos_omitidos.sql en Supabase?' : ''));
     } catch (e) {
       var msg = e.message || String(e);
       if (/grupo_id/i.test(msg)) msg += ' — ¿corriste cursos_combos.sql en Supabase?';
@@ -1950,8 +1997,38 @@
     }
   }
 
+  // Personal que ya tiene el curso: tabla aparte (cursos_omitidos), no entra en
+  // Registros ni en ningún conteo. Solo sirve para que figure como aprobado en Generar Texto.
+  async function guardarOmitidosCursos(items, fecha, fechaHasta, nroCurso, usuario) {
+    try {
+      var porCurso = {};
+      items.forEach(function(x) { (porCurso[x.curso] = porCurso[x.curso] || []).push(x.p); });
+      var filas = [];
+      for (var curso in porCurso) {
+        var lpsC = porCurso[curso].map(function(p) { return str(p.lp); });
+        var ex = await supabaseClient.from('cursos_omitidos').select('lp').eq('curso', curso).eq('fecha', fecha).eq('nro_curso', nroCurso).in('lp', lpsC);
+        if (ex.error) throw ex.error;
+        var ya = (ex.data || []).map(function(r) { return str(r.lp); });
+        porCurso[curso].forEach(function(p) {
+          if (ya.indexOf(str(p.lp)) !== -1) return;
+          filas.push({ fecha: fecha, fecha_hasta: fechaHasta, curso: curso, nro_curso: nroCurso, lp: str(p.lp), dni: str(p.dni), grado: p.grado || '',
+                       apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || '', usuario: usuario || null });
+        });
+      }
+      if (filas.length) {
+        var r = await supabaseClient.from('cursos_omitidos').insert(filas);
+        if (r.error) throw r.error;
+      }
+      return { ok: true };
+    } catch (e) {
+      console.warn('No se pudo anotar al personal que ya tenía el curso:', e);
+      return { ok: false, error: e };
+    }
+  }
+
   function limpiarFormularioNueva() {
     personalLote = [];
+    omitidosLote = [];
     document.getElementById('nCurso').selectedIndex = 0;
     var _nc = document.getElementById('nCombo'); if (_nc) { _nc.value = ''; onComboChange(); }
     document.getElementById('nCalificacion').value = 'Pendiente';
@@ -2131,6 +2208,7 @@
       var lote = [], sinNomina = [];
       g.legajos.forEach(function(l) { if (porLp[l]) lote.push(porLp[l]); else sinNomina.push(l); });
       personalLote = lote;
+      omitidosLote = [];
       renderLote();
 
       document.getElementById('nCurso').value = curso;
@@ -2530,6 +2608,13 @@
         .eq('curso', curso).lte('fecha', fecha).gte('fecha_hasta', fecha);
       if (res.error) throw res.error;
       var filas = res.data || [];
+      // Los que ya tenían el curso (cursos_omitidos) también figuran, como aprobados.
+      var ro = await supabaseClient.from('cursos_omitidos').select('grado,lp,dni,apellido,nombre,nro_curso')
+        .eq('curso', curso).lte('fecha', fecha).gte('fecha_hasta', fecha);
+      if (ro.error) console.warn('cursos_omitidos no disponible (¿falta correr cursos_omitidos.sql?):', ro.error);
+      else (ro.data || []).forEach(function(o) { filas.push({ grado: o.grado, lp: o.lp, dni: o.dni, apellido: o.apellido, nombre: o.nombre, nro_curso: o.nro_curso, calificacion: 'Aprobado' }); });
+      // Pedido: el texto sale con TODOS como aprobados (Aprobado, Desaprobado, Ausente y los que ya tenían el curso).
+      filas.forEach(function(f) { if (f.calificacion === 'Desaprobado' || f.calificacion === 'Ausente') f.calificacion = 'Aprobado'; });
       // N° de curso: si lo escribieron, se filtra por él; si no y ese día hay
       // más de uno, se pide que lo indiquen (para no mezclar cursos).
       var nrosSel = parseNrosCurso(document.getElementById('txdNroCurso').value);
@@ -2616,6 +2701,12 @@
         .eq('curso', curso).gte('fecha', desde).lte('fecha', hasta).order('fecha', { ascending: true });
       if (res.error) throw res.error;
       _semanaFilas = res.data || [];
+      var ro = await supabaseClient.from('cursos_omitidos').select('grado,lp,dni,apellido,nombre,fecha,fecha_hasta,nro_curso')
+        .eq('curso', curso).gte('fecha', desde).lte('fecha', hasta);
+      if (ro.error) console.warn('cursos_omitidos no disponible (¿falta correr cursos_omitidos.sql?):', ro.error);
+      else (ro.data || []).forEach(function(o) { _semanaFilas.push({ grado: o.grado, lp: o.lp, dni: o.dni, apellido: o.apellido, nombre: o.nombre, fecha: o.fecha, fecha_hasta: o.fecha_hasta, nro_curso: o.nro_curso, calificacion: 'Aprobado' }); });
+      // Pedido: todos como aprobados (Aprobado, Desaprobado, Ausente y los que ya tenían el curso).
+      _semanaFilas.forEach(function(f) { if (f.calificacion === 'Desaprobado' || f.calificacion === 'Ausente') f.calificacion = 'Aprobado'; });
 
       if (!_semanaFilas.length) {
         alertShow('topAlert', 'error', 'No hay registros de este curso en ese rango de fechas.');
@@ -2650,7 +2741,8 @@
   function bloquePorEdicion(grupos, filas, calificacion, conDni) {
     var out = [];
     grupos.forEach(function(g) {
-      var personas = ordenarPersonas(filas.filter(function(f){ return f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta && str(f.nro_curso) === g.nro && f.calificacion === calificacion; }));
+      var vistosLp = {};
+      var personas = ordenarPersonas(filas.filter(function(f){ if (!(f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta && str(f.nro_curso) === g.nro && f.calificacion === calificacion)) return false; var k = str(f.lp); if (vistosLp[k]) return false; vistosLp[k] = true; return true; }));
       if (!personas.length) return;
       out.push('EDICIÓN NRO. ' + (g.edicion || '?') + (g.nro ? ' (CURSO NRO. ' + g.nro + ')' : '') + ':');
       out.push('');
