@@ -279,6 +279,10 @@
   .alert.show { display: block; }
   .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
   .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+  .aviso-ya { background:#fff3e0; border:1px solid #ffb74d; border-left:4px solid #fb8c00; color:#5d4037; border-radius:8px; padding:10px 14px; font-size:13px; margin:10px 0; line-height:1.5; }
+  .aviso-ya .aviso-linea { margin:3px 0; }
+  .aviso-ya .aviso-cerrar { float:right; background:none; border:none; cursor:pointer; font-size:16px; color:#8d6e63; }
+  .lote-ya { font-size:11px; color:#e65100; font-weight:600; margin-top:2px; }
 
   /* LOADING */
   .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
@@ -656,6 +660,7 @@
           <button type="button" class="btn btn-ghost" onclick="agregarNiceLote()">➕ Agregar a la lista</button>
         </div>
       </div>
+      <div class="aviso-ya" id="nAvisos" style="display:none;"></div>
       <div class="section-title" style="margin-top:6px;"><span class="section-title-left"><span class="ico">👥</span> Personal a registrar — <b id="nLoteCount">0</b> persona(s)</span><span></span></div>
       <div class="lote-vacio" id="nLoteVacio">Todavía no agregaste a nadie. Elegí el tipo y andá sumando.</div>
       <table id="nLoteTabla" style="display:none;">
@@ -2164,6 +2169,7 @@
     document.getElementById('grupoNombreNice').style.display = isNice ? '' : 'none';
     document.getElementById('grupoAgregarNice').style.display = isNice ? '' : 'none';
     renderLote();
+    if (personalLote.length && !isNice) revalidarLote();
   }
 
   // Busca en nomina_general. Si lo escrito son solo números se trata como LP
@@ -2231,22 +2237,144 @@
       listEl.classList.add('show');
     }, 400);
   }
-  function seleccionarPersonalIdoneidad(idx) {
+  // ============================================================
+  // VERIFICACIÓN "YA CUENTA CON ESA IDONEIDAD" — al agregar a alguien a la
+  // lista se mira si ya tiene cargada esa idoneidad (o cada una de las del
+  // combo): Aprobada, o Pendiente (ya cargada, esperando resultado). Si ya
+  // la tiene NO se agrega para esa idoneidad; si es un combo y le falta
+  // alguna, se agrega solo para las que le faltan. Desaprobado/Ausente no
+  // cuentan (puede volver a rendir).
+  // ============================================================
+  // Estas idoneidades NO se pueden volver a cargar si la persona ya la tiene.
+  // En el resto (Px4, Armas Particulares, Personal Retirado) solo se advierte y
+  // se puede agregar igual tildando "Agregar igual" en la fila.
+  var TIPOS_BLOQUEAN = ['Idoneidad Benelli', 'Idoneidad FMK3', 'Idoneidad Halcon', 'Idoneidad FN 303 - TIPPMAN'];
+  function esTipoBloqueante(t) { return TIPOS_BLOQUEAN.indexOf(t) !== -1; }
+  function clasificarYa(ya, tipos) {
+    ya = ya || {};
+    var duros = [], blandos = [];
+    tipos.forEach(function(t) { if (ya[t]) (esTipoBloqueante(t) ? duros : blandos).push(t); });
+    return { duros: duros, blandos: blandos };
+  }
+  function tiposCortos(arr) { return arr.map(function(t) { return t.replace('Idoneidad ', ''); }).join(', '); }
+  function tiposDelFormulario() {
+    var combo = comboActual();
+    if (combo) return combo.tipos.slice();
+    var t = document.getElementById('nTipo').value;
+    return (t && t !== 'Reingreso NICE') ? [t] : [];
+  }
+  // Devuelve { 'Idoneidad Px4': {estado, fecha}, ... } solo de los tipos que ya tiene.
+  async function consultarYaTiene(lps, tipos) {
+    var out = {}; // lp -> { tipo -> {estado,fecha} }
+    if (!lps.length || !tipos.length) return out;
+    var r = await supabaseClient.from('idoneidades').select('lp,tipo,estado,fecha')
+      .in('lp', lps.map(String)).in('tipo', tipos).in('estado', ['Aprobado', 'Pendiente']);
+    if (r.error) throw r.error;
+    (r.data || []).forEach(function(x) {
+      var lp = str(x.lp);
+      out[lp] = out[lp] || {};
+      var prev = out[lp][x.tipo];
+      // Aprobado pesa más que Pendiente; entre iguales, la más reciente.
+      var mejor = !prev || (x.estado === 'Aprobado' && prev.estado !== 'Aprobado') ||
+        (x.estado === prev.estado && String(x.fecha || '') > String(prev.fecha || ''));
+      if (mejor) out[lp][x.tipo] = { estado: x.estado, fecha: x.fecha };
+    });
+    return out;
+  }
+  function etiquetaYaTiene(tipo, info) {
+    var t = String(tipo).replace('Idoneidad ', '');
+    return t + (info.estado === 'Aprobado' ? ' (aprobada' : ' (cargada, pendiente') + (info.fecha ? ' el ' + fmtFecha(info.fecha) : '') + ')';
+  }
+  function nombreCorto(p) { return str(p.apellido) + ', ' + str(p.nombre); }
+  function agregarAviso(html) {
+    var box = document.getElementById('nAvisos');
+    if (!box.children.length) box.innerHTML = '<button type="button" class="aviso-cerrar" onclick="limpiarAvisos()" title="Cerrar avisos">✕</button><div><b>⚠️ Avisos</b></div>';
+    box.insertAdjacentHTML('beforeend', '<div class="aviso-linea">' + html + '</div>');
+    box.style.display = '';
+  }
+  function limpiarAvisos() {
+    var box = document.getElementById('nAvisos');
+    if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+  }
+
+  async function seleccionarPersonalIdoneidad(idx) {
     var p = _personalResultados[idx];
     if (!p) return;
-    var yaEsta = personalLote.some(function(x) { return !x.nice && str(x.lp) === str(p.lp); });
-    if (yaEsta) {
-      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya está en la lista.');
-    } else {
-      personalLote.push({ nice: false, lp: p.lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre, dependencia: p.dependencia, lactancia: false });
-      _loteEsNice = false;
-      renderLote();
-    }
     var inp = document.getElementById('nPersonalBusqueda');
     inp.value = '';
     document.getElementById('nPersonalSuggest').classList.remove('show');
     _personalResultados = [];
     inp.focus();
+    var yaEsta = personalLote.some(function(x) { return !x.nice && str(x.lp) === str(p.lp); });
+    if (yaEsta) {
+      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya está en la lista.');
+      return;
+    }
+    var tipos = tiposDelFormulario();
+    var ya = {};
+    if (tipos.length) {
+      try {
+        var res = await consultarYaTiene([p.lp], tipos);
+        ya = res[str(p.lp)] || {};
+      } catch (e) {
+        console.error(e);
+        alertShow('topAlert', 'error', 'No se pudo verificar si ya tiene la idoneidad: ' + (e.message || e) + ' — se agrega igual, se vuelve a verificar al guardar.');
+      }
+    }
+    var cl = clasificarYa(ya, tipos);
+    var tienen = cl.duros.concat(cl.blandos);
+    var detalle = tienen.map(function(t) { return etiquetaYaTiene(t, ya[t]); }).join(', ');
+    var quedan = tipos.filter(function(t) { return cl.duros.indexOf(t) === -1; }); // tipos que aún se podrían cargar
+    if (tipos.length && !quedan.length) {
+      agregarAviso('<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') <b>ya cuenta con ' + (tipos.length > 1 ? 'todas las idoneidades del combo' : 'esa idoneidad') + '</b>: ' + esc(detalle) + '. No se agrega.');
+      alertShow('topAlert', 'error', str(p.apellido)+', '+str(p.nombre)+' ya cuenta con esa idoneidad — no se agrega.');
+      return;
+    }
+    personalLote.push({ nice: false, lp: p.lp, grado: p.grado, apellido: p.apellido, nombre: p.nombre, dependencia: p.dependencia, lactancia: false, ya: ya, forzar: {} });
+    _loteEsNice = false;
+    if (tienen.length) {
+      var msg = '<b>' + esc(nombreCorto(p)) + '</b> (LP ' + esc(p.lp) + ') ya tiene: ' + esc(detalle) + '.';
+      if (cl.blandos.length) msg += ' Para volver a cargar ' + esc(tiposCortos(cl.blandos)) + ' tildá <b>"Agregar igual"</b> en su fila.';
+      if (cl.duros.length) msg += ' ' + esc(tiposCortos(cl.duros)) + ' no se vuelve a cargar.';
+      agregarAviso(msg);
+      alertShow('topAlert', 'success', str(p.apellido)+', '+str(p.nombre)+': ya tiene ' + tienen.length + ' idoneidad(es) — revisá el aviso.');
+    }
+    renderLote();
+  }
+  // Si cambia el tipo / combo con gente ya en la lista, se vuelve a verificar a todos.
+  async function revalidarLote() {
+    var tipos = tiposDelFormulario();
+    var personas = personalLote.filter(function(x) { return !x.nice; });
+    if (!tipos.length || !personas.length) { personas.forEach(function(x) { x.ya = {}; }); renderLote(); return; }
+    try {
+      var res = await consultarYaTiene(personas.map(function(x) { return x.lp; }), tipos);
+      limpiarAvisos();
+      var quitados = [];
+      personalLote = personalLote.filter(function(x) {
+        if (x.nice) return true;
+        x.ya = res[str(x.lp)] || {};
+        x.forzar = x.forzar || {};
+        var cl = clasificarYa(x.ya, tipos);
+        var tienen = cl.duros.concat(cl.blandos);
+        var detalle = tienen.map(function(t) { return etiquetaYaTiene(t, x.ya[t]); }).join(', ');
+        if (tipos.filter(function(t) { return cl.duros.indexOf(t) === -1; }).length === 0) {
+          quitados.push(x);
+          agregarAviso('<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') <b>ya cuenta con ' + (tipos.length > 1 ? 'todas las idoneidades del combo' : 'esa idoneidad') + '</b>: ' + esc(detalle) + '. Se quitó de la lista.');
+          return false;
+        }
+        if (tienen.length) {
+          var msg = '<b>' + esc(nombreCorto(x)) + '</b> (LP ' + esc(x.lp) + ') ya tiene: ' + esc(detalle) + '.';
+          if (cl.blandos.length) msg += ' Para volver a cargar ' + esc(tiposCortos(cl.blandos)) + ' tildá <b>"Agregar igual"</b> en su fila.';
+          if (cl.duros.length) msg += ' ' + esc(tiposCortos(cl.duros)) + ' no se vuelve a cargar.';
+          agregarAviso(msg);
+        }
+        return true;
+      });
+      if (!personalLote.length) _loteEsNice = null;
+    } catch (e) {
+      console.error(e);
+    }
+    renderLote();
   }
   function teclaBusquedaPersonal(ev) {
     if (ev.key === 'Enter') {
@@ -2278,6 +2406,27 @@
     if (!personalLote.length) _loteEsNice = null;
     renderLote();
   }
+  function yaTieneHtml(p, idx) {
+    if (p.nice || !p.ya) return '';
+    var cl = clasificarYa(p.ya, tiposDelFormulario());
+    if (!cl.duros.length && !cl.blandos.length) return '';
+    var h = '';
+    if (cl.duros.length) h += '<div class="lote-ya">⚠️ Ya tiene: ' + cl.duros.map(function(t) { return esc(etiquetaYaTiene(t, p.ya[t])); }).join(', ') + ' — no se vuelve a cargar</div>';
+    cl.blandos.forEach(function(t) {
+      var on = p.forzar && p.forzar[t];
+      h += '<div class="lote-ya">⚠️ Ya tiene ' + esc(etiquetaYaTiene(t, p.ya[t])) + ' — ' +
+        '<label style="cursor:pointer;"><input type="checkbox" style="width:auto;vertical-align:middle;" ' + (on ? 'checked ' : '') +
+        'onchange="marcarForzarLote(' + idx + ', \'' + String(t).replace(/'/g, "\\'") + '\', this.checked)"> Agregar igual</label>' +
+        (on ? '' : ' <span style="font-weight:400;">(si no se tilda, se omite)</span>') + '</div>';
+    });
+    return h;
+  }
+  function marcarForzarLote(i, tipo, checked) {
+    if (!personalLote[i]) return;
+    personalLote[i].forzar = personalLote[i].forzar || {};
+    if (checked) personalLote[i].forzar[tipo] = true; else delete personalLote[i].forzar[tipo];
+    renderLote();
+  }
   function marcarLactanciaLote(i, checked) { if (personalLote[i]) personalLote[i].lactancia = !!checked; }
   function renderLote() {
     var _cb = comboActual();
@@ -2290,7 +2439,7 @@
       var lact = esPx4 && !p.nice
         ? '<td><input type="checkbox" style="width:auto;" '+(p.lactancia?'checked ':'')+'onchange="marcarLactanciaLote('+i+', this.checked)"></td>'
         : (esPx4 ? '<td></td>' : '');
-      return '<tr><td>'+(i+1)+'</td><td>'+(p.nice?'—':esc(p.grado))+'</td><td>'+esc(p.nice?p.dni:p.lp)+'</td><td><b>'+esc(p.apellido)+'</b>, '+esc(p.nombre)+'</td><td>'+(p.nice?'—':esc(p.dependencia))+'</td>' + lact +
+      return '<tr><td>'+(i+1)+'</td><td>'+(p.nice?'—':esc(p.grado))+'</td><td>'+esc(p.nice?p.dni:p.lp)+'</td><td><b>'+esc(p.apellido)+'</b>, '+esc(p.nombre)+yaTieneHtml(p, i)+'</td><td>'+(p.nice?'—':esc(p.dependencia))+'</td>' + lact +
         '<td class="action-col"><button class="btn btn-danger btn-sm" onclick="quitarPersonalLote('+i+')" title="Quitar de la lista">✕</button></td></tr>';
     }).join('');
   }
@@ -2336,10 +2485,21 @@
         var yaEsta = {};   // lp|tipo -> true
         var grupoDe = {};  // lp -> grupo_id ya existente (para no partir un combo a medias)
         (ex2.data || []).forEach(function(r) { yaEsta[str(r.lp) + '|' + r.tipo] = true; if (r.grupo_id) grupoDe[str(r.lp)] = r.grupo_id; });
+        // Verificación final contra la base: quien ya cuenta con la idoneidad
+        // (aprobada, o cargada pendiente) no se vuelve a cargar, aunque se haya
+        // agregado a la lista antes de elegir el tipo o el combo.
+        var yaTienen = await consultarYaTiene(lps, tiposAGuardar);
+        var omitidosDetalle = [];
         var filasP = [];
         personalLote.forEach(function(p) {
           var lp = str(p.lp);
-          var faltantes = tiposAGuardar.filter(function(t) { return !yaEsta[lp + '|' + t]; });
+          var tieneYa = yaTienen[lp] || {};
+          // Bloquea si ya la tiene y es de las que no se repiten, o si es de las
+          // que solo advierten y no se tildó "Agregar igual".
+          function omitirPorYa(t) { return !!tieneYa[t] && (esTipoBloqueante(t) || !(p.forzar && p.forzar[t])); }
+          var conocidos = tiposAGuardar.filter(omitirPorYa);
+          if (conocidos.length) omitidosDetalle.push(nombreCorto(p) + ' (ya tiene ' + conocidos.map(function(t) { return etiquetaYaTiene(t, tieneYa[t]); }).join(', ') + ')');
+          var faltantes = tiposAGuardar.filter(function(t) { return !yaEsta[lp + '|' + t] && !omitirPorYa(t); });
           if (!faltantes.length) { omitidos++; return; }
           var grupoId = null;
           if (combo) grupoId = grupoDe[lp] || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null);
@@ -2353,14 +2513,19 @@
             filasP.push(fila);
           });
         });
-        if (!filasP.length) { alertShow('topAlert', 'error', combo ? 'Todas las personas de la lista ya estaban cargadas en todas las idoneidades del combo (misma fecha).' : 'Todas las personas de la lista ya estaban cargadas en ese tipo y fecha.'); return; }
+        if (!filasP.length) {
+          if (omitidosDetalle.length) { limpiarAvisos(); omitidosDetalle.forEach(function(d) { agregarAviso(esc(d) + '. No se agrega.'); }); }
+          alertShow('topAlert', 'error', 'No se guardó nada: todas las personas de la lista ya cuentan con ' + (combo ? 'las idoneidades del combo' : 'esa idoneidad') + ' (o ya estaban cargadas en esa fecha). Si querés volver a cargar una Px4, Armas Particulares o Personal Retirado, tildá "Agregar igual" en la fila.');
+          return;
+        }
+        if (omitidosDetalle.length) { limpiarAvisos(); omitidosDetalle.forEach(function(d) { agregarAviso(esc(d) + '. Se omitió esa idoneidad (para cargarla de nuevo, tildá "Agregar igual").'); }); }
         var res2 = await supabaseClient.from('idoneidades').insert(filasP);
         if (res2.error) throw res2.error;
         guardados = filasP.length;
         await cargarDashboard();
       }
       limpiarFormularioNueva();
-      alertShow('topAlert', 'success', '✅ ' + guardados + ' registro(s) guardado(s)' + (combo ? ' en ' + combo.tipos.length + ' idoneidades (combo).' : '.') + (omitidos ? ' Se omitieron ' + omitidos + ' persona(s) que ya estaban cargadas en esa fecha.' : ''));
+      alertShow('topAlert', 'success', '✅ ' + guardados + ' registro(s) guardado(s)' + (combo ? ' en ' + combo.tipos.length + ' idoneidades (combo).' : '.') + (omitidos ? ' Se omitieron ' + omitidos + ' persona(s) que ya cuentan con la idoneidad.' : ''));
     } catch (e) {
       var msg = e.message || String(e);
       if (/grupo_id/i.test(msg)) msg += ' — ¿corriste idoneidades_combos.sql en Supabase?';
@@ -2383,6 +2548,7 @@
     document.getElementById('nPersonalBusqueda').value = '';
     personalLote = [];
     _loteEsNice = null;
+    limpiarAvisos();
     onTipoChange();
   }
 
