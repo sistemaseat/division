@@ -251,6 +251,10 @@
   tr.fila-desde-licencia td { background: #f7f0fb; }
   tr.fila-desde-licencia td.persona-cell { border-left: 3px solid var(--purple); }
   .badge-licencia { font-size: .68rem; font-weight: 700; color: var(--purple); margin-top: 2px; }
+  tr.fila-lic-vencida td { background: #fff3e0; }
+  tr.fila-lic-vencida td.persona-cell { border-left: 3px solid var(--orange); }
+  .badge-lic-vencida { font-size: .68rem; font-weight: 700; color: var(--orange); margin-top: 2px; }
+  .badge-lic-vencida .btn { margin-left: 4px; }
   tr#tr-separador-carga td { background: linear-gradient(to right,#dceefb,#f0f7ff); border-top: 2px solid var(--blue); border-bottom: 1px solid #aad4ee; font-size: 12px; font-weight: 700; color: var(--primary); padding: 6px 13px; }
   #tabla-carga input, #tabla-carga select { font-size: 12px; padding: 5px 7px; width: 100%; min-width: 110px; }
 
@@ -911,6 +915,13 @@
   var configHorariosServicios = []; // [{tipo,turno,horario}] de servicios_config_horarios (Servicios y Horarios)
   var configTemplates = {}; // tipo -> {storage_path, nombre_archivo}
   var registroFechaActual = {};   // {fecha, porLp: {lp: registro}}
+  // Control de carrera en Carga Diaria: cada vez que se abre un día se anota
+  // un número de "pedido" (_cargaSeq); si mientras tanto se pidió otro día,
+  // el pedido viejo deja de tocar la pantalla. _fechaCargada es la fecha que
+  // la tabla muestra de verdad (null mientras está cargando) — guardarCarga
+  // se niega a guardar si no coincide con la fecha del selector.
+  var _cargaSeq = 0;
+  var _fechaCargada = null;
   var actInternoItems = []; // [{id?,descripcion,horario,personal,orden}]
   var actEDTItems = [];     // [{actividad,horario,responsable,cantidad}] — solo lectura
   var _selectorInternoIdx = null;
@@ -1046,7 +1057,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['agregarConfigMotivo', 'agregarConfigTipo', 'eliminarConfigMotivo', 'eliminarConfigTipo', 'guardarActInterno', 'guardarCarga', 'quitarPlantilla', 'regenerarEDT', 'subirPlantilla', 'toggleConfigMotivo', 'toggleConfigTipo', 'confirmarSelectorPersonal', 'guardarValorModulo', 'guardarControlRecargos']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['agregarConfigMotivo', 'agregarConfigTipo', 'eliminarConfigMotivo', 'eliminarConfigTipo', 'guardarActInterno', 'guardarCarga', 'quitarPlantilla', 'regenerarEDT', 'subirPlantilla', 'toggleConfigMotivo', 'toggleConfigTipo', 'confirmarSelectorPersonal', 'pasarAPresenteDesdeLicencia', 'guardarValorModulo', 'guardarControlRecargos']);
       await cargarTodo();
       _usuarioInicializado = email;
     } finally {
@@ -1469,7 +1480,8 @@
     document.querySelectorAll('#tbodyCarga tr').forEach(function(tr){
       if (tr.id === 'tr-separador-carga') return;
       tr.dataset.estado = '';
-      tr.classList.remove('fila-ausente', 'fila-especial', 'fila-desde-servicio', 'fila-desde-licencia');
+      tr.classList.remove('fila-ausente', 'fila-especial', 'fila-desde-servicio', 'fila-desde-licencia', 'fila-lic-vencida');
+      var badgeV = tr.querySelector('.badge-lic-vencida'); if (badgeV) badgeV.remove();
       delete tr.dataset.desdeServicio;
       delete tr.dataset.desdeLicencia;
       var badge = tr.querySelector('.badge-servicio'); if (badge) badge.remove();
@@ -1492,10 +1504,14 @@
   async function cargarExistente() {
     var fecha = document.getElementById('cargaFecha').value;
     if (!fecha) return;
+    var seq = ++_cargaSeq;
+    var vigente = function() { return seq === _cargaSeq; };
+    _fechaCargada = null;
     showLoading('Cargando carga del día…');
     try {
       _resetTablaCarga();
       var data = await cargarRegistroDeFecha(fecha);
+      if (!vigente()) return; // se pidió otro día mientras tanto: este pedido ya no vale
       registroFechaActual = { fecha: fecha, porLp: {} };
       data.forEach(function(r){ registroFechaActual.porLp[String(r.lp)] = r; });
       data.forEach(function(r){
@@ -1515,17 +1531,55 @@
         _limpiarObsLicenciaSiCorresponde(tr); // por si quedó guardada una nota de Licencia Anual vieja en un día que ya no lo es
         if (TIPOS_SIN_HORARIO.indexOf(r.tipo_presencia) !== -1) tr.classList.add('fila-especial');
       });
-      await aplicarServiciosDelDia(fecha);
-      await aplicarLicenciasDelDia(fecha);
+      await aplicarServiciosDelDia(fecha, vigente);
+      if (!vigente()) return;
+      var licOk = await aplicarLicenciasDelDia(fecha, vigente);
+      if (!vigente()) return;
+      // Quien quedó guardado como LICENCIA ANUAL pero ese día ya no tiene
+      // ninguna licencia vigente en Licencias Anuales (la licencia terminó,
+      // se corrigieron sus fechas o se borró) se marca para revisar — antes
+      // quedaba "pegado" como licencia para siempre.
+      if (licOk) marcarLicenciasSinVigencia();
       refrescarDatalists();
+      _fechaCargada = fecha;
       if (data.length === 0 && !document.querySelector('#tbodyCarga .badge-servicio') && !document.querySelector('#tbodyCarga .badge-licencia')) {
         alertShow('topAlert', 'info', 'Sin carga guardada para el ' + fmtFecha(fecha) + ' — es una fecha nueva.');
       }
     } catch (e) {
-      alertShow('topAlert', 'error', 'Error al cargar el día: ' + (e.message || e));
+      if (vigente()) alertShow('topAlert', 'error', 'Error al cargar el día: ' + (e.message || e));
     } finally {
-      hideLoading();
+      if (vigente()) hideLoading();
     }
+  }
+
+  // Filas AUSENTE con motivo LICENCIA ANUAL que no vienen de una licencia
+  // vigente ese día (no tienen la marca desdeLicencia que pone
+  // aplicarLicenciasDelDia): son carga guardada vieja o hecha a mano. Se
+  // les pone un aviso con un botón para pasarlas a PRESENTE de un click.
+  function marcarLicenciasSinVigencia() {
+    document.querySelectorAll('#tbodyCarga tr[data-lp]').forEach(function(tr) {
+      var celda = tr.querySelector('.persona-cell');
+      var viejo = celda && celda.querySelector('.badge-lic-vencida');
+      if (viejo) viejo.remove();
+      tr.classList.remove('fila-lic-vencida');
+      if (tr.dataset.estado !== 'AUSENTE' || tr.dataset.desdeLicencia === '1') return;
+      var selMotivo = tr.querySelector('.sel-motivo');
+      if (!selMotivo || selMotivo.value !== 'LICENCIA ANUAL') return;
+      tr.classList.add('fila-lic-vencida');
+      if (celda) celda.insertAdjacentHTML('beforeend',
+        '<div class="badge-lic-vencida">⚠️ Sin licencia vigente este día <button type="button" class="btn btn-ghost btn-xs" onclick="pasarAPresenteDesdeLicencia(this)">Pasar a PRESENTE</button></div>');
+    });
+  }
+  function pasarAPresenteDesdeLicencia(btn) {
+    var tr = btn.closest('tr');
+    if (!tr) return;
+    var b = tr.querySelector('.btn-pres');
+    if (b) setEstadoCarga(b, 'PRESENTE');
+    var inpObs = tr.querySelector('.inp-obs');
+    if (inpObs && /^Licencia Anual /i.test(inpObs.value || '')) inpObs.value = '';
+    var sj = tr.querySelector('.sel-justif'); if (sj) sj.selectedIndex = 0;
+    tr.classList.remove('fila-lic-vencida');
+    var bd = tr.querySelector('.badge-lic-vencida'); if (bd) bd.remove();
   }
 
   // Servicios y Horarios → Carga Diaria (ver SERVICIOS_AUTOCOMPLETAN más
@@ -1536,13 +1590,14 @@
   // arriba desde presentismo_registro_diario (a pedido de Enzo). No se
   // guarda nada solo por esto: recién queda en firme cuando se aprieta
   // "Guardar carga del día".
-  async function aplicarServiciosDelDia(fecha) {
+  async function aplicarServiciosDelDia(fecha, vigente) {
     var res = await supabaseClient.from('servicios_registros')
       .select('legajo,tipo,turno,estado')
       .eq('fecha', fecha)
       .in('tipo', SERVICIOS_AUTOCOMPLETAN)
       .neq('estado', 'NO REALIZADO');
     if (res.error) { console.error('Error al traer servicios del día:', res.error); return; }
+    if (vigente && !vigente()) return;
     (res.data || []).forEach(function(s) {
       var tr = document.querySelector('#tbodyCarga tr[data-lp="'+s.legajo+'"]');
       if (!tr) return; // no está en la nómina activa de la División Tiro
@@ -1575,15 +1630,16 @@
   // puede estar "presente en un servicio" y "de licencia" el mismo día.
   // No se guarda nada solo por esto: recién queda en firme cuando se
   // aprieta "Guardar carga del día".
-  async function aplicarLicenciasDelDia(fecha) {
+  async function aplicarLicenciasDelDia(fecha, vigente) {
     var res = await supabaseClient.from('licencias_registros')
       .select('lp,fecha_inicio,fecha_fin,cod_ctr_lic')
       .lte('fecha_inicio', fecha)
       .gte('fecha_fin', fecha);
     if (res.error) {
       console.warn('No se pudo cruzar con Licencias Anuales (¿esa sección todavía no está migrada a Supabase?): ', res.error);
-      return;
+      return false;
     }
+    if (vigente && !vigente()) return false;
     (res.data || []).forEach(function(l) {
       var tr = document.querySelector('#tbodyCarga tr[data-lp="'+l.lp+'"]');
       if (!tr) return; // no está en la nómina activa de la División Tiro
@@ -1602,11 +1658,18 @@
         celda.insertAdjacentHTML('beforeend', '<div class="badge-licencia" title="Autocompletado desde Licencias Anuales — se vuelve a completar así cada vez que se abre este día">🏅 Licencia asignada</div>');
       }
     });
+    return true;
   }
 
   async function guardarCarga() {
     var fecha = document.getElementById('cargaFecha').value;
     if (!fecha) { alertShow('topAlert', 'error', 'Elegí una fecha.'); return; }
+    // Si la tabla todavía está cargando, o está mostrando otro día distinto
+    // al del selector, guardar pisaría el día elegido con datos de otro.
+    if (_fechaCargada !== fecha) {
+      alertShow('topAlert', 'error', 'La pantalla todavía no terminó de cargar el ' + fmtFecha(fecha) + ' — esperá un momento o apretá "↺ Cargar del día" y volvé a guardar.');
+      return;
+    }
     var rows = [];
     document.querySelectorAll('#tbodyCarga tr').forEach(function(tr){
       if (tr.id === 'tr-separador-carga' || !tr.dataset.estado) return;
