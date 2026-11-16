@@ -720,7 +720,7 @@
       </div>
       <div class="ctrl-group" style="flex:1; min-width:220px;">
         <label class="ctrl-label">Buscar (legajo, apellido, nombre)</label>
-        <input type="text" id="fRegBuscar" oninput="debounceRegistros()">
+        <input type="text" id="fRegBuscar" oninput="debounceRegistros()" placeholder="LP exacto, o apellido / nombre exacto" title="Un número busca ese legajo exacto. Un texto busca palabras completas del apellido o del nombre (ej: GATTI, CESAR).">
       </div>
       <span class="count-pill" id="regCountPill">0 registros</span>
     </div>
@@ -2396,6 +2396,29 @@
     regDebounceTimer = setTimeout(function(){ recargarRegistros(true); }, 400);
   }
 
+  // Búsqueda EXACTA en Registros (pedido de Enzo): si se escribe un número
+  // se trae solo ese LP (buscar 8376 ya no trae 88376, 28376, 83764…); si se
+  // escribe texto, cada palabra tiene que ser una palabra COMPLETA del
+  // apellido o del nombre (GATTI trae GATTI, no "GATTINONI"; CESAR trae
+  // "CESAR ROBERTO"). Sin distinguir mayúsculas. Con varias palabras
+  // (ej. "GATTI CESAR") tienen que estar todas.
+  function aplicarBusquedaRegistros(q, buscar) {
+    var b = str(buscar).replace(/[%_,()*"\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!b) return q;
+    if (/^\d+$/.test(b)) return q.eq('lp', b);
+    b.split(' ').forEach(function(w) {
+      if (!w) return;
+      var conds = [];
+      ['apellido', 'nombre'].forEach(function(campo) {
+        ['"' + w + '"', '"' + w + ' %"', '"% ' + w + '"', '"% ' + w + ' %"'].forEach(function(pat) {
+          conds.push(campo + '.ilike.' + pat);
+        });
+      });
+      q = q.or(conds.join(','));
+    });
+    return q;
+  }
+
   async function recargarRegistros(resetPage) {
     if (resetPage) regPage = 0;
     var tipo = document.getElementById('fRegTipo').value;
@@ -2407,10 +2430,7 @@
       var q = supabaseClient.from('idoneidades').select('*', { count: 'exact' });
       if (tipo) q = q.eq('tipo', tipo);
       if (estado) q = q.eq('estado', estado);
-      if (buscar) {
-        var b = buscar.replace(/[%_,]/g, '');
-        q = q.or('lp.ilike.%'+b+'%,apellido.ilike.%'+b+'%,nombre.ilike.%'+b+'%');
-      }
+      q = aplicarBusquedaRegistros(q, buscar);
       var from = regPage * regPageSize, to = from + regPageSize - 1;
       q = q.order('fecha', { ascending: false, nullsFirst: false }).order('hora', { ascending: false, nullsFirst: false }).range(from, to);
       var res = await q;
