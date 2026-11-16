@@ -294,6 +294,10 @@
   .vh-ok { background:#e8f5e9; color:#2e7d32; }
   .vh-pronto { background:#fff3e0; color:#e65100; }
   .vh-vencido { background:#ffebee; color:#c62828; }
+  .badge-combo { display:inline-block; background:#ede7f6; color:#5e35b1; border-radius:10px; padding:1px 8px; font-size:10px; font-weight:700; white-space:nowrap; margin-left:4px; cursor:help; }
+  .combo-box { background:#f3eefc; border:1px solid #d1c4e9; border-radius:10px; padding:10px 14px; font-size:13px; margin-top:8px; line-height:1.6; }
+  .combo-cursos-check { display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; background:white; }
+  .combo-cursos-check label { font-size:13px; display:flex; align-items:center; gap:8px; cursor:pointer; }
   .badge-nro { display:inline-block; background:#e3f2fd; color:#0277bd; border-radius:10px; padding:1px 8px; font-size:10px; font-weight:700; white-space:nowrap; }
 
   /* GENERAR TEXTO */
@@ -577,7 +581,13 @@
     <div class="table-card">
       <div class="section-title"><span class="ico">➕</span> Registrar convocatoria (varias personas a la vez)</div>
       <div class="form-grid">
-        <div class="form-group full">
+        <div class="form-group full" id="nComboWrap" style="display:none;">
+          <label class="form-label">Curso combinado (varios cursos en uno)</label>
+          <select id="nCombo" onchange="onComboChange()"></select>
+          <div class="combo-box" id="nComboInfo" style="display:none;"></div>
+          <div class="field-hint">Opcional. Si lo elegís, cada persona se carga en <b>todos</b> los cursos del combo y después el resultado (Aprobado, Ausente…) se aplica a todos a la vez. Los combos se arman en ⚙️ Configuración.</div>
+        </div>
+        <div class="form-group full" id="nCursoWrap">
           <label class="form-label">Curso<span class="required-star">*</span></label>
           <select id="nCurso"></select>
           <div class="field-hint">¿Falta un curso en la lista? Se agrega desde la pestaña ⚙️ Configuración.</div>
@@ -826,6 +836,25 @@
         <button class="btn btn-primary" onclick="agregarCursoConfig()">+ Agregar curso</button>
       </div>
     </div>
+
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🔗</span> Cursos combinados (varios cursos en uno)</div>
+      <div class="field-hint" style="margin-bottom:12px;">Para un curso que en realidad son varios cursos juntos: armás el combo una vez (su nombre y qué cursos incluye). Después, en "Nueva Curso", elegís el combo, cargás al personal <b>una sola vez</b> y cada persona queda anotada en todos los cursos del combo. Al cambiar el resultado de una persona (Aprobado, Desaprobado, Ausente, Otros) se aplica solo a todos los cursos del combo. Si guardás un combo con un nombre que ya existe, se reemplaza. No afecta lo ya cargado.</div>
+      <ul class="config-list" id="listaCombosConfig"></ul>
+      <div class="form-grid" style="margin-top:14px;">
+        <div class="form-group full">
+          <label class="form-label">Nombre del combo</label>
+          <input type="text" id="nuevoComboNombre" placeholder="Ej: Curso 3 en 1 (Operador, Recertificación y Taser)">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Cursos que incluye (tildá 2 o más)</label>
+          <div class="combo-cursos-check" id="nuevoComboCursos"></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="guardarCombo()">💾 Guardar combo</button>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -902,6 +931,7 @@
   var _textosCamposCargados = false;
 
   var personalLote = []; // personas agregadas a la convocatoria en curso (Nueva Curso)
+  var COMBOS = [];       // [{nombre, cursos:[...]}] — cursos combinados (tabla cursos_combos)
   var regPage = 0;             // página actual de Registros (0-indexed)
   var regPageSize = 50;
   var regTotal = 0;
@@ -1011,7 +1041,7 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarCalificacion', 'eliminarRegistro', 'guardarCurso', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'agregarCursoConfig', 'confirmarEliminarCursoConfig', 'eliminarCursoConfig', 'actualizarResolucionCursoConfig', 'procesarExcelAsignacion', 'cargarGrupoExcelAlFormulario', 'agregarCursoDesdeExcel']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarCalificacion', 'eliminarRegistro', 'guardarCurso', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'agregarCursoConfig', 'confirmarEliminarCursoConfig', 'eliminarCursoConfig', 'actualizarResolucionCursoConfig', 'procesarExcelAsignacion', 'cargarGrupoExcelAlFormulario', 'agregarCursoDesdeExcel', 'guardarCombo', 'confirmarEliminarCombo', 'eliminarCombo']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
       await cargarCursosConfig();
@@ -1096,6 +1126,104 @@
     renderListaCursosConfig();
     aplicarResolucionSegunCurso('txd');
     aplicarResolucionSegunCurso('txs');
+    await cargarCombos();
+  }
+
+  // ============================================================
+  // CURSOS COMBINADOS — varios cursos que se dictan juntos. Cada persona
+  // se carga en todos los cursos del combo con un mismo "grupo_id"; los
+  // cambios de calificación/fecha/etc. se replican a todo el grupo.
+  // (Si la tabla cursos_combos todavía no existe, la app sigue andando
+  // sin la función de combos.)
+  // ============================================================
+  async function cargarCombos() {
+    var res = await supabaseClient.from('cursos_combos').select('nombre,cursos').order('nombre');
+    if (res.error) {
+      console.warn('Cursos combinados no disponibles (¿falta correr cursos_combos.sql?):', res.error);
+      COMBOS = [];
+    } else {
+      COMBOS = (res.data || []).map(function(r) { return { nombre: r.nombre, cursos: r.cursos || [] }; });
+    }
+    renderCombos();
+  }
+  function comboPorNombre(n) { return COMBOS.filter(function(c) { return c.nombre === n; })[0] || null; }
+
+  function renderCombos() {
+    var sel = document.getElementById('nCombo');
+    if (sel) {
+      var actual = sel.value;
+      sel.innerHTML = '<option value="">-- Ninguno (un solo curso) --</option>' + COMBOS.map(function(c) {
+        return '<option value="'+esc(c.nombre)+'">'+esc(c.nombre)+' ('+c.cursos.length+' cursos)</option>';
+      }).join('');
+      if (comboPorNombre(actual)) sel.value = actual;
+      document.getElementById('nComboWrap').style.display = COMBOS.length ? '' : 'none';
+      onComboChange();
+    }
+    var ul = document.getElementById('listaCombosConfig');
+    if (ul) {
+      ul.innerHTML = COMBOS.length ? COMBOS.map(function(c) {
+        return '<li class="config-item"><span>🔗 <b>'+esc(c.nombre)+'</b><br><small style="color:var(--muted);">'+c.cursos.map(esc).join(' · ')+'</small></span>' +
+          '<span><button class="btn btn-danger btn-sm" onclick="confirmarEliminarCombo(' + esc(JSON.stringify(c.nombre)) + ')" title="Quitar combo">🗑️</button></span></li>';
+      }).join('') : '<li class="config-item"><span style="color:var(--muted);">Todavía no hay combos armados.</span></li>';
+    }
+    var chk = document.getElementById('nuevoComboCursos');
+    if (chk) {
+      var marcados = Array.prototype.slice.call(chk.querySelectorAll('input:checked')).map(function(i) { return i.value; });
+      chk.innerHTML = CURSOS_DISPONIBLES.map(function(c) {
+        return '<label><input type="checkbox" value="'+esc(c)+'"'+(marcados.indexOf(c) !== -1 ? ' checked' : '')+'> '+esc(c)+'</label>';
+      }).join('') || '<span style="color:var(--muted);font-size:12px;">Primero agregá los cursos arriba.</span>';
+    }
+  }
+
+  function onComboChange() {
+    var sel = document.getElementById('nCombo');
+    var combo = sel ? comboPorNombre(sel.value) : null;
+    var info = document.getElementById('nComboInfo');
+    var wrapCurso = document.getElementById('nCursoWrap');
+    if (combo) {
+      info.style.display = '';
+      info.innerHTML = '🔗 Cada persona se va a cargar en estos <b>' + combo.cursos.length + '</b> cursos:<br>' + combo.cursos.map(function(c) { return '• ' + esc(c); }).join('<br>');
+      wrapCurso.style.display = 'none';
+    } else {
+      info.style.display = 'none';
+      wrapCurso.style.display = '';
+    }
+  }
+
+  async function guardarCombo() {
+    var nombre = str(document.getElementById('nuevoComboNombre').value);
+    var cursos = Array.prototype.slice.call(document.querySelectorAll('#nuevoComboCursos input:checked')).map(function(i) { return i.value; });
+    if (!nombre) { alertShow('topAlert', 'error', 'Escribí el nombre del combo.'); return; }
+    if (cursos.length < 2) { alertShow('topAlert', 'error', 'Tildá al menos 2 cursos para el combo.'); return; }
+    showLoading('Guardando combo…');
+    try {
+      var res = await supabaseClient.from('cursos_combos').upsert({ nombre: nombre, cursos: cursos }, { onConflict: 'nombre' });
+      if (res.error) throw res.error;
+      document.getElementById('nuevoComboNombre').value = '';
+      document.querySelectorAll('#nuevoComboCursos input:checked').forEach(function(i) { i.checked = false; });
+      await cargarCombos();
+      alertShow('topAlert', 'success', '✅ Combo guardado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar el combo: ' + (e.message || e) + ' — ¿corriste cursos_combos.sql en Supabase?');
+    } finally {
+      hideLoading();
+    }
+  }
+  function confirmarEliminarCombo(nombre) {
+    showConfirm('¿Quitar el combo "'+nombre+'"? Las personas ya cargadas en él no se modifican.', function() { eliminarCombo(nombre); }, { peligroso: true, textoOk: 'Quitar', icon: '🗑️' });
+  }
+  async function eliminarCombo(nombre) {
+    showLoading('Quitando…');
+    try {
+      var res = await supabaseClient.from('cursos_combos').delete().eq('nombre', nombre);
+      if (res.error) throw res.error;
+      await cargarCombos();
+      alertShow('topAlert', 'success', '🗑️ Combo quitado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
   }
 
   // Completa el campo "Resolución Nro." de Generar Texto según el curso
@@ -1616,6 +1744,8 @@
   }
 
   async function guardarCurso() {
+    var comboSel = document.getElementById('nCombo');
+    var combo = comboSel ? comboPorNombre(comboSel.value) : null;
     var curso = document.getElementById('nCurso').value;
     var calificacion = document.getElementById('nCalificacion').value;
     var fecha = document.getElementById('nFecha').value;
@@ -1625,41 +1755,58 @@
     var validoHasta = document.getElementById('nValidoHasta').value || null;
     var observaciones = document.getElementById('nObservaciones').value || null;
 
-    if (!curso || !fecha) { alertShow('topAlert', 'error', 'Completá curso y fecha.'); return; }
+    // Un combo carga a cada persona en TODOS sus cursos; sin combo, en uno solo.
+    var cursosAGuardar = combo ? combo.cursos.slice() : (curso ? [curso] : []);
+    if (!cursosAGuardar.length || !fecha) { alertShow('topAlert', 'error', 'Completá ' + (combo ? 'la fecha.' : 'curso y fecha.')); return; }
     if (!personalLote.length) { alertShow('topAlert', 'error', 'Agregá al menos a una persona a la lista.'); return; }
 
     showLoading('Guardando…');
     try {
       // Aviso si alguien ya figura en ese mismo curso y fecha (evita cargar dos veces la misma convocatoria).
       var lps = personalLote.map(function(p) { return str(p.lp); });
-      var ex = await supabaseClient.from('cursos').select('lp').eq('curso', curso).eq('fecha', fecha).eq('nro_curso', nroCurso).in('lp', lps);
+      var exQ = supabaseClient.from('cursos').select(combo ? 'lp,curso,grupo_id' : 'lp,curso').in('curso', cursosAGuardar).eq('fecha', fecha).eq('nro_curso', nroCurso).in('lp', lps);
+      var ex = await exQ;
       if (ex.error) throw ex.error;
-      var yaCargados = (ex.data || []).map(function(r) { return str(r.lp); });
-      var aGuardar = personalLote.filter(function(p) { return yaCargados.indexOf(str(p.lp)) === -1; });
-      if (!aGuardar.length) {
-        alertShow('topAlert', 'error', 'Todas las personas de la lista ya estaban cargadas en ese curso, N° y fecha.');
-        return;
-      }
+      var yaEsta = {};      // lp|curso -> true
+      var grupoDe = {};     // lp -> grupo_id ya existente (para no partir un combo a medias)
+      (ex.data || []).forEach(function(r) { yaEsta[str(r.lp) + '|' + r.curso] = true; if (r.grupo_id) grupoDe[str(r.lp)] = r.grupo_id; });
 
       var fechaTexto = fmtRangoFechas(fecha, fechaHasta);
-      var filas = aGuardar.map(function(p) {
+      var filas = [];
+      var personasOmitidas = 0;
+      personalLote.forEach(function(p) {
+        var lp = str(p.lp);
+        var faltantes = cursosAGuardar.filter(function(c) { return !yaEsta[lp + '|' + c]; });
+        if (!faltantes.length) { personasOmitidas++; return; }
+        var grupoId = null;
+        if (combo) grupoId = grupoDe[lp] || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null);
         var g = str(p.sexo).toUpperCase();
-        return {
-          curso: curso, nro_curso: nroCurso, calificacion: calificacion, fecha: fecha, fecha_hasta: fechaHasta, fecha_texto: fechaTexto, valido_hasta: validoHasta,
-          usuario: usuario, observaciones: observaciones, dni: str(p.dni), genero: (g === 'M' || g === 'F') ? g : '',
-          grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || ''
-        };
+        faltantes.forEach(function(c) {
+          var fila = {
+            curso: c, nro_curso: nroCurso, calificacion: calificacion, fecha: fecha, fecha_hasta: fechaHasta, fecha_texto: fechaTexto, valido_hasta: validoHasta,
+            usuario: usuario, observaciones: observaciones, dni: str(p.dni), genero: (g === 'M' || g === 'F') ? g : '',
+            grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || ''
+          };
+          if (grupoId) fila.grupo_id = grupoId;
+          filas.push(fila);
+        });
       });
+      if (!filas.length) {
+        alertShow('topAlert', 'error', combo ? 'Todas las personas de la lista ya estaban cargadas en todos los cursos del combo (mismo N° y fecha).' : 'Todas las personas de la lista ya estaban cargadas en ese curso, N° y fecha.');
+        return;
+      }
       var res = await supabaseClient.from('cursos').insert(filas);
       if (res.error) throw res.error;
       // Si el personal vino de un Excel de asignación, la edición oficial queda
       // recordada para Generar Texto (misma clave que usa "Edición nro.").
-      if (_importEdicion && _importCurso === curso) lsSet(claveEdicion(curso, fecha, nroCurso), _importEdicion);
+      cursosAGuardar.forEach(function(c) { if (_importEdicion && _importCurso === c) lsSet(claveEdicion(c, fecha, nroCurso), _importEdicion); });
       await cargarDashboard();
       limpiarFormularioNueva();
-      alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s).' + (yaCargados.length ? ' Se omitieron ' + yaCargados.length + ' que ya estaban cargados en ese curso, N° y fecha.' : ''));
+      alertShow('topAlert', 'success', '✅ ' + filas.length + ' registro(s) guardado(s)' + (combo ? ' en ' + cursosAGuardar.length + ' cursos (combo).' : '.') + (personasOmitidas ? ' Se omitieron ' + personasOmitidas + ' persona(s) que ya estaban cargadas.' : ''));
     } catch (e) {
-      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+      var msg = e.message || String(e);
+      if (/grupo_id/i.test(msg)) msg += ' — ¿corriste cursos_combos.sql en Supabase?';
+      alertShow('topAlert', 'error', 'Error al guardar: ' + msg);
     } finally {
       hideLoading();
     }
@@ -1667,6 +1814,7 @@
 
   function limpiarFormularioNueva() {
     document.getElementById('nCurso').selectedIndex = 0;
+    var _nc = document.getElementById('nCombo'); if (_nc) { _nc.value = ''; onComboChange(); }
     document.getElementById('nCalificacion').value = 'Pendiente';
     document.getElementById('nFecha').value = isoDate(new Date());
     document.getElementById('nFechaHasta').value = '';
@@ -1918,7 +2066,7 @@
       document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
         var cls = r.calificacion === 'Aprobado' ? 'est-aprobado' : r.calificacion === 'Desaprobado' ? 'est-desaprobado' : r.calificacion === 'Ausente' ? 'est-ausente' : r.calificacion === 'Otros' ? 'est-otros' : 'est-pendiente';
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
-          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+'</td><td>'+(r.nro_curso ? '<span class="badge-nro">'+esc(r.nro_curso)+'</span>' : '—')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td><td>'+badgeValidoHasta(r.valido_hasta)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc(r.curso)+(r.grupo_id ? '<span class="badge-combo" title="Curso combinado: la calificación (y las fechas) se aplican juntas a todos los cursos de esta persona en el combo">🔗 combo</span>' : '')+'</td><td>'+(r.nro_curso ? '<span class="badge-nro">'+esc(r.nro_curso)+'</span>' : '—')+'</td><td>'+fmtRangoFechas(r.fecha, r.fecha_hasta)+'</td><td>'+badgeValidoHasta(r.valido_hasta)+'</td>' +
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.calificacion)+'" onchange="cambiarCalificacion(\''+r.id+'\',this.value,this)">' +
             CALIFICACIONES.map(function(e){ return '<option value="'+e+'"'+(e===r.calificacion?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
@@ -1950,8 +2098,14 @@
     var prev = selectEl.dataset.prev || null;
     selectEl.disabled = true;
     try {
-      var res = await supabaseClient.from('cursos').update({ calificacion: nuevaCalificacion }).eq('id', id);
+      var fila = filasRegistrosActuales.find(function(x) { return String(x.id) === String(id); });
+      var grupoId = fila && fila.grupo_id;
+      var q = supabaseClient.from('cursos').update({ calificacion: nuevaCalificacion });
+      // Curso combinado: el resultado vale para todos los cursos del combo de esa persona.
+      q = grupoId ? q.eq('grupo_id', grupoId) : q.eq('id', id);
+      var res = await q;
       if (res.error) throw res.error;
+      if (grupoId) { await recargarRegistros(false); alertShow('topAlert', 'success', '✅ Calificación actualizada en todos los cursos del combo.'); cargarDashboard(); return; }
       selectEl.className = 'estado-inline ' + (nuevaCalificacion === 'Aprobado' ? 'est-aprobado' : nuevaCalificacion === 'Desaprobado' ? 'est-desaprobado' : nuevaCalificacion === 'Ausente' ? 'est-ausente' : nuevaCalificacion === 'Otros' ? 'est-otros' : 'est-pendiente');
       selectEl.dataset.prev = nuevaCalificacion;
       alertShow('topAlert', 'success', '✅ Calificación actualizada.');
@@ -1965,12 +2119,18 @@
   }
 
   function confirmarEliminarRegistro(id) {
-    showConfirm('¿Eliminar este registro? No se puede deshacer.', function() { eliminarRegistro(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+    var fila = filasRegistrosActuales.find(function(x) { return String(x.id) === String(id); });
+    var msg = (fila && fila.grupo_id)
+      ? 'Esta persona está en un curso combinado. Se van a eliminar sus registros en TODOS los cursos del combo. No se puede deshacer. ¿Seguir?'
+      : '¿Eliminar este registro? No se puede deshacer.';
+    showConfirm(msg, function() { eliminarRegistro(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
   }
   async function eliminarRegistro(id) {
     showLoading('Eliminando…');
     try {
-      var res = await supabaseClient.from('cursos').delete().eq('id', id);
+      var fila = filasRegistrosActuales.find(function(x) { return String(x.id) === String(id); });
+      var qd = supabaseClient.from('cursos').delete();
+      var res = await ((fila && fila.grupo_id) ? qd.eq('grupo_id', fila.grupo_id) : qd.eq('id', id));
       if (res.error) throw res.error;
       await recargarRegistros(false);
       cargarDashboard();
@@ -2016,17 +2176,25 @@
     try {
       // Solo se editan Curso/N° de curso/Calificación/Fecha/Válido hasta/Observaciones — los datos de
       // identidad (Grado/LP/Apellido/Nombre/Dependencia) no se tocan acá.
-      var res = await supabaseClient.from('cursos').update({
-        curso: curso,
-        nro_curso: str(document.getElementById('edRegNroCurso').value),
+      var comunes = {
         calificacion: document.getElementById('edRegCalificacion').value,
         fecha: fecha,
         fecha_hasta: fechaHasta,
         fecha_texto: fmtRangoFechas(fecha, fechaHasta),
         valido_hasta: document.getElementById('edRegValidoHasta').value || null,
         observaciones: document.getElementById('edRegObservaciones').value || null
-      }).eq('id', editandoRegistroId);
+      };
+      var res = await supabaseClient.from('cursos').update(Object.assign({
+        curso: curso,
+        nro_curso: str(document.getElementById('edRegNroCurso').value)
+      }, comunes)).eq('id', editandoRegistroId);
       if (res.error) throw res.error;
+      // Curso combinado: calificación, fechas, vigencia y observaciones se replican a los demás cursos del combo (el curso y N° propios no).
+      var filaEd = filasRegistrosActuales.find(function(x) { return String(x.id) === String(editandoRegistroId); });
+      if (filaEd && filaEd.grupo_id) {
+        var res2 = await supabaseClient.from('cursos').update(comunes).eq('grupo_id', filaEd.grupo_id);
+        if (res2.error) throw res2.error;
+      }
       cerrarModalEditarRegistro();
       await recargarRegistros(false);
       cargarDashboard();
