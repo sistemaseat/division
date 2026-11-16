@@ -943,7 +943,7 @@
       <div class="row-2col">
         <div class="table-card">
           <div class="section-title"><span class="ico">📋</span> Resultado del curso (genérico)</div>
-          <div class="field-hint" style="margin-bottom:10px;">Arma la comunicación con <b>todo el personal de esa jornada</b>, tenga la idoneidad nueva o ya la tuviera. Se titula con el nombre del combo o, si no es combo, el de la idoneidad. Después podés editar el texto como quieras.</div>
+          <div class="field-hint" style="margin-bottom:10px;">Arma la comunicación con <b>todo el personal de esa jornada</b> como aprobados (incluye desaprobados, ausentes y a quienes ya contaban con la idoneidad; los Pendientes no entran). Se titula con el nombre del combo o, si no es combo, el de la idoneidad. Después podés editar el texto como quieras.</div>
           <div class="form-group full">
             <label class="form-label">Fecha de la idoneidad</label>
             <input type="date" id="genFecha" onchange="cargarResultadoGenerico()">
@@ -3326,7 +3326,7 @@
     el.innerHTML = '<div class="resultado-preview"><b>' + c.personas.length + '</b> persona(s) cargadas — Aprobados: <b>' + por.Aprobado + '</b>, Desaprobados: <b>' + por.Desaprobado +
       '</b>, Ausentes: <b>' + por.Ausente + '</b>, Pendientes: <b>' + por.Pendiente + '</b>.' +
       (mixtos ? '<br>⚠️ ' + mixtos + ' persona(s) tienen estados distintos entre las idoneidades del combo: se toma el de la primera. Revisalo en Registros.' : '') +
-      (c.omitidos.length ? '<br><br><b>Ya contaban con la idoneidad (' + c.omitidos.length + ')</b> — van en un bloque aparte, no cuentan en Registros:' +
+      (c.omitidos.length ? '<br><br><b>Ya contaban con la idoneidad (' + c.omitidos.length + ')</b> — figuran como aprobados en el texto, no cuentan en Registros:' +
         c.omitidos.map(function(o) {
           return '<div style="display:flex;gap:8px;align-items:center;margin-top:3px;"><span>🎖️ ' + esc(o.grado) + ' <b>' + esc(o.apellido) + '</b>, ' + esc(o.nombre) + ' (LP ' + esc(o.lp) + ')</span>' +
             '<button type="button" class="btn btn-ghost btn-sm" onclick="quitarOmitidoGen(\'' + esc(o.id) + '\')" title="Sacar de la comunicación">✕</button></div>';
@@ -3352,17 +3352,21 @@
       if (!arr.length) return '';
       return '<b>' + titulo + ':</b><ul>' + arr.map(function(r) { return '<li>' + esc((fn || nombreCorto)(r)) + '</li>'; }).join('') + '</ul>';
     }
-    var ps = c.personas;
-    var ya = c.omitidos.map(function(o) { return { grado: o.grado, apellido: o.apellido, nombre: o.nombre, lp: o.lp, lactancia: false, tipos: o.tipos_ya || [] }; });
+    // Pedido: el texto sale con TODOS como aprobados (Aprobado, Desaprobado, Ausente y los
+    // que ya contaban con la idoneidad). Los que siguen Pendiente no entran.
+    var vistos = {};
+    var lista = c.personas.filter(function(r) { return r.estado !== 'Pendiente'; }).map(function(r) { return { grado: r.grado, apellido: r.apellido, nombre: r.nombre, lp: r.lp, lactancia: r.lactancia }; });
+    c.omitidos.forEach(function(o) { lista.push({ grado: o.grado, apellido: o.apellido, nombre: o.nombre, lp: o.lp, lactancia: false }); });
+    lista = lista.filter(function(r) { var k = str(r.lp); if (vistos[k]) return false; vistos[k] = true; return true; })
+      .sort(function(a, b) { return String(a.apellido || '').localeCompare(String(b.apellido || ''), 'es') || String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); });
+    var pendientes = c.personas.filter(function(r) { return r.estado === 'Pendiente'; }).length;
+    if (!lista.length) { alertShow('topAlert', 'error', 'No hay personas con resultado cargado para ese curso en esa fecha (todas están Pendiente).'); return; }
+    if (pendientes) alertShow('topAlert', 'success', '⚠️ Hay ' + pendientes + ' persona(s) todavía Pendiente — no se incluyen en el texto.');
 
     document.getElementById('resultadoGen').innerHTML =
       'Por medio de la presente, me dirijo a Ud. en relación a la Idoneidad de <b>"' + esc(c.nombre) + '"</b> llevada a cabo el día <b>' + fmtFecha(fechaRaw) + '</b>, informando la resultancia del personal interviniente:' +
       '<br><br>' +
-      bloque('Aprobados', ps.filter(function(r) { return r.estado === 'Aprobado'; })) +
-      bloque('Desaprobados', ps.filter(function(r) { return r.estado === 'Desaprobado'; })) +
-      bloque('Ausentes', ps.filter(function(r) { return r.estado === 'Ausente'; })) +
-      bloque('Pendientes', ps.filter(function(r) { return r.estado === 'Pendiente'; })) +
-      bloque('Ya contaban con la idoneidad', ya, function(r) { return nombreCorto(r) + (r.tipos.length ? ' - ya cuenta con ' + tiposCortos(r.tipos) : ''); }) +
+      bloque('Aprobados', lista) +
       '<br>Se eleva la presente para conocimiento y prosecución administrativa.' +
       (c.usuarios.length ? '<br><br><b>Personal evaluador interviniente:</b><br>' + c.usuarios.map(esc).join('<br>') : '');
   }
