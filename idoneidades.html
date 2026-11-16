@@ -236,6 +236,17 @@
   .form-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text); }
   .form-group input, .form-group select, .form-group textarea { width: 100%; }
   .form-group textarea { resize: vertical; min-height: 60px; }
+  .badge-combo { display:inline-block; background:#ede7f6; color:#5e35b1; border-radius:10px; padding:1px 8px; font-size:10px; font-weight:700; white-space:nowrap; margin-left:4px; cursor:help; }
+  .combo-box { background:#f3eefc; border:1px solid #d1c4e9; border-radius:10px; padding:10px 14px; font-size:13px; margin-top:8px; line-height:1.6; }
+  .combo-checks { display:flex; flex-direction:column; gap:2px; max-height:260px; overflow-y:auto; border:1.5px solid var(--border); border-radius:8px; padding:6px; background:white; }
+  .combo-checks label { display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:10px; width:100%; text-align:left; font-size:13px; font-weight:400; text-transform:none; letter-spacing:0; padding:7px 10px; border-radius:6px; cursor:pointer; line-height:1.3; }
+  .combo-checks label:hover { background:#f3eefc; }
+  .combo-checks label.marcado { background:#ede7f6; font-weight:600; }
+  .combo-checks input[type="checkbox"] { width:18px; height:18px; min-width:18px; padding:0; margin:0; flex:0 0 18px; accent-color:#5e35b1; cursor:pointer; }
+  .combo-contador { font-size:12px; color:var(--muted); margin-top:6px; }
+  .combo-list { list-style:none; margin:0 0 6px; padding:0; }
+  .combo-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 4px; border-bottom:1px solid var(--border); font-size:13px; }
+  .combo-item:last-child { border-bottom:none; }
   .required-star { color: var(--red); margin-left: 2px; }
   .field-hint { font-size: 11px; color: var(--muted); }
 
@@ -428,6 +439,7 @@
   <button class="tab-btn" data-tab="nice" onclick="switchTab('nice')">🔄 Reingreso NICE</button>
   <button class="tab-btn" data-tab="exportar" onclick="switchTab('exportar')">⬇️ Exportar</button>
   <button class="tab-btn" data-tab="textos" onclick="switchTab('textos')">📝 Generar Texto</button>
+  <button class="tab-btn" data-tab="combos" onclick="switchTab('combos')">🔗 Combos</button>
 </nav>
 
 <div class="content">
@@ -576,7 +588,13 @@
     <div class="table-card">
       <div class="section-title"><span class="ico">➕</span> Registrar idoneidades (varias personas a la vez)</div>
       <div class="form-grid">
-        <div class="form-group">
+        <div class="form-group full" id="nComboWrap" style="display:none;">
+          <label class="form-label">Idoneidades combinadas (varias en un solo curso)</label>
+          <select id="nCombo" onchange="onComboChange()"></select>
+          <div class="combo-box" id="nComboInfo" style="display:none;"></div>
+          <div class="field-hint">Opcional. Si lo elegís, cada persona se carga en <b>todas</b> las idoneidades del combo y después el resultado se aplica a todas a la vez. Los combos se arman en la pestaña 🔗 Combos.</div>
+        </div>
+        <div class="form-group" id="nTipoWrap">
           <label class="form-label">Tipo<span class="required-star">*</span></label>
           <select id="nTipo" onchange="onTipoChange()">
             <option value="">-- Seleccionar --</option>
@@ -651,6 +669,29 @@
     </div>
   </div>
 
+  <!-- ==================== COMBOS ==================== -->
+  <div class="tab-pane" id="pane-combos">
+    <div class="table-card">
+      <div class="section-title"><span class="ico">🔗</span> Idoneidades combinadas (varias idoneidades en un solo curso)</div>
+      <div class="field-hint" style="margin-bottom:12px;">Para un curso cuyos alumnos tienen que rendir varias idoneidades a la vez: armás el combo una vez (su nombre y qué idoneidades incluye). Después, en "Nueva Idoneidad", elegís el combo, cargás a los alumnos <b>una sola vez</b> y cada uno queda anotado en todas las idoneidades del combo. Al cambiar el resultado de un alumno (Aprobado, Desaprobado, Ausente) se aplica solo a todas las del combo. Si guardás un combo con un nombre que ya existe, se reemplaza. No afecta lo ya cargado.</div>
+      <ul class="combo-list" id="listaCombos"></ul>
+      <div class="form-grid" style="margin-top:14px;">
+        <div class="form-group full">
+          <label class="form-label">Nombre del combo</label>
+          <input type="text" id="nuevoComboNombre" placeholder="Ej: Curso Operador (Px4 + Benelli + Halcon)">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Idoneidades que incluye (tildá 2 o más)</label>
+          <div class="combo-checks" id="nuevoComboTipos"></div>
+          <div class="combo-contador" id="nuevoComboContador"></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="guardarCombo()">💾 Guardar combo</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== REGISTROS ==================== -->
   <div class="tab-pane" id="pane-registros">
     <div class="search-bar">
@@ -685,7 +726,7 @@
     </div>
     <div class="table-card">
       <table>
-        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Usuario</th><th class="action-col">Acciones</th></tr></thead>
+        <thead><tr><th>Grado</th><th>Legajo</th><th>Apellido</th><th>Nombre</th><th>Dependencia</th><th>Tipo</th><th>Fecha</th><th>Hora</th><th>Estado</th><th>Usuario</th><th class="action-col">Acciones</th></tr></thead>
         <tbody id="tbodyRegistros"></tbody>
       </table>
       <div class="no-data" id="registrosNoData" style="display:none;">
@@ -1081,10 +1122,10 @@
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
       mostrarPantalla('app', session.user.email);
       window.SOLO_LECTURA = (res.data.rol === 'visual');
-      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro']);
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['cambiarEstado', 'cambiarEstadoNice', 'eliminarNice', 'eliminarRegistro', 'guardarIdoneidad', 'confirmarEliminarNice', 'confirmarEliminarRegistro', 'abrirModalEditarRegistro', 'guardarEdicionRegistro', 'guardarCombo', 'confirmarEliminarCombo', 'eliminarCombo']);
       document.getElementById('nUsuario').value = session.user.email;
       document.getElementById('nFecha').value = isoDate(new Date());
-      await Promise.all([cargarDashboard(), cargarNice()]);
+      await Promise.all([cargarDashboard(), cargarNice(), cargarCombos()]);
       _usuarioInicializado = email;
     } finally {
       hideLoading();
@@ -1991,6 +2032,124 @@
   // NUEVA IDONEIDAD
   // ============================================================
   var _loteEsNice = null; // tipo de lista en curso: true = Reingreso NICE, false = padrón; null = vacía
+  var COMBOS = [];        // [{nombre, tipos:[...]}] — idoneidades combinadas (tabla idoneidades_combos)
+  // ============================================================
+  // IDONEIDADES COMBINADAS — varias idoneidades de un mismo curso. Cada
+  // persona se carga en todas las del combo con un mismo "grupo_id"; los
+  // cambios de estado/fecha/etc. se replican a todo el grupo. (Si la
+  // tabla idoneidades_combos todavía no existe, la app sigue andando
+  // sin la función de combos.)
+  // ============================================================
+  async function cargarCombos() {
+    var res = await supabaseClient.from('idoneidades_combos').select('nombre,tipos').order('nombre');
+    if (res.error) {
+      console.warn('Idoneidades combinadas no disponibles (¿falta correr idoneidades_combos.sql?):', res.error);
+      COMBOS = [];
+    } else {
+      COMBOS = (res.data || []).map(function(r) { return { nombre: r.nombre, tipos: r.tipos || [] }; });
+    }
+    renderCombos();
+  }
+  function comboPorNombre(n) { return COMBOS.filter(function(c) { return c.nombre === n; })[0] || null; }
+  function comboActual() { var el = document.getElementById('nCombo'); return el ? comboPorNombre(el.value) : null; }
+
+  function renderCombos() {
+    var sel = document.getElementById('nCombo');
+    if (sel) {
+      var actual = sel.value;
+      sel.innerHTML = '<option value="">-- Ninguno (una sola idoneidad) --</option>' + COMBOS.map(function(c) {
+        return '<option value="'+esc(c.nombre)+'">'+esc(c.nombre)+' ('+c.tipos.length+' idoneidades)</option>';
+      }).join('');
+      if (comboPorNombre(actual)) sel.value = actual;
+      document.getElementById('nComboWrap').style.display = COMBOS.length ? '' : 'none';
+      onComboChange();
+    }
+    var ul = document.getElementById('listaCombos');
+    if (ul) {
+      ul.innerHTML = COMBOS.length ? COMBOS.map(function(c) {
+        return '<li class="combo-item"><span>🔗 <b>'+esc(c.nombre)+'</b><br><small style="color:var(--muted);">'+c.tipos.map(function(t){ return esc(t.replace('Idoneidad ','')); }).join(' · ')+'</small></span>' +
+          '<span><button class="btn btn-danger btn-sm" onclick="confirmarEliminarCombo(' + esc(JSON.stringify(c.nombre)) + ')" title="Quitar combo">🗑️</button></span></li>';
+      }).join('') : '<li class="combo-item"><span style="color:var(--muted);">Todavía no hay combos armados.</span></li>';
+    }
+    var chk = document.getElementById('nuevoComboTipos');
+    if (chk) {
+      var marcados = Array.prototype.slice.call(chk.querySelectorAll('input:checked')).map(function(i) { return i.value; });
+      chk.innerHTML = TIPOS.map(function(t) {
+        var on = marcados.indexOf(t) !== -1;
+        return '<label class="'+(on ? 'marcado' : '')+'"><input type="checkbox" value="'+esc(t)+'"'+(on ? ' checked' : '')+' onchange="actualizarComboChecks()"><span>'+esc(t)+'</span></label>';
+      }).join('');
+      actualizarComboChecks();
+    }
+  }
+  function actualizarComboChecks() {
+    var chk = document.getElementById('nuevoComboTipos');
+    if (!chk) return;
+    var n = 0;
+    chk.querySelectorAll('label').forEach(function(l) {
+      var i = l.querySelector('input');
+      l.classList.toggle('marcado', !!(i && i.checked));
+      if (i && i.checked) n++;
+    });
+    var c = document.getElementById('nuevoComboContador');
+    if (c) c.textContent = n + (n === 1 ? ' idoneidad tildada' : ' idoneidades tildadas') + (n < 2 ? ' — falta tildar al menos ' + (2 - n) + ' más' : '');
+  }
+  function onComboChange() {
+    var combo = comboActual();
+    var info = document.getElementById('nComboInfo');
+    if (combo) {
+      info.style.display = '';
+      info.innerHTML = '🔗 Cada persona se va a cargar en estas <b>' + combo.tipos.length + '</b> idoneidades:<br>' + combo.tipos.map(function(t) { return '• ' + esc(t); }).join('<br>');
+      document.getElementById('nTipo').value = '';
+      document.getElementById('nTipoWrap').style.display = 'none';
+    } else {
+      info.style.display = 'none';
+      document.getElementById('nTipoWrap').style.display = '';
+    }
+    onTipoChange();
+  }
+  async function guardarCombo() {
+    var nombre = str(document.getElementById('nuevoComboNombre').value);
+    var tipos = Array.prototype.slice.call(document.querySelectorAll('#nuevoComboTipos input:checked')).map(function(i) { return i.value; });
+    if (!nombre) { alertShow('topAlert', 'error', 'Escribí el nombre del combo.'); return; }
+    if (tipos.length < 2) { alertShow('topAlert', 'error', 'Tildá al menos 2 idoneidades para el combo.'); return; }
+    showLoading('Guardando combo…');
+    try {
+      var res = await supabaseClient.from('idoneidades_combos').upsert({ nombre: nombre, tipos: tipos }, { onConflict: 'nombre' });
+      if (res.error) throw res.error;
+      document.getElementById('nuevoComboNombre').value = '';
+      document.querySelectorAll('#nuevoComboTipos input:checked').forEach(function(i) { i.checked = false; });
+      actualizarComboChecks();
+      await cargarCombos();
+      alertShow('topAlert', 'success', '✅ Combo guardado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al guardar el combo: ' + (e.message || e) + ' — ¿corriste idoneidades_combos.sql en Supabase?');
+    } finally {
+      hideLoading();
+    }
+  }
+  function confirmarEliminarCombo(nombre) {
+    showConfirm('¿Quitar el combo "'+nombre+'"? Las personas ya cargadas en él no se modifican.', function() { eliminarCombo(nombre); }, { peligroso: true, textoOk: 'Quitar', icon: '🗑️' });
+  }
+  async function eliminarCombo(nombre) {
+    showLoading('Quitando…');
+    try {
+      var res = await supabaseClient.from('idoneidades_combos').delete().eq('nombre', nombre);
+      if (res.error) throw res.error;
+      await cargarCombos();
+      alertShow('topAlert', 'success', '🗑️ Combo quitado.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al quitar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+    }
+  }
+  // grupo_id de un registro, leído de la base (sirve igual desde el Dashboard
+  // o desde Registros). Si la columna todavía no existe, se trata como suelto.
+  async function grupoIdDe(id) {
+    var r = await supabaseClient.from('idoneidades').select('grupo_id').eq('id', id).maybeSingle();
+    return (r.error || !r.data) ? null : (r.data.grupo_id || null);
+  }
+
   function onTipoChange() {
     var tipoVal = document.getElementById('nTipo').value;
     var isNice = tipoVal === 'Reingreso NICE';
@@ -2121,7 +2280,8 @@
   }
   function marcarLactanciaLote(i, checked) { if (personalLote[i]) personalLote[i].lactancia = !!checked; }
   function renderLote() {
-    var esPx4 = document.getElementById('nTipo').value === 'Idoneidad Px4';
+    var _cb = comboActual();
+    var esPx4 = _cb ? _cb.tipos.indexOf('Idoneidad Px4') !== -1 : document.getElementById('nTipo').value === 'Idoneidad Px4';
     document.getElementById('nLoteCount').textContent = personalLote.length;
     document.getElementById('nLoteVacio').style.display = personalLote.length ? 'none' : '';
     document.getElementById('nLoteTabla').style.display = personalLote.length ? '' : 'none';
@@ -2139,6 +2299,7 @@
   }
 
   async function guardarIdoneidad() {
+    var combo = comboActual();
     var tipo = document.getElementById('nTipo').value;
     var estado = document.getElementById('nEstado').value;
     var fecha = document.getElementById('nFecha').value;
@@ -2146,13 +2307,13 @@
     var usuario = str(document.getElementById('nUsuario').value);
     var observaciones = document.getElementById('nObservaciones').value || null;
 
-    if (!tipo || !fecha) { alertShow('topAlert', 'error', 'Completá tipo y fecha.'); return; }
+    if ((!tipo && !combo) || !fecha) { alertShow('topAlert', 'error', 'Completá ' + (combo ? 'la fecha.' : 'tipo y fecha.')); return; }
     if (!personalLote.length) { alertShow('topAlert', 'error', 'Agregá al menos a una persona a la lista.'); return; }
 
     showLoading('Guardando…');
     try {
       var guardados = 0, omitidos = 0;
-      if (tipo === 'Reingreso NICE') {
+      if (!combo && tipo === 'Reingreso NICE') {
         var dnis = personalLote.map(function(p) { return str(p.dni); });
         var ex = await supabaseClient.from('idoneidades_nice').select('dni').eq('fecha', fecha).in('dni', dnis);
         if (ex.error) throw ex.error;
@@ -2168,30 +2329,42 @@
         guardados = filasN.length;
         await cargarNice();
       } else {
+        var tiposAGuardar = combo ? combo.tipos.slice() : [tipo];
         var lps = personalLote.map(function(p) { return str(p.lp); });
-        var ex2 = await supabaseClient.from('idoneidades').select('lp').eq('tipo', tipo).eq('fecha', fecha).in('lp', lps);
+        var ex2 = await supabaseClient.from('idoneidades').select(combo ? 'lp,tipo,grupo_id' : 'lp,tipo').in('tipo', tiposAGuardar).eq('fecha', fecha).in('lp', lps);
         if (ex2.error) throw ex2.error;
-        var yaP = (ex2.data || []).map(function(r) { return str(r.lp); });
-        var nuevosP = personalLote.filter(function(p) { return yaP.indexOf(str(p.lp)) === -1; });
-        omitidos = personalLote.length - nuevosP.length;
-        if (!nuevosP.length) { alertShow('topAlert', 'error', 'Todas las personas de la lista ya estaban cargadas en ese tipo y fecha.'); return; }
-        var esPx4 = tipo === 'Idoneidad Px4';
-        var filasP = nuevosP.map(function(p) {
-          return {
-            tipo: tipo, estado: estado, fecha: fecha, hora: hora, usuario: usuario, observaciones: observaciones,
-            grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || '',
-            lactancia: esPx4 ? !!p.lactancia : false
-          };
+        var yaEsta = {};   // lp|tipo -> true
+        var grupoDe = {};  // lp -> grupo_id ya existente (para no partir un combo a medias)
+        (ex2.data || []).forEach(function(r) { yaEsta[str(r.lp) + '|' + r.tipo] = true; if (r.grupo_id) grupoDe[str(r.lp)] = r.grupo_id; });
+        var filasP = [];
+        personalLote.forEach(function(p) {
+          var lp = str(p.lp);
+          var faltantes = tiposAGuardar.filter(function(t) { return !yaEsta[lp + '|' + t]; });
+          if (!faltantes.length) { omitidos++; return; }
+          var grupoId = null;
+          if (combo) grupoId = grupoDe[lp] || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null);
+          faltantes.forEach(function(t) {
+            var fila = {
+              tipo: t, estado: estado, fecha: fecha, hora: hora, usuario: usuario, observaciones: observaciones,
+              grado: p.grado || '', lp: p.lp || '', apellido: p.apellido || '', nombre: p.nombre || '', dependencia: p.dependencia || '',
+              lactancia: t === 'Idoneidad Px4' ? !!p.lactancia : false
+            };
+            if (grupoId) fila.grupo_id = grupoId;
+            filasP.push(fila);
+          });
         });
+        if (!filasP.length) { alertShow('topAlert', 'error', combo ? 'Todas las personas de la lista ya estaban cargadas en todas las idoneidades del combo (misma fecha).' : 'Todas las personas de la lista ya estaban cargadas en ese tipo y fecha.'); return; }
         var res2 = await supabaseClient.from('idoneidades').insert(filasP);
         if (res2.error) throw res2.error;
         guardados = filasP.length;
         await cargarDashboard();
       }
       limpiarFormularioNueva();
-      alertShow('topAlert', 'success', '✅ ' + guardados + ' registro(s) guardado(s).' + (omitidos ? ' Se omitieron ' + omitidos + ' que ya estaban cargados en esa fecha.' : ''));
+      alertShow('topAlert', 'success', '✅ ' + guardados + ' registro(s) guardado(s)' + (combo ? ' en ' + combo.tipos.length + ' idoneidades (combo).' : '.') + (omitidos ? ' Se omitieron ' + omitidos + ' persona(s) que ya estaban cargadas en esa fecha.' : ''));
     } catch (e) {
-      alertShow('topAlert', 'error', 'Error al guardar: ' + (e.message || e));
+      var msg = e.message || String(e);
+      if (/grupo_id/i.test(msg)) msg += ' — ¿corriste idoneidades_combos.sql en Supabase?';
+      alertShow('topAlert', 'error', 'Error al guardar: ' + msg);
     } finally {
       hideLoading();
     }
@@ -2199,6 +2372,7 @@
 
   function limpiarFormularioNueva() {
     document.getElementById('nTipo').selectedIndex = 0;
+    var _nc = document.getElementById('nCombo'); if (_nc) { _nc.value = ''; document.getElementById('nComboInfo').style.display = 'none'; document.getElementById('nTipoWrap').style.display = ''; }
     document.getElementById('nEstado').value = 'Pendiente';
     document.getElementById('nFecha').value = isoDate(new Date());
     document.getElementById('nHora').value = '';
@@ -2250,7 +2424,7 @@
       document.getElementById('tbodyRegistros').innerHTML = filas.map(function(r) {
         var cls = r.estado === 'Aprobado' ? 'est-aprobado' : r.estado === 'Desaprobado' ? 'est-desaprobado' : r.estado === 'Ausente' ? 'est-ausente' : 'est-pendiente';
         return '<tr><td>'+esc(r.grado)+'</td><td>'+esc(r.lp)+'</td><td>'+esc(r.apellido)+'</td><td>'+esc(r.nombre)+'</td>' +
-          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td>'+fmtFecha(r.fecha)+'</td><td>'+fmtHorario(r.hora)+'</td>' +
+          '<td style="font-size:11px;">'+esc(r.dependencia)+'</td><td style="font-size:11px;">'+esc((r.tipo||'').replace('Idoneidad ',''))+(r.grupo_id ? '<span class="badge-combo" title="Idoneidades combinadas: el estado (y la fecha) se aplican juntos a todas las idoneidades de esta persona en el combo">🔗 combo</span>' : '')+'</td><td>'+fmtFecha(r.fecha)+'</td><td>'+fmtHorario(r.hora)+'</td>' +
           '<td><select class="estado-inline '+cls+'" data-prev="'+esc(r.estado)+'" onchange="cambiarEstado(\'idoneidades\',\''+r.id+'\',this.value,this)">' +
             ESTADOS.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('') +
           '</select></td>' +
@@ -2283,8 +2457,17 @@
     var prev = selectEl.dataset.prev || null;
     selectEl.disabled = true;
     try {
-      var res = await supabaseClient.from(tabla).update({ estado: nuevoEstado }).eq('id', id);
+      var grupoId = (tabla === 'idoneidades') ? await grupoIdDe(id) : null;
+      var qe = supabaseClient.from(tabla).update({ estado: nuevoEstado });
+      // Idoneidades combinadas: el resultado vale para todas las del combo de esa persona.
+      var res = await (grupoId ? qe.eq('grupo_id', grupoId) : qe.eq('id', id));
       if (res.error) throw res.error;
+      if (grupoId) {
+        if (document.getElementById('tbodyRegistros').children.length) await recargarRegistros(false);
+        alertShow('topAlert', 'success', '✅ Estado actualizado en todas las idoneidades del combo.');
+        cargarDashboard();
+        return;
+      }
       selectEl.className = 'estado-inline ' + (nuevoEstado === 'Aprobado' ? 'est-aprobado' : nuevoEstado === 'Desaprobado' ? 'est-desaprobado' : nuevoEstado === 'Ausente' ? 'est-ausente' : 'est-pendiente');
       selectEl.dataset.prev = nuevoEstado;
       alertShow('topAlert', 'success', '✅ Estado actualizado.');
@@ -2297,13 +2480,19 @@
     }
   }
 
-  function confirmarEliminarRegistro(id) {
-    showConfirm('¿Eliminar este registro? No se puede deshacer.', function() { eliminarRegistro(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  async function confirmarEliminarRegistro(id) {
+    var grupoId = await grupoIdDe(id);
+    var msg = grupoId
+      ? 'Esta persona está en idoneidades combinadas. Se van a eliminar sus registros en TODAS las idoneidades del combo. No se puede deshacer. ¿Seguir?'
+      : '¿Eliminar este registro? No se puede deshacer.';
+    showConfirm(msg, function() { eliminarRegistro(id); }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
   }
   async function eliminarRegistro(id) {
     showLoading('Eliminando…');
     try {
-      var res = await supabaseClient.from('idoneidades').delete().eq('id', id);
+      var grupoId = await grupoIdDe(id);
+      var qd = supabaseClient.from('idoneidades').delete();
+      var res = await (grupoId ? qd.eq('grupo_id', grupoId) : qd.eq('id', id));
       if (res.error) throw res.error;
       await recargarRegistros(false);
       cargarDashboard();
@@ -2348,15 +2537,23 @@
     try {
       // Solo se editan Tipo/Estado/Fecha/Hora/Observaciones/Lactancia — los datos
       // de identidad (Grado/LP/Apellido/Nombre/Dependencia) no se tocan acá.
-      var res = await supabaseClient.from('idoneidades').update({
-        tipo: tipo,
+      var comunes = {
         estado: document.getElementById('edRegEstado').value,
         fecha: fecha,
         hora: document.getElementById('edRegHora').value || null,
-        lactancia: document.getElementById('edRegLactancia').checked,
         observaciones: document.getElementById('edRegObservaciones').value || null
-      }).eq('id', editandoRegistroId);
+      };
+      var res = await supabaseClient.from('idoneidades').update(Object.assign({
+        tipo: tipo,
+        lactancia: document.getElementById('edRegLactancia').checked
+      }, comunes)).eq('id', editandoRegistroId);
       if (res.error) throw res.error;
+      // Idoneidades combinadas: estado, fecha, hora y observaciones se replican a las demás del combo (el tipo y la lactancia propios no).
+      var grupoEd = await grupoIdDe(editandoRegistroId);
+      if (grupoEd) {
+        var res2 = await supabaseClient.from('idoneidades').update(comunes).eq('grupo_id', grupoEd);
+        if (res2.error) throw res2.error;
+      }
       cerrarModalEditarRegistro();
       await recargarRegistros(false);
       cargarDashboard();
