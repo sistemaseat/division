@@ -3363,17 +3363,16 @@
       if (vistos[str(o.lp)]) return; vistos[str(o.lp)] = true;
       ya.push({ grado: o.grado, apellido: o.apellido, nombre: o.nombre, lp: o.lp, lactancia: false, tipos: o.tipos_ya || [] });
     });
-    var aprobadosTodos = aprobados.concat(ya).sort(function(a, b) {
-      return String(a.apellido || '').localeCompare(String(b.apellido || ''), 'es') || String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
-    });
+    // Orden por jerarquía (grado) y, dentro de cada grado, por apellido — igual que el resto de los textos.
+    var aprobadosTodos = _ordenarRet(aprobados.concat(ya));
 
     document.getElementById('resultadoGen').innerHTML =
       'Por medio de la presente, me dirijo a Ud. en relación a la Idoneidad de <b>"' + esc(c.nombre) + '"</b> llevada a cabo el día <b>' + fmtFecha(fechaRaw) + '</b>, informando la resultancia del personal interviniente:' +
       '<br><br>' +
       bloque('Aprobados', aprobadosTodos, function(r) { return nombreCorto(r) + (r.tipos && r.tipos.length ? ' - ya cuenta con ' + tiposCortos(r.tipos) : ''); }) +
-      bloque('Desaprobados', ps.filter(function(r) { return r.estado === 'Desaprobado'; })) +
-      bloque('Ausentes', ps.filter(function(r) { return r.estado === 'Ausente'; })) +
-      bloque('Pendientes', ps.filter(function(r) { return r.estado === 'Pendiente'; })) +
+      bloque('Desaprobados', _ordenarRet(ps.filter(function(r) { return r.estado === 'Desaprobado'; }))) +
+      bloque('Ausentes', _ordenarRet(ps.filter(function(r) { return r.estado === 'Ausente'; }))) +
+      bloque('Pendientes', _ordenarRet(ps.filter(function(r) { return r.estado === 'Pendiente'; }))) +
       '<br>Se eleva la presente para conocimiento y prosecución administrativa.' +
       (c.usuarios.length ? '<br><br><b>Personal evaluador interviniente:</b><br>' + c.usuarios.map(esc).join('<br>') : '');
   }
