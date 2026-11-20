@@ -2734,14 +2734,19 @@
     }
   }
 
+  // Número de edición de un grupo: el escrito a mano; si no hay, el N° de curso; si tampoco, "?".
+  function edicionDeGrupo(g) { return g.edicion || g.nro || '?'; }
+
   function bloquePorEdicion(grupos, filas, calificacion, conDni) {
     var out = [];
     grupos.forEach(function(g) {
       var vistosLp = {};
       var personas = ordenarPersonas(filas.filter(function(f){ if (!(f.fecha === g.fecha && f.fecha_hasta === g.fecha_hasta && str(f.nro_curso) === g.nro && f.calificacion === calificacion)) return false; var k = str(f.lp); if (vistosLp[k]) return false; vistosLp[k] = true; return true; }));
       if (!personas.length) return;
-      out.push('EDICIÓN NRO. ' + (g.edicion || '?') + (g.nro ? ' (CURSO NRO. ' + g.nro + ')' : '') + ':');
-      out.push('');
+      if (grupos.length > 1) { // con una sola edición el texto va corrido, sin encabezado por edición
+        out.push('EDICIÓN NRO. ' + edicionDeGrupo(g) + (g.nro && g.edicion ? ' (CURSO NRO. ' + g.nro + ')' : '') + ':');
+        out.push('');
+      }
       personas.forEach(function(p, i){ out.push(lineaPersona(p, conDni, i+1)); });
       out.push('');
     });
@@ -2756,7 +2761,7 @@
     var hHasta = document.getElementById('txsHorarioHasta').value;
     var iniciales = str(document.getElementById('txsIniciales').value);
 
-    if (_semanaGrupos.some(function(g){ return !g.edicion; })) {
+    if (_semanaGrupos.some(function(g){ return edicionDeGrupo(g) === '?'; })) {
       alertShow('topAlert', 'success', '⚠️ Falta el número de edición en alguna fecha — se generó el texto igual, con "?" en su lugar.');
     }
 
@@ -2792,8 +2797,9 @@
 
   function fraseEdicionesSemana(grupos) {
     var partes = grupos.map(function(g, i) {
-      var pref = (i === 0 ? 'Edición nro. ' : 'Edición nro. ') + (g.edicion || '?') + (i === 0 ? ' a llevarse a cabo con fecha ' : ' con fecha ');
-      return pref + fmtFecha(g.fecha) + (g.nro ? ' (curso nro. ' + g.nro + ')' : '');
+      var pref = 'Edición nro. ' + edicionDeGrupo(g) + (i === 0 ? ' a llevarse a cabo con fecha ' : ' con fecha ');
+      // Con una sola edición el texto sale igual que el diario (sin "(curso nro. X)"); con varias se aclara el curso de cada una.
+      return pref + fmtRangoFechas(g.fecha, g.fecha_hasta) + (grupos.length > 1 && g.nro && g.edicion ? ' (curso nro. ' + g.nro + ')' : '');
     });
     if (partes.length === 1) return partes[0];
     var ultima = 'la ' + partes[partes.length - 1];
