@@ -423,6 +423,7 @@
         '<td><div class="firma-thumb">' + (url ? '<img src="' + esc(url) + '" alt="Firma">' : '<span style="font-size:11px;color:#999;">sin imagen</span>') + '</div></td>' +
         '<td>' + esc(f.grado) + '</td><td>' + esc(f.apellido) + '</td><td>' + esc(f.nombres) + '</td><td>' + esc(f.lp) + '</td><td>' + esc(f.cargo) + '</td>' +
         '<td class="action-col">' +
+          '<button class="btn btn-success btn-sm" onclick="descargarFirma(' + "'" + esc(f.lp) + "'" + ')">⬇️ Descargar</button>' +
           '<button class="btn btn-primary btn-sm" onclick="editarFirma(' + "'" + esc(f.lp) + "'" + ')">✏️ Cambiar</button>' +
           '<button class="btn btn-danger btn-sm" onclick="quitarFirma(' + "'" + esc(f.lp) + "'" + ')">🗑️ Quitar</button>' +
         '</td></tr>';
@@ -641,6 +642,27 @@
     } finally {
       hideLoading();
       btn.disabled = false;
+    }
+  }
+
+  // Baja la imagen de la firma (PNG, con fondo transparente si se le sacó el blanco) para usarla en otro lado.
+  async function descargarFirma(lp) {
+    var f = firmas.find(function(x){ return String(x.lp) === String(lp); });
+    if (!f || !f.firma_path) return;
+    showLoading('Descargando firma…');
+    try {
+      var dl = await supabaseClient.storage.from(STORAGE_BUCKET).download(f.firma_path);
+      if (dl.error) throw new Error(dl.error.message);
+      var nombre = ('Firma ' + f.apellido + ' ' + f.nombres + ' LP ' + f.lp).replace(/[\\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() + '.png';
+      var url = URL.createObjectURL(dl.data);
+      var a = document.createElement('a');
+      a.href = url; a.download = nombre;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    } catch (err) {
+      alertShow('topAlert', 'error', 'No se pudo descargar la firma: ' + (err.message || err));
+    } finally {
+      hideLoading();
     }
   }
 
