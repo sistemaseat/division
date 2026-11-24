@@ -134,6 +134,46 @@
     .sel-datos small { display: block; font-size: 11px; color: var(--muted); line-height: 1.35; }
     .sel-vacio { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 8px; line-height: 1.5; }
 
+    .modelo-sel { width: 100%; padding: 9px 11px; font-size: 14px; border: 1.5px solid var(--border); border-radius: 8px; font-family: inherit; color: var(--text); background: white; outline: none; margin-top: 4px; }
+    .modelo-sel:focus { border-color: var(--primary); }
+    .modelo-botones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .modelo-botones .btn { padding: 7px 12px; font-size: 11px; }
+    .btn-danger { background: var(--red); color: white; }
+    .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+    .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+    .confirm-modal p { font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
+    .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .confirm-modal .btn-row { justify-content: center; }
+
+
+    /* ===== LOTE (varios diplomas) ===== */
+    .lote-res { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .lote-res-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+    .lote-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; font-family: inherit; padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; }
+    .lote-item:hover:not(:disabled) { border-color: var(--primary); background: #f5f6fd; }
+    .lote-item:disabled { background: #f1f8f2; border-color: #c8e6c9; cursor: default; }
+    .lote-item b { display: block; font-size: 13px; color: var(--text); }
+    .lote-item small { display: block; font-size: 11px; color: var(--muted); line-height: 1.35; }
+    .lote-item .lote-tag { font-size: 11px; font-weight: 800; color: var(--primary); white-space: nowrap; }
+    .lote-item:disabled .lote-tag { color: var(--green); }
+    .lote-det { margin-top: 12px; border: 1.5px dashed var(--border); border-radius: 8px; padding: 8px 10px; }
+    .lote-det summary { cursor: pointer; font-size: 12px; font-weight: 800; color: var(--primary); }
+    .lote-det textarea { margin-top: 8px; }
+    .lote-manual { display: grid; grid-template-columns: 1fr 120px; gap: 8px; margin-top: 8px; }
+    .lote-manual .btn { grid-column: 1 / -1; }
+    .btn-sm2 { padding: 7px 12px; font-size: 11px; }
+    .lote-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 6px; font-size: 13px; }
+    .lote-lista { display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow-y: auto; padding-right: 2px; }
+    .lote-fila { display: grid; grid-template-columns: 26px 1fr 104px 28px; gap: 6px; align-items: center; padding: 3px 4px; border: 1.5px solid transparent; border-radius: 8px; }
+    .lote-fila.sel { border-color: var(--primary); background: #f5f6fd; }
+    .lote-n { font-size: 11px; color: var(--muted); text-align: right; }
+    .lote-fila input[type=text] { padding: 6px 8px; font-size: 13px; }
+    .lote-fila input.vacio { border-color: #ef9a9a; background: #fff8f8; }
+    .lote-x { border: none; background: none; color: var(--red); font-size: 16px; cursor: pointer; line-height: 1; }
+    .lote-nav { display: none; align-items: center; justify-content: center; gap: 14px; margin: 12px auto 0; max-width: 900px; font-size: 13px; }
+    .lote-nav.show { display: flex; }
+    .lote-nav .btn { padding: 6px 14px; font-size: 13px; }
+
     #btnGenerar { width: 100%; margin-top: 4px; padding: 13px; font-size: 14px; }
     #mensaje { margin-top: 12px; margin-bottom: 0; }
 
@@ -160,7 +200,7 @@
     .el-tiro      { left: 79.47%; top: 9.07%;  width: 12.56%; height: 16.41%; }
 
     .el-certifico { left: 8%; top: 27.14%; width: 84%; height: 2.88%;  font-size: calc(13 * var(--u)); }
-    .el-nombre    { left: 8%; top: 32.15%; width: 84%; height: 4.94%;  font-size: calc(24 * var(--u)); }
+    .el-nombre    { left: 8%; top: 32.15%; width: 84%; height: 4.94%;  font-size: calc(24 * var(--u)); white-space: nowrap; }
     .el-linea     { left: 7.77%; top: 37.78%; width: 84.47%; height: 0; border-top: calc(.75 * var(--u)) solid var(--dip-linea); }
     .el-dni       { left: 8%; top: 38.86%; width: 84%; height: 2.47%;  font-size: calc(11 * var(--u)); }
     .el-parrafo1  { left: 8%; top: 44.00%; width: 84%; height: 9.26%;    font-size: calc(12 * var(--u)); font-weight: bold; line-height: 1.35; }
@@ -234,11 +274,57 @@
     <!-- ============ FORMULARIO ============ -->
     <div class="panel panel-form">
       <fieldset>
-        <legend>Datos del participante</legend>
+        <legend>Modelos guardados</legend>
+        <p class="ayuda" style="margin:0 0 6px;">Guardá el texto y los firmantes (con sus firmas de Firmas Digitales) para reutilizarlos. Al elegir un modelo solo te queda poner el nombre y el DNI, y retocar lo que haga falta.</p>
+        <select class="modelo-sel" id="modeloSel" onchange="modeloElegido()"><option value="">— Elegir un modelo —</option></select>
+        <div class="modelo-botones">
+          <button type="button" class="btn btn-primary" id="btnModeloGuardar" onclick="abrirGuardarModelo(false)">💾 Guardar como modelo</button>
+          <button type="button" class="btn btn-ghost" id="btnModeloActualizar" onclick="abrirGuardarModelo(true)" disabled>🔄 Actualizar este modelo</button>
+          <button type="button" class="btn btn-danger" id="btnModeloEliminar" onclick="eliminarModelo()" disabled>🗑️ Eliminar</button>
+        </div>
+        <div class="ayuda" id="modeloMsg"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Un solo diploma</legend>
+        <p class="ayuda" style="margin:0 0 4px;">Para un diploma suelto. Si armás la lista de abajo, se usan los de la lista.</p>
         <label class="form-label" for="nombre">Nombre y apellido</label>
         <input type="text" id="nombre" placeholder="Opcional — si lo dejás vacío queda para completar a mano" autocomplete="off">
         <label class="form-label" for="dni">DNI</label>
         <input type="text" id="dni" maxlength="10" inputmode="numeric" placeholder="Opcional" autocomplete="off">
+      </fieldset>
+
+      <fieldset id="fsLote">
+        <legend>Varios diplomas (lista de participantes)</legend>
+        <p class="ayuda" style="margin:0 0 6px;">Armá la lista y se descarga <b>un solo PDF</b> con una hoja A4 por persona, todas con el mismo texto y los mismos firmantes de más abajo.</p>
+
+        <label class="form-label" for="loteBuscar">Buscar en la nómina general</label>
+        <input type="text" id="loteBuscar" placeholder="DNI o LP exacto — o apellido / nombre" autocomplete="off">
+        <div class="ayuda">Si hay una sola coincidencia, <b>Enter</b> la agrega directo y deja el buscador listo para el siguiente.</div>
+        <div class="lote-res" id="loteRes"></div>
+
+        <details class="lote-det" id="loteDet">
+          <summary>📋 Pegar varios DNI o LP de una vez</summary>
+          <textarea id="lotePegar" rows="4" placeholder="Uno por línea (o separados por coma o espacio)"></textarea>
+          <button type="button" class="btn btn-ghost btn-sm2" style="margin-top:8px;" onclick="agregarPegados()">Buscar y agregar</button>
+        </details>
+
+        <details class="lote-det" id="loteDetMan">
+          <summary>✍️ Agregar a mano (si no está en la nómina)</summary>
+          <div class="lote-manual">
+            <input type="text" id="loteManNombre" placeholder="Nombre y apellido" autocomplete="off">
+            <input type="text" id="loteManDni" maxlength="10" inputmode="numeric" placeholder="DNI" autocomplete="off">
+            <button type="button" class="btn btn-ghost btn-sm2" onclick="agregarManual()">+ Agregar a la lista</button>
+          </div>
+        </details>
+
+        <div class="ayuda" id="loteMsg" style="margin-top:8px;"></div>
+        <div class="lote-cab">
+          <b id="loteCuenta">Lista vacía</b>
+          <button type="button" class="btn btn-ghost btn-sm2" id="btnLoteVaciar" onclick="vaciarLote()" disabled>🗑️ Vaciar lista</button>
+        </div>
+        <div class="lote-lista" id="loteLista"></div>
+        <p class="ayuda" id="loteAyudaLista" style="display:none;">Podés corregir el nombre o el DNI de cualquier fila. La fila marcada es la que ves en la vista previa.</p>
       </fieldset>
 
       <fieldset>
@@ -344,8 +430,40 @@
           <div class="el el-fcargo" data-f="3" id="p-f3cargo"></div>
         </div>
       </div>
+      <div class="lote-nav" id="loteNav">
+        <button type="button" class="btn btn-ghost" onclick="loteMover(-1)">◀</button>
+        <span id="loteNavTxt"></span>
+        <button type="button" class="btn btn-ghost" onclick="loteMover(1)">▶</button>
+      </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Guardar modelo -->
+<div class="modal-overlay" id="modeloModal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modeloModalTitulo">Guardar como modelo</div>
+      <button class="modal-close" onclick="cerrarGuardarModelo()">✕</button>
+    </div>
+    <label class="form-label" style="margin-top:0;" for="modeloNombre">Nombre del modelo</label>
+    <input type="text" id="modeloNombre" maxlength="80" placeholder="Ej: Torneo Interfuerzas 2026" autocomplete="off">
+    <p class="ayuda">Se guardan los dos párrafos y los tres firmantes (si van o no, nombre, cargo y la firma elegida desde Firmas Digitales). El nombre y el DNI del participante no se guardan. Una imagen subida a mano tampoco: para que la firma quede en el modelo, elegila desde Firmas Digitales.</p>
+    <div class="alert" id="modeloModalAlert" style="margin-top:10px;"></div>
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="cerrarGuardarModelo()">Cancelar</button>
+      <button class="btn btn-primary" id="btnModeloModalOk" onclick="guardarModelo()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmación -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
   </div>
 </div>
 
@@ -454,8 +572,12 @@
         return;
       }
       if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      window.USUARIO_EMAIL = email;
+      window.SOLO_LECTURA = (res.data.rol === 'visual');
       mostrarPantalla('app', session.user.email);
-      // Generar un PDF no escribe nada en la base: los usuarios de solo lectura también pueden usar esta sección.
+      // Generar un PDF no escribe nada en la base: los usuarios de solo lectura también pueden usar esta sección
+      // (y elegir modelos); solo no pueden guardarlos, reemplazarlos ni borrarlos.
+      cargarModelos();
     } finally {
       hideLoading();
       _sesionEnCurso = false;
@@ -482,17 +604,39 @@
   window.addEventListener('resize', ajustarEscala);
   if (window.ResizeObserver) new ResizeObserver(ajustarEscala).observe(document.getElementById('diplomaWrap'));
 
+  var lote = [];      // participantes del lote: { nombre, dni, lp }
+  var loteSel = 0;    // fila que se ve en la vista previa
   var firmasImg = { 1: null, 2: null, 3: null };
+  var firmasLp  = { 1: null, 2: null, 3: null };   // LP de la persona de Firmas Digitales cuya firma está puesta (null = subida a mano o ninguna)
 
   function firmanteActivo(n) { return document.getElementById('f' + n + 'activo').checked; }
 
+  // Si el nombre es muy largo para el renglón, se achica la letra hasta que entre (nunca baja de 60 %).
+  function ajustarNombre(el) {
+    el.style.fontSize = '';
+    var ancho = el.clientWidth, usado = el.scrollWidth;
+    if (ancho > 0 && usado > ancho) {
+      var factor = Math.max(0.6, (ancho / usado) * 0.98);
+      el.style.fontSize = 'calc(' + (24 * factor).toFixed(2) + ' * var(--u))';
+    }
+  }
+  function datosVistaPrevia() {
+    if (lote.length) {
+      var it = lote[Math.min(Math.max(loteSel, 0), lote.length - 1)];
+      return { nombre: it.nombre, dni: it.dni };
+    }
+    return { nombre: document.getElementById('nombre').value, dni: document.getElementById('dni').value };
+  }
+
   function actualizarVistaPrevia() {
-    var nombre = document.getElementById('nombre').value.toUpperCase();
-    var dni = formatearDNI(document.getElementById('dni').value);
+    var dp = datosVistaPrevia();
+    var nombre = String(dp.nombre || '').toUpperCase();
+    var dni = formatearDNI(dp.dni);
 
     // Si nombre/DNI quedan vacíos no se dibuja nada (se ve tal cual saldrá el
     // PDF, listo para completar a mano). El rótulo "DNI:" siempre se muestra.
     document.getElementById('p-nombre').textContent = nombre;
+    ajustarNombre(document.getElementById('p-nombre'));
     document.getElementById('p-dni').innerHTML = '';
     document.getElementById('p-dni').appendChild(document.createTextNode('DNI: '));
     var spanDni = document.createElement('span');
@@ -536,6 +680,7 @@
   // ============================================================
   function quitarFirma(n) {
     firmasImg[n] = null;
+    firmasLp[n] = null;
     var img = document.getElementById('p-f' + n + 'firma');
     img.style.display = 'none';
     img.removeAttribute('src');
@@ -563,6 +708,7 @@
           canvas = haceFondoTransparente(canvas);  // el fondo blanco de la hoja pasa a transparente
           var dataUrl = canvas.toDataURL('image/png');
           firmasImg[n] = dataUrl;
+          firmasLp[n] = null;   // subida a mano: no se puede guardar en un modelo
           var imgPreview = document.getElementById('p-f' + n + 'firma');
           imgPreview.src = dataUrl;
           imgPreview.style.display = 'block';
@@ -644,21 +790,11 @@
     try {
       var dl = await supabaseClient.storage.from('adjuntos').download(f.firma_path);
       if (dl.error) throw new Error(dl.error.message);
-      var dataUrl = await new Promise(function (ok, fail) {
-        var lector = new FileReader();
-        lector.onload = function () { ok(lector.result); };
-        lector.onerror = function () { fail(new Error('No se pudo leer la imagen')); };
-        lector.readAsDataURL(dl.data);
-      });
+      var dataUrl = await blobADataUrl(dl.data);
       // nombre y apellido de la persona (y su cargo, si lo tiene cargado)
       document.getElementById('f' + n + 'nombre').value = tituloNombre(f.nombres) + ' ' + tituloNombre(f.apellido);
       if (str(f.cargo)) document.getElementById('f' + n + 'cargo').value = f.cargo;
-      firmasImg[n] = dataUrl;
-      var imgPreview = document.getElementById('p-f' + n + 'firma');
-      imgPreview.src = dataUrl;
-      imgPreview.style.display = 'block';
-      document.getElementById('f' + n + 'firma').value = '';
-      document.getElementById('f' + n + 'quitar').style.display = 'inline-block';
+      ponerFirma(n, dataUrl, f.lp);
       var sw = document.getElementById('f' + n + 'activo');
       if (!sw.checked) sw.checked = true;
       actualizarVistaPrevia();
@@ -671,6 +807,213 @@
     }
   }
   function str(v) { return String(v == null ? '' : v).trim(); }
+
+  // ============================================================
+  // MODELOS GUARDADOS (texto + firmantes), tabla diplomas_modelos
+  // ============================================================
+  function blobADataUrl(blob) {
+    return new Promise(function (ok, fail) {
+      var lector = new FileReader();
+      lector.onload = function () { ok(lector.result); };
+      lector.onerror = function () { fail(new Error('No se pudo leer la imagen')); };
+      lector.readAsDataURL(blob);
+    });
+  }
+
+  // Pone una imagen de firma en el firmante n y recuerda de quién es (lp) para poder guardarla en un modelo.
+  function ponerFirma(n, dataUrl, lp) {
+    firmasImg[n] = dataUrl;
+    firmasLp[n] = lp != null ? String(lp) : null;
+    var imgPreview = document.getElementById('p-f' + n + 'firma');
+    imgPreview.src = dataUrl;
+    imgPreview.style.display = 'block';
+    document.getElementById('f' + n + 'firma').value = '';
+    document.getElementById('f' + n + 'quitar').style.display = 'inline-block';
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var cancelar = document.createElement('button');
+    cancelar.className = 'btn btn-ghost'; cancelar.textContent = 'Cancelar';
+    cancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var ok = document.createElement('button');
+    ok.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary'); ok.textContent = opciones.textoOk || 'Confirmar';
+    ok.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(cancelar); botones.appendChild(ok);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  var modelos = [];          // filas de diplomas_modelos
+  var modeloActualId = null; // modelo elegido en la lista
+  var modelosDisponibles = true;
+
+  function msgModelo(texto, tipo) {
+    var el = document.getElementById('modeloMsg');
+    el.textContent = texto || '';
+    el.style.color = tipo === 'error' ? 'var(--red)' : (tipo === 'ok' ? 'var(--green)' : 'var(--muted)');
+  }
+
+  function refrescarBotonesModelo() {
+    var solo = !!window.SOLO_LECTURA;
+    document.getElementById('btnModeloGuardar').disabled = solo || !modelosDisponibles;
+    document.getElementById('btnModeloActualizar').disabled = solo || !modelosDisponibles || !modeloActualId;
+    document.getElementById('btnModeloEliminar').disabled = solo || !modelosDisponibles || !modeloActualId;
+    document.getElementById('modeloSel').disabled = !modelosDisponibles;
+  }
+
+  async function cargarModelos(elegirNombre) {
+    var res = await supabaseClient.from('diplomas_modelos').select('*').order('nombre', { ascending: true });
+    var sel = document.getElementById('modeloSel');
+    if (res.error) {
+      modelos = []; modelosDisponibles = false;
+      var falta = /diplomas_modelos/i.test(res.error.message || '') || res.error.code === '42P01';
+      msgModelo(falta ? 'Los modelos guardados todavía no están habilitados (hay que correr diplomas_modelos_schema.sql en Supabase).' : 'No se pudieron cargar los modelos: ' + res.error.message, 'error');
+      refrescarBotonesModelo();
+      return;
+    }
+    modelosDisponibles = true;
+    modelos = res.data || [];
+    sel.innerHTML = '<option value="">' + (modelos.length ? '— Elegir un modelo —' : '— Todavía no hay modelos guardados —') + '</option>' +
+      modelos.map(function (m) { return '<option value="' + escHtml(m.id) + '">' + escHtml(m.nombre) + '</option>'; }).join('');
+    var m = elegirNombre ? modelos.find(function (x) { return x.nombre === elegirNombre; }) : modelos.find(function (x) { return x.id === modeloActualId; });
+    modeloActualId = m ? m.id : null;
+    sel.value = modeloActualId || '';
+    refrescarBotonesModelo();
+  }
+
+  function modeloElegido() {
+    var id = document.getElementById('modeloSel').value;
+    modeloActualId = id || null;
+    refrescarBotonesModelo();
+    var m = modelos.find(function (x) { return x.id === id; });
+    if (m) aplicarModelo(m); else msgModelo('');
+  }
+
+  // Carga el texto y los firmantes del modelo; nombre y DNI del participante no se tocan.
+  async function aplicarModelo(m) {
+    showLoading('Cargando modelo…');
+    try {
+      document.getElementById('parrafo1').value = m.parrafo1 || '';
+      document.getElementById('parrafo2').value = m.parrafo2 || '';
+      var fs = Array.isArray(m.firmantes) ? m.firmantes : [];
+      [1, 2, 3].forEach(function (n) {
+        var f = fs[n - 1] || {};
+        document.getElementById('f' + n + 'activo').checked = f.activo !== false;
+        document.getElementById('f' + n + 'nombre').value = f.nombre || '';
+        document.getElementById('f' + n + 'cargo').value = f.cargo || '';
+        quitarFirma(n);
+      });
+      actualizarVistaPrevia();
+
+      var conFirma = [1, 2, 3].filter(function (n) { return fs[n - 1] && fs[n - 1].lp; });
+      var faltan = [];
+      if (conFirma.length) {
+        var r = await supabaseClient.from('firmas_digitales').select('lp,firma_path,apellido,nombres');
+        var filas = r.error ? [] : (r.data || []);
+        await Promise.all(conFirma.map(async function (n) {
+          var lp = String(fs[n - 1].lp);
+          var fila = filas.find(function (x) { return String(x.lp) === lp; });
+          if (!fila) { faltan.push(fs[n - 1].nombre || ('LP ' + lp)); return; }
+          var dl = await supabaseClient.storage.from('adjuntos').download(fila.firma_path);
+          if (dl.error) { faltan.push(fs[n - 1].nombre || ('LP ' + lp)); return; }
+          ponerFirma(n, await blobADataUrl(dl.data), lp);
+        }));
+      }
+      if (faltan.length) msgModelo('Modelo cargado, pero no se encontró la firma de: ' + faltan.join(', ') + ' (se sacó o se borró de Firmas Digitales).', 'error');
+      else msgModelo('Modelo “' + m.nombre + '” cargado. Completá nombre y DNI.', 'ok');
+    } catch (err) {
+      msgModelo('No se pudo cargar el modelo: ' + (err.message || err), 'error');
+    } finally {
+      hideLoading();
+    }
+  }
+
+  var _modeloActualizando = false;
+  function abrirGuardarModelo(actualizar) {
+    _modeloActualizando = !!actualizar;
+    var m = modelos.find(function (x) { return x.id === modeloActualId; });
+    document.getElementById('modeloModalTitulo').textContent = actualizar ? 'Actualizar modelo' : 'Guardar como modelo';
+    document.getElementById('modeloNombre').value = (actualizar && m) ? m.nombre : '';
+    document.getElementById('modeloModalAlert').className = 'alert';
+    document.getElementById('modeloModal').classList.add('show');
+    setTimeout(function () { document.getElementById('modeloNombre').focus(); }, 50);
+  }
+  function cerrarGuardarModelo() { document.getElementById('modeloModal').classList.remove('show'); }
+
+  function modeloDesdePantalla() {
+    return {
+      parrafo1: document.getElementById('parrafo1').value,
+      parrafo2: document.getElementById('parrafo2').value,
+      firmantes: [1, 2, 3].map(function (n) {
+        return {
+          activo: firmanteActivo(n),
+          nombre: document.getElementById('f' + n + 'nombre').value.trim(),
+          cargo: document.getElementById('f' + n + 'cargo').value.trim(),
+          lp: firmasImg[n] && firmasLp[n] ? firmasLp[n] : null
+        };
+      })
+    };
+  }
+
+  function guardarModelo() {
+    var nombre = document.getElementById('modeloNombre').value.trim();
+    var alerta = document.getElementById('modeloModalAlert');
+    if (!nombre) { alerta.className = 'alert show alert-error'; alerta.textContent = 'Poné un nombre para el modelo.'; return; }
+    var existente = modelos.find(function (x) { return x.nombre.toLowerCase() === nombre.toLowerCase(); });
+    var nombreFinal = existente ? existente.nombre : nombre;
+    var hacer = function () { ejecutarGuardarModelo(nombreFinal); };
+    if (existente) {
+      cerrarGuardarModelo();
+      showConfirm('Ya hay un modelo llamado “' + existente.nombre + '”. ¿Reemplazarlo con lo que hay ahora en pantalla (texto y firmantes)?', hacer, { textoOk: 'Reemplazar', icon: '🔄' });
+    } else {
+      hacer();
+    }
+  }
+
+  async function ejecutarGuardarModelo(nombre) {
+    showLoading('Guardando modelo…');
+    try {
+      var fila = modeloDesdePantalla();
+      fila.nombre = nombre;
+      fila.usuario = window.USUARIO_EMAIL || null;
+      fila.updated_at = new Date().toISOString();
+      var res = await supabaseClient.from('diplomas_modelos').upsert(fila, { onConflict: 'nombre' });
+      if (res.error) throw new Error(res.error.message);
+      cerrarGuardarModelo();
+      await cargarModelos(nombre);
+      var sinFirma = fila.firmantes.filter(function (f, i) { return f.activo && !f.lp; }).length;
+      msgModelo('Modelo “' + nombre + '” guardado.' + (sinFirma ? ' Ojo: ' + sinFirma + ' firmante(s) quedaron sin firma (solo se guardan las elegidas desde Firmas Digitales).' : ''), 'ok');
+    } catch (err) {
+      var alerta = document.getElementById('modeloModalAlert');
+      if (document.getElementById('modeloModal').classList.contains('show')) { alerta.className = 'alert show alert-error'; alerta.textContent = 'Error: ' + (err.message || err); }
+      else msgModelo('Error al guardar el modelo: ' + (err.message || err), 'error');
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function eliminarModelo() {
+    var m = modelos.find(function (x) { return x.id === modeloActualId; });
+    if (!m) return;
+    showConfirm('¿Eliminar el modelo “' + m.nombre + '”? No se puede deshacer. Lo que está en pantalla no se borra.', async function () {
+      showLoading('Eliminando…');
+      try {
+        var res = await supabaseClient.from('diplomas_modelos').delete().eq('id', m.id);
+        if (res.error) throw new Error(res.error.message);
+        modeloActualId = null;
+        await cargarModelos();
+        msgModelo('Modelo eliminado.', 'ok');
+      } catch (err) {
+        msgModelo('No se pudo eliminar: ' + (err.message || err), 'error');
+      } finally {
+        hideLoading();
+      }
+    }, { peligroso: true, textoOk: 'Eliminar', icon: '🗑️' });
+  }
 
   // Recorta un canvas al rectángulo que realmente tiene contenido, dejando un margencito.
   function recortarBordesVacios(canvas) {
@@ -722,12 +1065,34 @@
     return String(txt || '').replace(/[\\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  function actualizarBotonGenerar() {
+    var b = document.getElementById('btnGenerar');
+    if (b.disabled) return;
+    b.textContent = lote.length ? ('📄 Generar PDF con ' + lote.length + (lote.length === 1 ? ' diploma' : ' diplomas')) : '📄 Generar y descargar PDF';
+  }
+
   async function generarDiploma() {
     var boton = document.getElementById('btnGenerar');
     document.getElementById('mensaje').className = 'alert';
 
-    var dniDigitos = document.getElementById('dni').value.replace(/\D/g, '');
-    if (dniDigitos && (dniDigitos.length < 7 || dniDigitos.length > 8)) { mostrarMensaje('El DNI debe tener 7 u 8 números.', 'error'); return; }
+    var personas;
+    if (lote.length) {
+      var malos = [];
+      lote.forEach(function (it, i) {
+        var d = String(it.dni || '').replace(/\D/g, '');
+        if (d && (d.length < 7 || d.length > 8)) malos.push(i + 1);
+      });
+      if (malos.length) {
+        seleccionarFila(malos[0] - 1, true);
+        mostrarMensaje('Revisá el DNI de la(s) fila(s) ' + malos.join(', ') + ': tiene que tener 7 u 8 números.', 'error');
+        return;
+      }
+      personas = lote.map(function (it) { return { nombre: it.nombre, dni: it.dni }; });
+    } else {
+      var dniDigitos = document.getElementById('dni').value.replace(/\D/g, '');
+      if (dniDigitos && (dniDigitos.length < 7 || dniDigitos.length > 8)) { mostrarMensaje('El DNI debe tener 7 u 8 números.', 'error'); return; }
+      personas = [{ nombre: document.getElementById('nombre').value, dni: document.getElementById('dni').value }];
+    }
     if (!document.getElementById('parrafo1').value.trim()) { mostrarMensaje('Falta el primer párrafo (evento).', 'error'); return; }
     if (!document.getElementById('parrafo2').value.trim()) { mostrarMensaje('Falta el segundo párrafo (fecha de emisión).', 'error'); return; }
     if (typeof html2canvas === 'undefined' || !window.jspdf) {
@@ -738,9 +1103,11 @@
     boton.disabled = true;
     boton.textContent = 'Generando…';
     var contenedor = null;
+    var varios = personas.length > 1;
     try {
       // Se arma una copia del diploma a tamaño real (842 x 595 px = 842 x 595 pt, 1 pt = 1 px) fuera de pantalla,
-      // así el PDF sale igual sin importar el tamaño de la ventana.
+      // así el PDF sale igual sin importar el tamaño de la ventana. En un lote se reutiliza la misma copia:
+      // solo cambian el nombre y el DNI de una hoja a otra.
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
       contenedor = document.createElement('div');
       contenedor.style.cssText = 'position:fixed; left:-10000px; top:0; width:842px; height:595px; overflow:hidden; background:#fff;';
@@ -752,23 +1119,331 @@
       copia.style.setProperty('--u', '1px');
       contenedor.appendChild(copia);
       document.body.appendChild(contenedor);
+      var elNombre = copia.querySelector('#p-nombre');
+      var elDni = copia.querySelector('#p-dni .dni-numero');
 
-      var canvas = await html2canvas(copia, { scale: 4, backgroundColor: '#ffffff', useCORS: true, logging: false });
       var jsPDF = window.jspdf.jsPDF;
       var pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [842, 595], compress: true });
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 842, 595);
+      for (var i = 0; i < personas.length; i++) {
+        if (varios) {
+          showLoading('Generando diploma ' + (i + 1) + ' de ' + personas.length + '…');
+          await new Promise(function (ok) { setTimeout(ok, 0); });   // deja que se vea el avance
+        }
+        elNombre.textContent = String(personas[i].nombre || '').toUpperCase();
+        ajustarNombre(elNombre);
+        elDni.textContent = formatearDNI(personas[i].dni);
+        var canvas = await html2canvas(copia, { scale: 4, backgroundColor: '#ffffff', useCORS: true, logging: false });
+        if (i > 0) pdf.addPage([842, 595], 'landscape');
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 842, 595);
+        canvas.width = canvas.height = 0;   // libera memoria
+      }
 
-      var nombre = nombreArchivoSeguro(document.getElementById('nombre').value) || 'en blanco';
-      var nombreArchivo = 'Diploma - ' + nombre + '.pdf';
+      var nombreArchivo;
+      if (varios) {
+        nombreArchivo = 'Diplomas - ' + personas.length + ' participantes.pdf';
+      } else {
+        var nombre = nombreArchivoSeguro(personas[0].nombre) || 'en blanco';
+        nombreArchivo = 'Diploma - ' + nombre + '.pdf';
+      }
       pdf.save(nombreArchivo);
-      mostrarMensaje('Listo. Se descargó "' + nombreArchivo + '".', 'success');
+      var sinNombre = varios ? personas.filter(function (x) { return !String(x.nombre || '').trim(); }).length : 0;
+      mostrarMensaje('Listo. Se descargó "' + nombreArchivo + '"' + (varios ? ' (' + personas.length + ' hojas)' : '') + '.' +
+        (sinNombre ? ' ' + sinNombre + ' hoja(s) quedaron sin nombre, para completar a mano.' : ''), 'success');
     } catch (err) {
       console.error(err);
       mostrarMensaje('Error al generar el PDF: ' + (err.message || err), 'error');
     } finally {
       if (contenedor && contenedor.parentNode) contenedor.parentNode.removeChild(contenedor);
+      hideLoading();
       boton.disabled = false;
-      boton.textContent = '📄 Generar y descargar PDF';
+      actualizarBotonGenerar();
+    }
+  }
+
+  // ============================================================
+  // LOTE: lista de participantes (búsqueda en nómina, pegado de DNI/LP, alta a mano)
+  // ============================================================
+  function $(id) { return document.getElementById(id); }
+  function soloDigitos(v) { return String(v == null ? '' : v).replace(/\D/g, ''); }
+
+  function msgLote(texto, tipo) {
+    var el = $('loteMsg');
+    el.textContent = texto || '';
+    el.style.color = tipo === 'error' ? 'var(--red)' : (tipo === 'ok' ? 'var(--green)' : 'var(--muted)');
+  }
+
+  // "Nombre Apellido" como se escribe en el diploma, a partir de la fila de la nómina.
+  function itemDesdeNomina(p) {
+    var lp = str(p.lp != null ? p.lp : p.legajo);
+    return { nombre: (tituloNombre(p.nombre) + ' ' + tituloNombre(p.apellido)).trim(), dni: soloDigitos(p.dni), lp: lp, grado: str(p.grado) };
+  }
+  function yaEnLote(it) {
+    var d = soloDigitos(it.dni);
+    return lote.some(function (x) {
+      if (it.lp && x.lp && it.lp === x.lp) return true;
+      return d && soloDigitos(x.dni) === d;
+    });
+  }
+  // Devuelve cuántos se agregaron y cuántos ya estaban.
+  function agregarALote(items) {
+    var nuevos = 0, repetidos = 0;
+    items.forEach(function (it) {
+      if (yaEnLote(it)) { repetidos++; return; }
+      lote.push(it); nuevos++;
+    });
+    if (nuevos) loteSel = lote.length - nuevos;
+    renderLote();
+    return { nuevos: nuevos, repetidos: repetidos };
+  }
+
+  function renderLote() {
+    if (loteSel >= lote.length) loteSel = lote.length - 1;
+    if (loteSel < 0) loteSel = 0;
+    var cont = $('loteLista');
+    cont.innerHTML = lote.map(function (it, i) {
+      return '<div class="lote-fila' + (i === loteSel ? ' sel' : '') + '" data-i="' + i + '">' +
+        '<span class="lote-n">' + (i + 1) + '</span>' +
+        '<input type="text" class="lote-nom' + (String(it.nombre).trim() ? '' : ' vacio') + '" data-c="nombre" value="' + escHtml(it.nombre) + '" placeholder="Nombre y apellido (completar)" title="' + escHtml(it.lp ? 'LP ' + it.lp + (it.grado ? ' — ' + it.grado : '') : 'Cargado a mano') + '" autocomplete="off">' +
+        '<input type="text" data-c="dni" value="' + escHtml(formatearDNI(it.dni)) + '" placeholder="DNI" maxlength="10" inputmode="numeric" autocomplete="off">' +
+        '<button type="button" class="lote-x" data-quitar="' + i + '" title="Quitar de la lista">✕</button></div>';
+    }).join('');
+    $('loteCuenta').textContent = lote.length ? (lote.length + (lote.length === 1 ? ' participante en la lista' : ' participantes en la lista')) : 'Lista vacía';
+    $('btnLoteVaciar').disabled = !lote.length;
+    $('loteAyudaLista').style.display = lote.length ? 'block' : 'none';
+    $('loteNav').classList.toggle('show', lote.length > 0);
+    actualizarNavLote();
+    actualizarVistaPrevia();
+    actualizarBotonGenerar();
+    renderResultadosLote();   // marca con ✓ los que ya están
+  }
+
+  function actualizarNavLote() {
+    $('loteNavTxt').textContent = lote.length ? ('Vista previa: ' + (loteSel + 1) + ' de ' + lote.length) : '';
+  }
+  function seleccionarFila(i, scroll) {
+    if (i < 0 || i >= lote.length) return;
+    loteSel = i;
+    document.querySelectorAll('#loteLista .lote-fila').forEach(function (f) { f.classList.toggle('sel', Number(f.getAttribute('data-i')) === i); });
+    actualizarNavLote();
+    actualizarVistaPrevia();
+    if (scroll) {
+      var f = document.querySelector('#loteLista .lote-fila[data-i="' + i + '"]');
+      if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' });
+    }
+  }
+  function loteMover(d) {
+    if (!lote.length) return;
+    seleccionarFila((loteSel + d + lote.length) % lote.length, true);
+  }
+
+  // Edición en la lista (delegado: no se vuelve a dibujar mientras se escribe)
+  $('loteLista').addEventListener('input', function (e) {
+    var inp = e.target; var fila = inp.closest('.lote-fila'); if (!fila) return;
+    var i = Number(fila.getAttribute('data-i')), it = lote[i]; if (!it) return;
+    if (inp.getAttribute('data-c') === 'dni') {
+      var pos = inp.selectionStart, antes = inp.value.length;
+      inp.value = formatearDNI(inp.value);
+      inp.selectionEnd = pos + (inp.value.length - antes);
+      it.dni = soloDigitos(inp.value);
+    } else {
+      it.nombre = inp.value;
+      inp.classList.toggle('vacio', !inp.value.trim());
+    }
+    if (i !== loteSel) seleccionarFila(i); else actualizarVistaPrevia();
+  });
+  $('loteLista').addEventListener('focusin', function (e) {
+    var fila = e.target.closest ? e.target.closest('.lote-fila') : null; if (!fila) return;
+    var i = Number(fila.getAttribute('data-i'));
+    if (i !== loteSel) seleccionarFila(i);
+  });
+  $('loteLista').addEventListener('click', function (e) {
+    var q = e.target.getAttribute && e.target.getAttribute('data-quitar');
+    if (q == null) return;
+    lote.splice(Number(q), 1);
+    renderLote();
+  });
+
+  function vaciarLote() {
+    if (!lote.length) return;
+    showConfirm('¿Vaciar la lista de ' + lote.length + ' participante(s)? Se pierden los nombres y DNI cargados (el texto y las firmas no se tocan).', function () {
+      lote = []; loteSel = 0; msgLote('');
+      renderLote();
+    }, { textoOk: 'Vaciar', icon: '🗑️', peligroso: true });
+  }
+
+  // ---- Búsqueda en la nómina general ----
+  var NOM_COLS = 'lp:legajo,grado,apellido,nombre,dni';
+  var _loteTimer = null, _loteSeq = 0, _loteResultados = [];
+
+  // Solo números → LP exacto (y, si tiene 7-8 dígitos, también DNI exacto). Texto → apellido/nombre (cada palabra tiene que aparecer).
+  async function consultarNominaExacto(num) {
+    var base = function () { return supabaseClient.from('nomina_general').select(NOM_COLS); };
+    var out = [], vistos = {};
+    function sumar(rows) { (rows || []).forEach(function (p) { var k = str(p.lp); if (!vistos[k]) { vistos[k] = 1; out.push(p); } }); }
+    var r = await base().eq('legajo', num).limit(5);
+    if (r.error) return { data: null, error: r.error };
+    sumar(r.data);
+    if (!out.length) {
+      // por si el legajo quedó guardado con espacios invisibles
+      var r2 = await base().ilike('legajo', '%' + num + '%').limit(60);
+      if (r2.error) return { data: null, error: r2.error };
+      sumar((r2.data || []).filter(function (p) { return str(p.lp) === num; }));
+    }
+    if (num.length >= 7 && num.length <= 8) {
+      var r3 = await base().eq('dni', num).limit(5);
+      if (r3.error) return { data: null, error: r3.error };
+      sumar(r3.data);
+    }
+    return { data: out, error: null };
+  }
+  async function consultarNominaLote(q) {
+    var num = q.replace(/[.\s-]/g, '');
+    if (/^\d+$/.test(num)) return await consultarNominaExacto(num);
+    var palabras = q.replace(/[%_,()*]/g, ' ').split(/\s+/).filter(Boolean);
+    var consulta = supabaseClient.from('nomina_general').select(NOM_COLS);
+    palabras.forEach(function (w) { consulta = consulta.or('apellido.ilike.%' + w + '%,nombre.ilike.%' + w + '%'); });
+    return await consulta.order('apellido').order('nombre').limit(15);
+  }
+
+  async function buscarLote(inmediato) {
+    var q = $('loteBuscar').value.trim();
+    var mi = ++_loteSeq;
+    if (!q) { _loteResultados = []; renderResultadosLote(); return null; }
+    var esNum = /^[\d.\s-]+$/.test(q);
+    if (!esNum && q.length < 3) {
+      _loteResultados = [];
+      $('loteRes').innerHTML = '<div class="ayuda">Escribí al menos 3 letras.</div>';
+      return null;
+    }
+    $('loteRes').innerHTML = '<div class="ayuda">Buscando…</div>';
+    var res = await consultarNominaLote(q);
+    if (mi !== _loteSeq) return null;   // llegó una búsqueda más nueva
+    if (res.error) { _loteResultados = []; $('loteRes').innerHTML = '<div class="ayuda" style="color:var(--red)">No se pudo buscar: ' + escHtml(res.error.message || res.error) + '</div>'; return null; }
+    _loteResultados = res.data || [];
+    renderResultadosLote(q);
+    return _loteResultados;
+  }
+
+  function renderResultadosLote(q) {
+    var cont = $('loteRes');
+    if (q === undefined) {
+      if (!$('loteBuscar').value.trim()) { cont.innerHTML = ''; return; }
+      if (!_loteResultados.length && !cont.querySelector('.lote-item')) return;
+    }
+    if (!_loteResultados.length) {
+      cont.innerHTML = '<div class="ayuda">No hay coincidencias en la nómina general. Si no está, usá “Agregar a mano”.</div>';
+      return;
+    }
+    var pendientes = _loteResultados.filter(function (p) { return !yaEnLote(itemDesdeNomina(p)); }).length;
+    var html = '<div class="lote-res-cab"><span>' + _loteResultados.length + ' coincidencia(s)</span>' +
+      (pendientes > 1 ? '<button type="button" class="btn btn-ghost btn-sm2" onclick="agregarTodosResultados()">Agregar los ' + pendientes + '</button>' : '') + '</div>';
+    html += _loteResultados.map(function (p, i) {
+      var ya = yaEnLote(itemDesdeNomina(p));
+      return '<button type="button" class="lote-item"' + (ya ? ' disabled' : ' onclick="agregarResultado(' + i + ')"') + '>' +
+        '<span><b>' + escHtml(p.apellido) + ', ' + escHtml(p.nombre) + '</b><small>LP ' + escHtml(p.lp) + (p.grado ? ' — ' + escHtml(p.grado) : '') + (p.dni ? ' — DNI ' + escHtml(formatearDNI(p.dni)) : '') + '</small></span>' +
+        '<span class="lote-tag">' + (ya ? '✓ en la lista' : '+ Agregar') + '</span></button>';
+    }).join('');
+    cont.innerHTML = html;
+  }
+
+  function agregarResultado(i) {
+    var p = _loteResultados[i]; if (!p) return;
+    var r = agregarALote([itemDesdeNomina(p)]);
+    msgLote(r.nuevos ? 'Agregado: ' + lote[lote.length - 1].nombre + '.' : 'Esa persona ya estaba en la lista.', r.nuevos ? 'ok' : '');
+  }
+  function agregarTodosResultados() {
+    var r = agregarALote(_loteResultados.map(itemDesdeNomina));
+    msgLote('Agregué ' + r.nuevos + (r.repetidos ? ' (' + r.repetidos + ' ya estaban)' : '') + '.', 'ok');
+  }
+
+  $('loteBuscar').addEventListener('input', function () {
+    clearTimeout(_loteTimer);
+    _loteTimer = setTimeout(function () { buscarLote(); }, 400);
+  });
+  $('loteBuscar').addEventListener('keydown', async function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    clearTimeout(_loteTimer);
+    var res = await buscarLote(true);
+    if (res && res.length === 1) {
+      var r = agregarALote([itemDesdeNomina(res[0])]);
+      msgLote(r.nuevos ? 'Agregado: ' + lote[lote.length - 1].nombre + '.' : 'Esa persona ya estaba en la lista.', r.nuevos ? 'ok' : '');
+      $('loteBuscar').value = ''; _loteResultados = []; renderResultadosLote();
+    } else if (res && res.length > 1) {
+      msgLote('Hay ' + res.length + ' coincidencias: elegí la que corresponde.', '');
+    }
+  });
+
+  // ---- Pegar varios DNI / LP ----
+  async function agregarPegados() {
+    var tokens = $('lotePegar').value.split(/[\s,;]+/).map(soloDigitos).filter(Boolean);
+    tokens = tokens.filter(function (t, i) { return tokens.indexOf(t) === i; });
+    if (!tokens.length) { msgLote('Pegá al menos un DNI o LP.', 'error'); return; }
+    if (tokens.length > 400) { msgLote('Son demasiados de una vez (máximo 400). Dividilos en tandas.', 'error'); return; }
+    showLoading('Buscando ' + tokens.length + ' en la nómina…');
+    try {
+      var porDni = {}, porLp = {};
+      var dnis = tokens.filter(function (t) { return t.length >= 7 && t.length <= 8; });
+      for (var i = 0; i < dnis.length; i += 100) {
+        var rd = await supabaseClient.from('nomina_general').select(NOM_COLS).in('dni', dnis.slice(i, i + 100));
+        if (rd.error) throw rd.error;
+        (rd.data || []).forEach(function (p) { var k = soloDigitos(p.dni); if (k && !porDni[k]) porDni[k] = p; });
+      }
+      for (var j = 0; j < tokens.length; j += 100) {
+        var rl = await supabaseClient.from('nomina_general').select(NOM_COLS).in('legajo', tokens.slice(j, j + 100));
+        if (rl.error) throw rl.error;
+        (rl.data || []).forEach(function (p) { var k = str(p.lp); if (k && !porLp[k]) porLp[k] = p; });
+      }
+      // Los LP que no aparecen se reintentan uno por uno (legajos con espacios invisibles).
+      var sinLp = tokens.filter(function (t) { return t.length < 7 && !porLp[t]; }).slice(0, 30);
+      for (var k = 0; k < sinLp.length; k++) {
+        var rx = await consultarNominaExacto(sinLp[k]);
+        if (rx.error) throw rx.error;
+        var hit = (rx.data || []).filter(function (p) { return str(p.lp) === sinLp[k]; })[0];
+        if (hit) porLp[sinLp[k]] = hit;
+      }
+
+      var items = [], faltanDni = [], faltanLp = [];
+      tokens.forEach(function (t) {
+        var largo = t.length >= 7 && t.length <= 8;
+        var p = largo ? (porDni[t] || porLp[t]) : porLp[t];
+        if (p) items.push(itemDesdeNomina(p));
+        else if (largo) faltanDni.push(t);
+        else faltanLp.push(t);
+      });
+      // Los DNI que no están en la nómina quedan en la lista, con el nombre vacío para completar.
+      faltanDni.forEach(function (t) { items.push({ nombre: '', dni: t, lp: '', grado: '' }); });
+      var r = agregarALote(items);
+
+      var partes = ['Agregué ' + r.nuevos + ' a la lista' + (r.repetidos ? ' (' + r.repetidos + ' ya estaban)' : '') + '.'];
+      if (faltanDni.length) partes.push('DNI que no están en la nómina (quedaron en la lista con el nombre vacío, completalo en rojo): ' + faltanDni.map(formatearDNI).join(', ') + '.');
+      if (faltanLp.length) partes.push('LP que no encontré: ' + faltanLp.join(', ') + ' (los dejé en el cuadro).');
+      msgLote(partes.join(' '), (faltanDni.length || faltanLp.length) ? 'error' : 'ok');
+      $('lotePegar').value = faltanLp.join('\n');
+    } catch (err) {
+      console.error(err);
+      msgLote('No se pudo buscar en la nómina: ' + (err.message || err), 'error');
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ---- Alta a mano ----
+  $('loteManDni').addEventListener('input', function (e) {
+    var pos = e.target.selectionStart, antes = e.target.value.length;
+    e.target.value = formatearDNI(e.target.value);
+    e.target.selectionEnd = pos + (e.target.value.length - antes);
+  });
+  function agregarManual() {
+    var nombre = $('loteManNombre').value.trim(), dni = soloDigitos($('loteManDni').value);
+    if (!nombre && !dni) { msgLote('Escribí al menos el nombre o el DNI.', 'error'); return; }
+    if (dni && (dni.length < 7 || dni.length > 8)) { msgLote('El DNI debe tener 7 u 8 números.', 'error'); return; }
+    var r = agregarALote([{ nombre: nombre, dni: dni, lp: '', grado: '' }]);
+    if (r.nuevos) {
+      msgLote('Agregado a mano: ' + (nombre || 'DNI ' + formatearDNI(dni)) + '.', 'ok');
+      $('loteManNombre').value = ''; $('loteManDni').value = ''; $('loteManNombre').focus();
+    } else {
+      msgLote('Ese DNI ya estaba en la lista.', 'error');
     }
   }
 
