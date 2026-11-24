@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firmas Digitales — División Tiro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1a237e; --primary-light: #283593; --accent: #ffd600;
+      --green: #2e7d32; --red: #c62828; --bg: #f0f2f5; --card: #ffffff;
+      --text: #212121; --muted: #757575; --border: #e0e0e0;
+      --shadow: 0 2px 8px rgba(0,0,0,0.10); --shadow-lg: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .pantalla-auth { display: none; position: fixed; inset: 0; background: var(--bg); align-items: center; justify-content: center; min-height: 100vh; z-index: 5000; padding: 20px; }
+    .pantalla-auth.show { display: flex; }
+    .pantalla-auth .box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 420px; }
+    .pantalla-auth .icon { font-size: 56px; margin-bottom: 16px; }
+    .pantalla-auth h2 { color: var(--primary); margin: 0 0 10px; font-size: 22px; }
+    .pantalla-auth p  { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+    .pantalla-auth .email-chip { background: #f5f5f5; border-radius: 8px; padding: 8px 14px; font-family: monospace; font-size: 13px; color: #333; margin: 4px 0 16px; display: inline-block; }
+
+    .header { background: var(--primary); color: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,0.35); flex-wrap: wrap; row-gap: 8px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-logo { width: 44px; height: 44px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: var(--primary); }
+    .brand-title { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; }
+    .brand-sub   { font-size: 11px; opacity: .65; letter-spacing: .5px; }
+    .header-user { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+    .header-date { color: rgba(255,255,255,.65); font-size: 13px; }
+    .header-user-email { font-size: 12px; color: rgba(255,255,255,.75); }
+    .btn-cerrar-sesion { background: rgba(255,255,255,.12); color: white; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-cerrar-sesion:hover { background: rgba(255,255,255,.22); }
+
+    .content { padding: 22px 28px; max-width: 1200px; margin: 0 auto; }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 22px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .18s; text-transform: uppercase; letter-spacing: .4px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+    .btn-success { background: var(--green); color: white; }
+    .btn-danger  { background: var(--red); color: white; }
+    .btn-ghost   { background: #e0e0e0; color: var(--text); }
+    .btn-sm { padding: 5px 12px; font-size: 11px; }
+
+    .alert { display:none; padding: 13px 18px; border-radius: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+    .alert.show { display: block; }
+    .alert-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+    .alert-error   { background: #ffebee; color: #c62828; border-left: 4px solid #ef5350; }
+
+    .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+    .loading-overlay.show { display: flex; }
+    .spinner { width: 52px; height: 52px; border: 4px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-msg { color: white; font-size: 15px; font-weight: 600; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 8888; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--card); border-radius: 16px; padding: 28px; max-width: 640px; width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; }
+    .modal-title  { font-size: 18px; font-weight: 800; color: var(--primary); }
+    .modal-close  { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); flex-shrink: 0; }
+    .confirm-modal { max-width: 420px; text-align: center; padding: 32px 28px; }
+    .confirm-modal .icon { font-size: 40px; margin-bottom: 12px; }
+    .confirm-modal p { font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
+    .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+    .confirm-modal .btn-row { justify-content: center; }
+
+    .page-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+
+    .search-bar { background: var(--card); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; box-shadow: var(--shadow); }
+    .search-input-wrap { flex: 1; min-width: 200px; }
+    .count-pill { background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+    input[type=text], textarea { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; color: var(--text); outline: none; background: white; font-family: inherit; }
+    input[type=text]:focus { border-color: var(--primary); }
+    input[type=file] { width: 100%; font-size: 13px; }
+
+    .table-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    thead th { background: var(--primary); color: white; padding: 10px 13px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+    thead tr th:first-child { border-radius: 8px 0 0 0; } thead tr th:last-child { border-radius: 0 8px 0 0; }
+    tbody td { padding: 9px 13px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:hover td { background: #f5f7fa; }
+    tbody tr:last-child td { border-bottom: none; }
+    .action-col { white-space: nowrap; text-align: right; }
+    .action-col button { margin-left: 4px; }
+    .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .no-data-icon { font-size: 44px; margin-bottom: 10px; }
+    .no-data-text { font-size: 14px; font-weight: 700; color: var(--text); }
+
+    /* fondo a cuadros para que se note si la firma tiene fondo transparente */
+    .firma-thumb { width: 150px; height: 56px; border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+      background: #fff linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%);
+      background-size: 12px 12px; background-position: 0 0, 6px 6px; }
+    .firma-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+    .form-label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 5px; }
+    .field-hint { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-list { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1.5px solid var(--border); border-radius: 8px; max-height: 240px; overflow-y: auto; z-index: 50; box-shadow: var(--shadow-lg); margin-top: 4px; }
+    .autocomplete-list.show { display: block; }
+    .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover { background: #f0f2f5; }
+    .autocomplete-item b { color: var(--primary); }
+    .autocomplete-item small { display: block; color: var(--muted); font-size: 11px; }
+    .autocomplete-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+    .persona-sel { background: #e8eaf6; border: 1.5px solid var(--primary); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-top: 10px; display: none; }
+    .persona-sel.show { display: block; }
+    .persona-sel .aviso { color: #e65100; font-weight: 600; margin-top: 4px; }
+    .firma-preview { margin-top: 10px; display: none; }
+    .firma-preview.show { display: block; }
+    .firma-preview .firma-thumb { width: 100%; height: 110px; }
+    .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 10px; cursor: pointer; }
+
+    @media (max-width: 640px) {
+      .content { padding: 14px; } .header { padding: 12px 16px; }
+      .header-user { width: 100%; justify-content: flex-start; gap: 6px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="pantalla-auth" id="pantallaDenegado">
+  <div class="box">
+    <div class="icon">🔒</div>
+    <h2>Acceso restringido</h2>
+    <p>Tu cuenta no tiene permiso para acceder a este sistema.</p>
+    <div class="email-chip" id="denegadoEmail">—</div>
+    <p>Contactá al administrador para solicitar acceso.</p>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">↺ Probar con otra cuenta</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Cargando…</div>
+</div>
+
+<!-- MODAL: agregar / editar firma -->
+<div class="modal-overlay" id="firmaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="firmaModalTitulo">Agregar firma</div>
+      <button class="modal-close" onclick="cerrarModalFirma()">✕</button>
+    </div>
+    <div class="alert" id="modalAlert"></div>
+
+    <div id="bloqueBuscar">
+      <label class="form-label" style="margin-top:0;" for="fBuscar">Buscar personal por LP, apellido o nombre</label>
+      <div class="autocomplete-wrap">
+        <input type="text" id="fBuscar" placeholder="Ej: 702 o Bailatte" autocomplete="off" oninput="buscarPersonal()" onblur="ocultarSugerenciasConDelay()">
+        <div class="autocomplete-list" id="fSugerencias"></div>
+      </div>
+    </div>
+    <div class="persona-sel" id="personaSel"></div>
+
+    <label class="form-label" for="fCargo">Cargo (opcional)</label>
+    <input type="text" id="fCargo" placeholder="Ej: Jefe División Tiro">
+    <div class="field-hint">Si lo cargás, se sugiere automáticamente cuando elijas esta firma en un diploma.</div>
+
+    <label class="form-label" for="fArchivo">Imagen de la firma (PNG o JPG)</label>
+    <input type="file" id="fArchivo" accept="image/png,image/jpeg,image/*" onchange="procesarArchivo()">
+    <label class="check-row"><input type="checkbox" id="fQuitarFondo" checked onchange="reprocesarImagen()"> Quitar el fondo blanco de la hoja (recomendado)</label>
+    <div class="firma-preview" id="firmaPreview">
+      <div class="firma-thumb"><img id="firmaPreviewImg" alt="Vista previa de la firma"></div>
+    </div>
+    <div class="field-hint" id="firmaHint">La imagen se recorta al borde de la tinta y se reduce de tamaño antes de guardarse.</div>
+
+    <div class="btn-row" style="margin-top:20px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="cerrarModalFirma()">Cancelar</button>
+      <button class="btn btn-primary" id="btnGuardarFirma" onclick="guardarFirma()">💾 Guardar firma</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: confirmación -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="icon" id="confirmIcon">❓</div>
+    <p id="confirmMsg">—</p>
+    <div class="btn-row" id="confirmBotones"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">✍️</div>
+    <div>
+      <div class="brand-title">FIRMAS DIGITALES</div>
+      <div class="brand-sub">Firmas escaneadas del personal</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <a class="btn-cerrar-sesion" href="index.html" style="text-decoration:none;">← Inicio</a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-user-email" id="headerUserEmail"></div>
+    <button class="btn-cerrar-sesion" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</header>
+
+<div class="content">
+  <div class="alert" id="topAlert"></div>
+  <div class="page-title">Personal con firma cargada</div>
+  <div class="page-sub">Solo aparece el personal que tiene una firma subida. Estas firmas se pueden elegir desde la sección Creación de Diplomas.</div>
+
+  <div class="search-bar">
+    <div class="search-input-wrap">
+      <input type="text" id="listaBuscar" placeholder="🔎 Filtrar por LP, apellido, nombre o cargo…" oninput="renderLista()">
+    </div>
+    <span class="count-pill" id="listaCount">0</span>
+    <button class="btn btn-primary" onclick="abrirModalFirma()">➕ Agregar firma</button>
+  </div>
+
+  <div class="table-card" id="tablaWrap"></div>
+</div>
+
+</div><!-- /appRoot -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://reqyhevuysrffkozsjgz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gLMtM2MQZS41fZXeyk_tNA_3PzuMSmT';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const STORAGE_BUCKET = 'adjuntos';
+
+  // ---- Aviso de mantenimiento de Supabase (status público) ----
+  function mostrarModalMantenimiento(texto) {
+    var t = document.getElementById('mantenimientoModalTexto');
+    var m = document.getElementById('mantenimientoModal');
+    if (!t || !m) return;
+    t.textContent = texto;
+    m.classList.add('show');
+  }
+  async function verificarMantenimientoSupabase() {
+    try {
+      var ctrl = new AbortController();
+      var timeoutId = setTimeout(function() { ctrl.abort(); }, 5000);
+      var res = await fetch('https://status.supabase.com/api/v2/summary.json', { signal: ctrl.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) return;
+      var data = await res.json();
+      var mant = (data.scheduled_maintenances || []).find(function(m) { return m.status === 'in_progress'; });
+      if (!mant) return;
+      var fmt = function(iso) { return iso ? new Date(iso).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : ''; };
+      var inicio = fmt(mant.scheduled_for), fin = fmt(mant.scheduled_until);
+      mostrarModalMantenimiento('Supabase está en mantenimiento programado' + ((inicio && fin) ? (' de ' + inicio + ' a ' + fin + '.') : '.') + ' Durante este lapso la carga o el guardado de datos puede fallar. Podés cerrar este aviso y probar igual.');
+    } catch (e) { /* sin acceso al status público */ }
+  }
+  verificarMantenimientoSupabase();
+
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function showLoading(msg) { document.getElementById('loadingMsg').textContent = msg || 'Cargando…'; document.getElementById('loading').classList.add('show'); }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function str(v) { return String(v == null ? '' : v).trim(); }
+  function alertShow(id, tipo, msg) {
+    var el = document.getElementById(id);
+    el.className = 'alert show alert-' + tipo;
+    el.textContent = msg;
+    setTimeout(function(){ el.classList.remove('show'); }, 7000);
+  }
+
+  function showConfirm(mensaje, onOk, opciones) {
+    opciones = opciones || {};
+    document.getElementById('confirmIcon').textContent = opciones.icon || '❓';
+    document.getElementById('confirmMsg').textContent = mensaje;
+    var botones = document.getElementById('confirmBotones');
+    botones.innerHTML = '';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.className = 'btn btn-ghost';
+    btnCancelar.textContent = 'Cancelar';
+    btnCancelar.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); };
+    var btnOk = document.createElement('button');
+    btnOk.className = 'btn ' + (opciones.peligroso ? 'btn-danger' : 'btn-primary');
+    btnOk.textContent = opciones.textoOk || 'Confirmar';
+    btnOk.onclick = function () { document.getElementById('confirmModal').classList.remove('show'); onOk(); };
+    botones.appendChild(btnCancelar);
+    botones.appendChild(btnOk);
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  // ============================================================
+  // AUTENTICACIÓN — igual que el resto del sitio (login en index.html)
+  // ============================================================
+  function mostrarPantalla(nombre, email) {
+    document.getElementById('pantallaDenegado').classList.remove('show');
+    document.getElementById('appRoot').style.display = 'none';
+    if (nombre === 'login') {
+      window.location.href = 'index.html';
+    } else if (nombre === 'denegado') {
+      document.getElementById('denegadoEmail').textContent = email || '';
+      document.getElementById('pantallaDenegado').classList.add('show');
+    } else if (nombre === 'app') {
+      document.getElementById('appRoot').style.display = 'block';
+      document.getElementById('headerUserEmail').textContent = email || '';
+    }
+  }
+  function cerrarSesion() { supabaseClient.auth.signOut(); }
+
+  // Modo solo lectura (rol='visual'): el bloqueo real lo hace el RLS del servidor;
+  // esto solo oculta los botones que de todos modos van a fallar.
+  function aplicarModoSoloLectura(nombresEscritura) {
+    if (!window.SOLO_LECTURA) return;
+    try {
+      if (!document.getElementById('bannerSoloLectura')) {
+        var banner = document.createElement('div');
+        banner.id = 'bannerSoloLectura';
+        banner.textContent = '👁️ Modo solo lectura — esta cuenta solo puede ver, no puede cargar, editar ni borrar nada.';
+        banner.style.cssText = 'background:#5d4037;color:#fff;text-align:center;font-size:12px;font-weight:700;padding:7px 10px;';
+        document.body.insertBefore(banner, document.body.firstChild);
+      }
+      var patrones = (nombresEscritura || []).map(function(n) { return new RegExp('\\b' + n + '\\s*\\(', 'i'); });
+      function esControlDeEscritura(el) {
+        var fns = [el.onclick, el.onchange, el.onsubmit];
+        for (var i = 0; i < fns.length; i++) {
+          if (typeof fns[i] !== 'function') continue;
+          var src = fns[i].toString();
+          for (var j = 0; j < patrones.length; j++) { if (patrones[j].test(src)) return true; }
+        }
+        return false;
+      }
+      function procesar(root) {
+        if (!root || root.nodeType !== 1 || !root.querySelectorAll) return;
+        var candidatos = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+        candidatos.forEach(function(el) {
+          if (!el.hasAttribute || el.hasAttribute('data-solo-lectura-visto')) return;
+          el.setAttribute('data-solo-lectura-visto', '1');
+          if (esControlDeEscritura(el)) el.style.setProperty('display', 'none', 'important');
+        });
+      }
+      procesar(document.body);
+      new MutationObserver(function(muts) { muts.forEach(function(m) { m.addedNodes.forEach(procesar); }); })
+        .observe(document.body, { childList: true, subtree: true });
+    } catch (e) { console.error('Error al aplicar modo solo lectura:', e); }
+  }
+
+  var _sesionEnCurso = false;
+  async function manejarSesion(session) {
+    if (_sesionEnCurso) return;
+    _sesionEnCurso = true;
+    try {
+      if (!session) { mostrarPantalla('login'); return; }
+      showLoading('Verificando acceso…');
+      var email = (session.user.email || '').toLowerCase().trim();
+      var res = await supabaseClient.from('usuarios_autorizados').select('email, rol').eq('email', email).maybeSingle();
+      if (res.error) {
+        console.error('Error al verificar el acceso: ', res.error);
+        if (!document.getElementById('mantenimientoModal').classList.contains('show')) {
+          mostrarModalMantenimiento('No se pudo conectar con el servidor para verificar el acceso. Puede ser un mantenimiento no anunciado o un problema de conexión — probá de nuevo en unos minutos.');
+        }
+        mostrarPantalla('login');
+        return;
+      }
+      if (!res.data) { mostrarPantalla('denegado', session.user.email); return; }
+      window.USUARIO_EMAIL = email;
+      mostrarPantalla('app', session.user.email);
+      window.SOLO_LECTURA = (res.data.rol === 'visual');
+      if (window.SOLO_LECTURA) aplicarModoSoloLectura(['abrirModalFirma', 'editarFirma', 'quitarFirma', 'guardarFirma']);
+      cargarFirmas();
+    } finally {
+      hideLoading();
+      _sesionEnCurso = false;
+    }
+  }
+  supabaseClient.auth.onAuthStateChange(function(event, session) { manejarSesion(session); });
+
+  // ============================================================
+  // LISTADO — solo el personal con firma cargada
+  // ============================================================
+  var firmas = [];          // filas de firmas_digitales
+  var urlsFirma = {};       // firma_path -> link temporal (el bucket es privado)
+
+  function rutaFirma(lp) { return 'FIRMAS/firma_' + String(lp).replace(/[^a-zA-Z0-9_-]/g, '_') + '.png'; }
+
+  async function cargarFirmas() {
+    showLoading('Cargando firmas…');
+    try {
+      var res = await supabaseClient.from('firmas_digitales').select('*').order('apellido', { ascending: true }).order('nombres', { ascending: true });
+      if (res.error) {
+        firmas = [];
+        var falta = /firmas_digitales/i.test(res.error.message || '') || res.error.code === '42P01';
+        alertShow('topAlert', 'error', falta
+          ? 'Todavía no existe la tabla de firmas. ¿Corriste firmas_digitales_schema.sql en el SQL Editor de Supabase?'
+          : 'Error al cargar las firmas: ' + res.error.message);
+      } else {
+        firmas = res.data || [];
+      }
+      urlsFirma = {};
+      var paths = firmas.map(function(f){ return f.firma_path; }).filter(Boolean);
+      if (paths.length) {
+        var su = await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrls(paths, 3600);
+        if (!su.error) (su.data || []).forEach(function(x){ if (x.signedUrl) urlsFirma[x.path] = x.signedUrl; });
+      }
+      renderLista();
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderLista() {
+    var q = str(document.getElementById('listaBuscar').value).toLowerCase();
+    var lista = firmas.filter(function(f) {
+      if (!q) return true;
+      return [f.lp, f.apellido, f.nombres, f.grado, f.cargo].join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+    document.getElementById('listaCount').textContent = lista.length + ' de ' + firmas.length;
+    var wrap = document.getElementById('tablaWrap');
+    if (!lista.length) {
+      wrap.innerHTML = '<div class="no-data"><div class="no-data-icon">✍️</div><div class="no-data-text">' +
+        (firmas.length ? 'Sin coincidencias' : 'Todavía no hay firmas cargadas — tocá “Agregar firma”') + '</div></div>';
+      return;
+    }
+    var html = '<table><thead><tr><th>Firma</th><th>Grado</th><th>Apellido</th><th>Nombres</th><th>LP</th><th>Cargo</th><th></th></tr></thead><tbody>';
+    lista.forEach(function(f, i) {
+      var url = urlsFirma[f.firma_path];
+      html += '<tr>' +
+        '<td><div class="firma-thumb">' + (url ? '<img src="' + esc(url) + '" alt="Firma">' : '<span style="font-size:11px;color:#999;">sin imagen</span>') + '</div></td>' +
+        '<td>' + esc(f.grado) + '</td><td>' + esc(f.apellido) + '</td><td>' + esc(f.nombres) + '</td><td>' + esc(f.lp) + '</td><td>' + esc(f.cargo) + '</td>' +
+        '<td class="action-col">' +
+          '<button class="btn btn-primary btn-sm" onclick="editarFirma(' + "'" + esc(f.lp) + "'" + ')">✏️ Cambiar</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="quitarFirma(' + "'" + esc(f.lp) + "'" + ')">🗑️ Quitar</button>' +
+        '</td></tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  // ============================================================
+  // AGREGAR / CAMBIAR FIRMA
+  // ============================================================
+  var modalPersona = null;     // { lp, grado, apellido, nombres }
+  var modalExistente = null;   // fila ya cargada de esa persona (si la hay)
+  var modalImgOriginal = null; // dataURL reducido de la imagen elegida (antes de quitar fondo)
+  var modalImgFinal = null;    // dataURL PNG final que se va a subir
+
+  function limpiarModal() {
+    modalPersona = null; modalExistente = null; modalImgOriginal = null; modalImgFinal = null;
+    document.getElementById('fBuscar').value = '';
+    document.getElementById('fSugerencias').classList.remove('show');
+    document.getElementById('fSugerencias').innerHTML = '';
+    document.getElementById('fCargo').value = '';
+    document.getElementById('fArchivo').value = '';
+    document.getElementById('fQuitarFondo').checked = true;
+    document.getElementById('firmaPreview').classList.remove('show');
+    document.getElementById('personaSel').classList.remove('show');
+    document.getElementById('modalAlert').className = 'alert';
+    document.getElementById('bloqueBuscar').style.display = '';
+  }
+
+  function abrirModalFirma() {
+    limpiarModal();
+    document.getElementById('firmaModalTitulo').textContent = 'Agregar firma';
+    document.getElementById('firmaModal').classList.add('show');
+    setTimeout(function(){ document.getElementById('fBuscar').focus(); }, 50);
+  }
+
+  function editarFirma(lp) {
+    var f = firmas.find(function(x){ return String(x.lp) === String(lp); });
+    if (!f) return;
+    limpiarModal();
+    modalPersona = { lp: f.lp, grado: f.grado, apellido: f.apellido, nombres: f.nombres };
+    modalExistente = f;
+    document.getElementById('firmaModalTitulo').textContent = 'Cambiar firma';
+    document.getElementById('bloqueBuscar').style.display = 'none';
+    document.getElementById('fCargo').value = f.cargo || '';
+    mostrarPersonaSel();
+    var url = urlsFirma[f.firma_path];
+    if (url) {
+      document.getElementById('firmaPreviewImg').src = url;
+      document.getElementById('firmaPreview').classList.add('show');
+    }
+    document.getElementById('firmaHint').textContent = 'Dejá el archivo vacío si solo querés cambiar el cargo. Si subís una imagen nueva, reemplaza la anterior.';
+    document.getElementById('firmaModal').classList.add('show');
+  }
+
+  function cerrarModalFirma() { document.getElementById('firmaModal').classList.remove('show'); }
+
+  function mostrarPersonaSel() {
+    var p = modalPersona, el = document.getElementById('personaSel');
+    var ya = modalExistente || firmas.find(function(x){ return String(x.lp) === String(p.lp); });
+    if (ya && !modalExistente) modalExistente = ya;
+    el.innerHTML = '👤 <b>' + esc(p.apellido) + ', ' + esc(p.nombres) + '</b> (' + esc(p.grado) + ') — LP ' + esc(p.lp) +
+      (ya && !document.getElementById('bloqueBuscar').style.display ? '' : '') +
+      ((ya && document.getElementById('bloqueBuscar').style.display !== 'none') ? '<div class="aviso">⚠️ Esta persona ya tiene una firma cargada: si subís otra, la reemplaza.</div>' : '');
+    el.classList.add('show');
+    if (ya && !str(document.getElementById('fCargo').value)) document.getElementById('fCargo').value = ya.cargo || '';
+  }
+
+  // ---- búsqueda en la nómina general (46.000 filas): al servidor, con debounce ----
+  var _debounce = null, _resultados = [];
+  function buscarPersonal() {
+    var input = document.getElementById('fBuscar'), listEl = document.getElementById('fSugerencias');
+    var q = str(input.value);
+    clearTimeout(_debounce);
+    if (!q) { listEl.classList.remove('show'); listEl.innerHTML = ''; return; }
+    if (q.length < 3) { listEl.innerHTML = '<div class="autocomplete-empty">Escribí al menos 3 caracteres</div>'; listEl.classList.add('show'); return; }
+    listEl.innerHTML = '<div class="autocomplete-empty">Buscando…</div>';
+    listEl.classList.add('show');
+    _debounce = setTimeout(async function() {
+      var qEsc = q.replace(/[%_,()]/g, '');
+      var res = await supabaseClient.from('nomina_general')
+        .select('lp:legajo,grado,apellido,nombre')
+        .or('legajo.ilike.%' + qEsc + '%,apellido.ilike.%' + qEsc + '%,nombre.ilike.%' + qEsc + '%')
+        .limit(10);
+      if (res.error) { listEl.innerHTML = '<div class="autocomplete-empty">Error al buscar</div>'; return; }
+      _resultados = res.data || [];
+      if (!_resultados.length) {
+        listEl.innerHTML = '<div class="autocomplete-empty">Sin coincidencias en la nómina general</div>';
+      } else {
+        listEl.innerHTML = _resultados.map(function(p, i) {
+          return '<div class="autocomplete-item" onmousedown="seleccionarPersona(' + i + ')"><b>' + esc(p.apellido) + ', ' + esc(p.nombre) + '</b>' +
+            '<small>LP ' + esc(p.lp) + ' — ' + esc(p.grado) + '</small></div>';
+        }).join('');
+      }
+      listEl.classList.add('show');
+    }, 400);
+  }
+  function ocultarSugerenciasConDelay() { setTimeout(function(){ document.getElementById('fSugerencias').classList.remove('show'); }, 150); }
+
+  function seleccionarPersona(i) {
+    var p = _resultados[i];
+    if (!p) return;
+    modalPersona = { lp: str(p.lp), grado: str(p.grado), apellido: str(p.apellido), nombres: str(p.nombre) };
+    modalExistente = firmas.find(function(x){ return String(x.lp) === String(modalPersona.lp); }) || null;
+    document.getElementById('fBuscar').value = modalPersona.lp;
+    document.getElementById('fSugerencias').classList.remove('show');
+    if (modalExistente && !str(document.getElementById('fCargo').value)) document.getElementById('fCargo').value = modalExistente.cargo || '';
+    mostrarPersonaSel();
+  }
+
+  // ---- procesamiento de la imagen (en el navegador) ----
+  function procesarArchivo() {
+    var archivo = document.getElementById('fArchivo').files[0];
+    if (!archivo) { modalImgOriginal = null; modalImgFinal = null; document.getElementById('firmaPreview').classList.remove('show'); return; }
+    var lector = new FileReader();
+    lector.onload = function(ev) {
+      var imagen = new Image();
+      imagen.onload = function() {
+        var maxLado = 700;
+        var escala = Math.min(1, maxLado / Math.max(imagen.width, imagen.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(imagen.width * escala);
+        canvas.height = Math.round(imagen.height * escala);
+        canvas.getContext('2d').drawImage(imagen, 0, 0, canvas.width, canvas.height);
+        modalImgOriginal = canvas.toDataURL('image/png');
+        reprocesarImagen();
+      };
+      imagen.onerror = function() { alertShow('modalAlert', 'error', 'No se pudo leer esa imagen. Probá con un PNG o JPG.'); };
+      imagen.src = ev.target.result;
+    };
+    lector.readAsDataURL(archivo);
+  }
+
+  function reprocesarImagen() {
+    if (!modalImgOriginal) return;
+    var quitarFondo = document.getElementById('fQuitarFondo').checked;
+    var imagen = new Image();
+    imagen.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = imagen.width; canvas.height = imagen.height;
+      canvas.getContext('2d').drawImage(imagen, 0, 0);
+      canvas = recortarBordesVacios(canvas);
+      if (quitarFondo) canvas = haceFondoTransparente(canvas);
+      modalImgFinal = canvas.toDataURL('image/png');
+      document.getElementById('firmaPreviewImg').src = modalImgFinal;
+      document.getElementById('firmaPreview').classList.add('show');
+    };
+    imagen.src = modalImgOriginal;
+  }
+
+  function recortarBordesVacios(canvas) {
+    var ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height, datos;
+    try { datos = ctx.getImageData(0, 0, w, h).data; } catch (e) { return canvas; }
+    var minX = w, minY = h, maxX = -1, maxY = -1, umbral = 245;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var i = (y * w + x) * 4;
+        var esFondo = datos[i + 3] < 10 || (datos[i] > umbral && datos[i + 1] > umbral && datos[i + 2] > umbral);
+        if (!esFondo) {
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < minX || maxY < minY) return canvas;
+    var margen = Math.round(Math.max(w, h) * 0.03);
+    minX = Math.max(0, minX - margen); minY = Math.max(0, minY - margen);
+    maxX = Math.min(w - 1, maxX + margen); maxY = Math.min(h - 1, maxY + margen);
+    var rec = document.createElement('canvas');
+    rec.width = maxX - minX + 1; rec.height = maxY - minY + 1;
+    rec.getContext('2d').drawImage(canvas, minX, minY, rec.width, rec.height, 0, 0, rec.width, rec.height);
+    return rec;
+  }
+
+  function haceFondoTransparente(canvas) {
+    var ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height, imgData;
+    try { imgData = ctx.getImageData(0, 0, w, h); } catch (e) { return canvas; }
+    var d = imgData.data, bajo = 195, alto = 248;
+    for (var i = 0; i < d.length; i += 4) {
+      var brillo = (d[i] + d[i + 1] + d[i + 2]) / 3;
+      if (brillo >= alto) d[i + 3] = 0;
+      else if (brillo > bajo) d[i + 3] = Math.round(d[i + 3] * (alto - brillo) / (alto - bajo));
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return canvas;
+  }
+
+  // ---- guardar ----
+  async function guardarFirma() {
+    if (!modalPersona) { alertShow('modalAlert', 'error', 'Buscá y elegí primero a la persona.'); return; }
+    if (!modalImgFinal && !modalExistente) { alertShow('modalAlert', 'error', 'Subí la imagen de la firma.'); return; }
+    var btn = document.getElementById('btnGuardarFirma');
+    btn.disabled = true;
+    showLoading('Guardando firma…');
+    try {
+      var path = (modalExistente && modalExistente.firma_path) || rutaFirma(modalPersona.lp);
+      if (modalImgFinal) {
+        path = rutaFirma(modalPersona.lp);
+        var blob = await (await fetch(modalImgFinal)).blob();
+        var up = await supabaseClient.storage.from(STORAGE_BUCKET).upload(path, blob, { upsert: true, contentType: 'image/png' });
+        if (up.error) throw new Error('No se pudo subir la imagen: ' + up.error.message);
+      }
+      var fila = {
+        lp: modalPersona.lp, grado: modalPersona.grado, apellido: modalPersona.apellido, nombres: modalPersona.nombres,
+        cargo: str(document.getElementById('fCargo').value), firma_path: path,
+        usuario: window.USUARIO_EMAIL || null, updated_at: new Date().toISOString()
+      };
+      var res = await supabaseClient.from('firmas_digitales').upsert(fila, { onConflict: 'lp' });
+      if (res.error) throw new Error(res.error.message);
+      cerrarModalFirma();
+      alertShow('topAlert', 'success', 'Firma guardada: ' + modalPersona.apellido + ', ' + modalPersona.nombres + '.');
+      await cargarFirmas();
+    } catch (err) {
+      alertShow('modalAlert', 'error', 'Error: ' + (err.message || err));
+    } finally {
+      hideLoading();
+      btn.disabled = false;
+    }
+  }
+
+  function quitarFirma(lp) {
+    var f = firmas.find(function(x){ return String(x.lp) === String(lp); });
+    if (!f) return;
+    showConfirm('¿Quitar la firma de ' + f.apellido + ', ' + f.nombres + '? Deja de aparecer en la lista y en Creación de Diplomas. Después se puede volver a cargar.', async function() {
+      showLoading('Quitando firma…');
+      try {
+        var res = await supabaseClient.from('firmas_digitales').delete().eq('lp', f.lp);
+        if (res.error) throw new Error(res.error.message);
+        if (f.firma_path) await supabaseClient.storage.from(STORAGE_BUCKET).remove([f.firma_path]);
+        alertShow('topAlert', 'success', 'Firma quitada.');
+        await cargarFirmas();
+      } catch (err) {
+        alertShow('topAlert', 'error', 'Error: ' + (err.message || err));
+      } finally {
+        hideLoading();
+      }
+    }, { peligroso: true, textoOk: 'Quitar', icon: '🗑️' });
+  }
+</script>
+
+<div class="modal-overlay" id="mantenimientoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚠️ Aviso de Supabase</div>
+      <button class="modal-close" onclick="document.getElementById('mantenimientoModal').classList.remove('show')">✕</button>
+    </div>
+    <p id="mantenimientoModalTexto" style="line-height:1.5; color:var(--text, #333);"></p>
+  </div>
+</div>
+
+</body>
+</html>

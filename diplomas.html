@@ -121,6 +121,19 @@
     .switch input:focus-visible + .pista { outline: 2px solid var(--primary); outline-offset: 2px; }
     .btn-limpiar-firma { background: none; border: none; color: var(--red); font-size: 11px; font-weight: 700; cursor: pointer; margin-top: 4px; display: none; }
 
+    .btn-elegir-firma { width: 100%; margin-top: 8px; padding: 8px 10px; background: #e8eaf6; color: var(--primary); border: 1.5px solid var(--primary); border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .btn-elegir-firma:hover:not(:disabled) { background: #d8dcf3; }
+    .btn-elegir-firma:disabled { opacity: .45; cursor: not-allowed; }
+    .sel-lista { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .sel-item { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; background: #fff; text-align: left; font-family: inherit; width: 100%; }
+    .sel-item:hover { border-color: var(--primary); background: #f5f6fd; }
+    .sel-thumb { width: 120px; height: 46px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+      background: #fff linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; }
+    .sel-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .sel-datos b { display: block; font-size: 13px; color: var(--text); }
+    .sel-datos small { display: block; font-size: 11px; color: var(--muted); line-height: 1.35; }
+    .sel-vacio { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 8px; line-height: 1.5; }
+
     #btnGenerar { width: 100%; margin-top: 4px; padding: 13px; font-size: 14px; }
     #mensaje { margin-top: 12px; margin-bottom: 0; }
 
@@ -246,6 +259,7 @@
             <label class="switch"><input type="checkbox" id="f1activo" checked><span class="pista"></span><span class="switch-txt">Incluir</span></label>
           </div>
           <div class="firmante-body">
+            <button type="button" class="btn-elegir-firma" id="f1elegir" onclick="abrirSelectorFirmas(1)">✍️ Elegir de Firmas Digitales</button>
             <label class="form-label" for="f1nombre">Nombre</label>
             <input type="text" id="f1nombre" value="Matias Ezequiel Bailatte">
             <label class="form-label" for="f1cargo">Cargo</label>
@@ -262,6 +276,7 @@
             <label class="switch"><input type="checkbox" id="f2activo" checked><span class="pista"></span><span class="switch-txt">Incluir</span></label>
           </div>
           <div class="firmante-body">
+            <button type="button" class="btn-elegir-firma" id="f2elegir" onclick="abrirSelectorFirmas(2)">✍️ Elegir de Firmas Digitales</button>
             <label class="form-label" for="f2nombre">Nombre</label>
             <input type="text" id="f2nombre" value="María Mercedes Rebaynera">
             <label class="form-label" for="f2cargo">Cargo</label>
@@ -278,6 +293,7 @@
             <label class="switch"><input type="checkbox" id="f3activo" checked><span class="pista"></span><span class="switch-txt">Incluir</span></label>
           </div>
           <div class="firmante-body">
+            <button type="button" class="btn-elegir-firma" id="f3elegir" onclick="abrirSelectorFirmas(3)">✍️ Elegir de Firmas Digitales</button>
             <label class="form-label" for="f3nombre">Nombre</label>
             <input type="text" id="f3nombre" value="Javier Martín López Zavaleta">
             <label class="form-label" for="f3cargo">Cargo</label>
@@ -288,7 +304,7 @@
           </div>
         </div>
 
-        <p class="ayuda">Subí una foto o recorte de cada firma (con fondo blanco o transparente). Si no cargás nada, esa firma queda solo con la línea de puntos. Las imágenes se procesan en tu navegador y no se guardan en ningún lado.</p>
+        <p class="ayuda">Con “Elegir de Firmas Digitales” se trae el nombre, el cargo y la firma de una persona ya cargada en esa sección. También podés subir una imagen a mano (con fondo blanco o transparente): esa no se guarda en ningún lado. Si no cargás nada, la firma queda solo con la línea de puntos.</p>
       </fieldset>
 
       <button class="btn btn-primary" id="btnGenerar" onclick="generarDiploma()">📄 Generar y descargar PDF</button>
@@ -330,6 +346,19 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Selector de firmas (viene de la sección Firmas Digitales) -->
+<div class="modal-overlay" id="selFirmaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="selFirmaTitulo">Elegir firma</div>
+      <button class="modal-close" onclick="cerrarSelectorFirmas()">✕</button>
+    </div>
+    <input type="text" id="selFirmaBuscar" placeholder="🔎 Filtrar por LP, apellido o nombre…" oninput="renderSelectorFirmas()">
+    <div class="sel-lista" id="selFirmaLista"></div>
+    <p class="ayuda" style="margin-top:12px;">Para sumar a alguien que no está, cargá su firma en <a href="firmas.html" target="_blank" rel="noopener">Firmas Digitales</a> y volvé a abrir este selector.</p>
   </div>
 </div>
 
@@ -483,7 +512,7 @@
       });
       var bloque = document.getElementById('firmante-' + n);
       bloque.classList.toggle('off', !activo);
-      bloque.querySelectorAll('input[type=text], input[type=file]').forEach(function (i) { i.disabled = !activo; });
+      bloque.querySelectorAll('input[type=text], input[type=file], .btn-elegir-firma').forEach(function (i) { i.disabled = !activo; });
       document.querySelector('#firmante-' + n + ' .switch-txt').textContent = activo ? 'Incluir' : 'No incluir';
     });
   }
@@ -544,6 +573,104 @@
       lector.readAsDataURL(archivo);
     });
   });
+
+  // ============================================================
+  // ELEGIR FIRMA DESDE "FIRMAS DIGITALES"
+  // ============================================================
+  var selFirmante = 0, listaFirmas = [], urlsFirmas = {};
+
+  // "BAILATTE" -> "Bailatte"; las partículas (de, la, del…) quedan en minúscula.
+  function tituloNombre(txt) {
+    var particulas = ['de', 'del', 'la', 'las', 'los', 'y', 'e', 'da', 'di', 'do', 'van', 'von'];
+    return String(txt || '').trim().toLowerCase().split(/\s+/).filter(Boolean).map(function (w, i) {
+      if (i > 0 && particulas.indexOf(w) !== -1) return w;
+      return w.split('-').map(function (p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join('-');
+    }).join(' ');
+  }
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+
+  async function abrirSelectorFirmas(n) {
+    selFirmante = n;
+    document.getElementById('selFirmaTitulo').textContent = 'Elegir firma — Firmante ' + n;
+    document.getElementById('selFirmaBuscar').value = '';
+    document.getElementById('selFirmaLista').innerHTML = '<div class="sel-vacio">Cargando…</div>';
+    document.getElementById('selFirmaModal').classList.add('show');
+    var res = await supabaseClient.from('firmas_digitales').select('*').order('apellido', { ascending: true }).order('nombres', { ascending: true });
+    if (res.error) {
+      listaFirmas = [];
+      var falta = /firmas_digitales/i.test(res.error.message || '') || res.error.code === '42P01';
+      document.getElementById('selFirmaLista').innerHTML = '<div class="sel-vacio">' + (falta
+        ? 'Todavía no existe la tabla de firmas (hay que correr firmas_digitales_schema.sql en Supabase).'
+        : 'No se pudieron cargar las firmas: ' + escHtml(res.error.message)) + '</div>';
+      return;
+    }
+    listaFirmas = res.data || [];
+    urlsFirmas = {};
+    var paths = listaFirmas.map(function (f) { return f.firma_path; }).filter(Boolean);
+    if (paths.length) {
+      var su = await supabaseClient.storage.from('adjuntos').createSignedUrls(paths, 3600);
+      if (!su.error) (su.data || []).forEach(function (x) { if (x.signedUrl) urlsFirmas[x.path] = x.signedUrl; });
+    }
+    renderSelectorFirmas();
+  }
+  function cerrarSelectorFirmas() { document.getElementById('selFirmaModal').classList.remove('show'); }
+
+  function renderSelectorFirmas() {
+    var q = document.getElementById('selFirmaBuscar').value.trim().toLowerCase();
+    var cont = document.getElementById('selFirmaLista');
+    var lista = listaFirmas.filter(function (f) {
+      return !q || [f.lp, f.apellido, f.nombres, f.grado, f.cargo].join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+    if (!lista.length) {
+      cont.innerHTML = '<div class="sel-vacio">' + (listaFirmas.length ? 'Sin coincidencias.' : 'Todavía no hay firmas cargadas en la sección Firmas Digitales.') + '</div>';
+      return;
+    }
+    cont.innerHTML = lista.map(function (f) {
+      var url = urlsFirmas[f.firma_path];
+      var idx = listaFirmas.indexOf(f);
+      return '<button type="button" class="sel-item" onclick="elegirFirma(' + idx + ')">' +
+        '<span class="sel-thumb">' + (url ? '<img src="' + escHtml(url) + '" alt="">' : '') + '</span>' +
+        '<span class="sel-datos"><b>' + escHtml(f.apellido) + ', ' + escHtml(f.nombres) + '</b>' +
+        '<small>' + escHtml(f.grado) + ' — LP ' + escHtml(f.lp) + (f.cargo ? '<br>' + escHtml(f.cargo) : '') + '</small></span></button>';
+    }).join('');
+  }
+
+  async function elegirFirma(idx) {
+    var f = listaFirmas[idx], n = selFirmante;
+    if (!f || !n) return;
+    showLoading('Trayendo la firma…');
+    try {
+      var dl = await supabaseClient.storage.from('adjuntos').download(f.firma_path);
+      if (dl.error) throw new Error(dl.error.message);
+      var dataUrl = await new Promise(function (ok, fail) {
+        var lector = new FileReader();
+        lector.onload = function () { ok(lector.result); };
+        lector.onerror = function () { fail(new Error('No se pudo leer la imagen')); };
+        lector.readAsDataURL(dl.data);
+      });
+      // nombre y apellido de la persona (y su cargo, si lo tiene cargado)
+      document.getElementById('f' + n + 'nombre').value = tituloNombre(f.nombres) + ' ' + tituloNombre(f.apellido);
+      if (str(f.cargo)) document.getElementById('f' + n + 'cargo').value = f.cargo;
+      firmasImg[n] = dataUrl;
+      var imgPreview = document.getElementById('p-f' + n + 'firma');
+      imgPreview.src = dataUrl;
+      imgPreview.style.display = 'block';
+      document.getElementById('f' + n + 'firma').value = '';
+      document.getElementById('f' + n + 'quitar').style.display = 'inline-block';
+      var sw = document.getElementById('f' + n + 'activo');
+      if (!sw.checked) sw.checked = true;
+      actualizarVistaPrevia();
+      cerrarSelectorFirmas();
+    } catch (err) {
+      mostrarMensaje('No se pudo traer la firma: ' + (err.message || err), 'error');
+      cerrarSelectorFirmas();
+    } finally {
+      hideLoading();
+    }
+  }
+  function str(v) { return String(v == null ? '' : v).trim(); }
 
   // Recorta un canvas al rectángulo que realmente tiene contenido, dejando un margencito.
   function recortarBordesVacios(canvas) {
