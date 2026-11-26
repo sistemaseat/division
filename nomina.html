@@ -316,6 +316,7 @@
       </div>
       <button class="btn btn-ghost" onclick="limpiarFiltrosPadron()">Limpiar</button>
       <span class="count-pill" id="padronCountPill">0 registros</span>
+      <button class="btn btn-success" id="btnExportarPadron" onclick="exportarPadronExcel()" title="Descarga en Excel lo que muestra esta tabla, con la vista y los filtros actuales">⬇️ Exportar Excel</button>
     </div>
     <div class="table-card">
       <table>
@@ -765,6 +766,87 @@
   function irPaginaPadron(p) {
     padPage = Math.max(0, p);
     recargarPadron(false);
+  }
+
+  // ============================================================
+  // EXPORTAR LA TABLA DEL PADRÓN — baja a Excel exactamente lo que muestra la
+  // tabla (Grado, Legajo, Apellido, Nombre, DNI, Dependencia) para la vista
+  // elegida (Todo Actividad / DCEISSP / Tiro / Desvinculados) y con los
+  // filtros de búsqueda y de dependencia que estén puestos. Trae todo el
+  // resultado (no solo la página que se ve), en bloques de 1000.
+  // ============================================================
+  var VISTA_NOMBRES = { all: 'Todo Actividad', dceissp: 'DCEISSP', tiro: 'Tiro', desvinculados: 'Desvinculados' };
+
+  async function exportarPadronExcel() {
+    var vista = VISTA;
+    var buscar = str(document.getElementById('fBuscar').value);
+    var btn = document.getElementById('btnExportarPadron');
+    btn.disabled = true;
+    showLoading('Trayendo registros…');
+    try {
+      var all = [], page = 0, pageSize = 1000;
+      while (true) {
+        var q = supabaseClient.from('nomina_general').select('legajo,grado,apellido,nombre,dni,dependencia');
+        q = aplicarFiltrosVista(q, vista);
+        q = aplicarFiltroDependencia(q, document.getElementById('fDependencia').value, 'listaDependencias');
+        q = aplicarBusquedaTexto(q, buscar);
+        // legajo como desempate: así el orden es estable entre bloque y bloque
+        q = q.order('apellido', { ascending: true }).order('nombre', { ascending: true }).order('legajo', { ascending: true })
+             .range(page * pageSize, page * pageSize + pageSize - 1);
+        var res = await q;
+        if (res.error) throw res.error;
+        var batch = res.data || [];
+        all = all.concat(batch);
+        showLoading('Trayendo registros… (' + fmtNum(all.length) + ')');
+        if (batch.length < pageSize) break;
+        page++;
+      }
+      if (!all.length) {
+        alertShow('topAlert', 'error', 'No hay registros con este filtro para exportar.');
+        return;
+      }
+
+      showLoading('Generando Excel…');
+      var nombreVista = VISTA_NOMBRES[vista] || 'Padrón';
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet(nombreVista);
+      ws.columns = [
+        { header: 'Grado',       key: 'grado',       width: 20 },
+        { header: 'Legajo',      key: 'legajo',      width: 11 },
+        { header: 'Apellido',    key: 'apellido',    width: 24 },
+        { header: 'Nombre',      key: 'nombre',      width: 26 },
+        { header: 'DNI',         key: 'dni',         width: 13 },
+        { header: 'Dependencia', key: 'dependencia', width: 60 }
+      ];
+      var cab = ws.getRow(1);
+      cab.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cab.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A237E' } };
+      cab.alignment = { vertical: 'middle' };
+      cab.height = 20;
+      all.forEach(function(row) {
+        ws.addRow({
+          grado: str(row.grado), legajo: str(row.legajo), apellido: str(row.apellido),
+          nombre: str(row.nombre), dni: str(row.dni), dependencia: str(row.dependencia)
+        });
+      });
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      ws.autoFilter = { from: 'A1', to: 'F1' };
+
+      var buffer = await wb.xlsx.writeBuffer();
+      var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'Nomina ' + nombreVista + ' ' + isoDate(new Date()) + '.xlsx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alertShow('topAlert', 'success', '✅ Excel generado: ' + nombreVista + ', ' + fmtNum(all.length) + ' registros.');
+    } catch (e) {
+      alertShow('topAlert', 'error', 'Error al exportar: ' + (e.message || e));
+    } finally {
+      hideLoading();
+      btn.disabled = false;
+    }
   }
 
   // ============================================================
